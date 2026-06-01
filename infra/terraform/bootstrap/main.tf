@@ -1,9 +1,18 @@
-data "google_project" "current" {
-  project_id = var.project_id
-}
+module "bootstrap" {
+  source = "github.com/collinbentley1/platform//terraform/modules/bootstrap?ref=v0.1.2"
 
-locals {
-  required_services = toset([
+  app                   = "cdbentley"
+  project_id            = var.project_id
+  region                = var.region
+  state_bucket_name     = var.state_bucket_name
+  state_bucket_location = var.state_bucket_location
+  github_owner          = var.github_owner
+  github_repo           = var.github_repo
+  github_owner_id       = var.github_owner_id
+  github_repository_id  = var.github_repository_id
+  runtime_description   = "Runtime identity for the cdbentley Cloud Run services."
+
+  required_services = [
     "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
@@ -11,272 +20,130 @@ locals {
     "run.googleapis.com",
     "serviceusage.googleapis.com",
     "sts.googleapis.com",
-  ])
-
-  github_repo_full_name  = "${var.github_owner}/${var.github_repo}"
-  github_main_subject    = "repo:${local.github_repo_full_name}:ref:refs/heads/main"
-  github_prod_subject    = "repo:${local.github_repo_full_name}:environment:production"
-  workload_identity_pool = "projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}"
-
-  github_main_principal     = "principal://iam.googleapis.com/${local.workload_identity_pool}/subject/${local.github_main_subject}"
-  github_prod_principal     = "principal://iam.googleapis.com/${local.workload_identity_pool}/subject/${local.github_prod_subject}"
-  github_repo_principal_set = "principalSet://iam.googleapis.com/${local.workload_identity_pool}/attribute.repository_id/${var.github_repository_id}"
-}
-
-resource "google_project_service" "required" {
-  for_each = local.required_services
-
-  project            = var.project_id
-  service            = each.value
-  disable_on_destroy = false
-}
-
-resource "google_storage_bucket" "terraform_state" {
-  name                        = var.state_bucket_name
-  project                     = var.project_id
-  location                    = var.state_bucket_location
-  uniform_bucket_level_access = true
-  public_access_prevention    = "enforced"
-  force_destroy               = false
-
-  logging {
-    log_bucket        = google_storage_bucket.terraform_state_access_logs.name
-    log_object_prefix = "terraform-state/"
-  }
-
-  versioning {
-    enabled = true
-  }
-
-  lifecycle_rule {
-    action {
-      type = "Delete"
-    }
-
-    condition {
-      age                   = 90
-      num_newer_versions    = 20
-      with_state            = "ARCHIVED"
-      matches_storage_class = ["STANDARD"]
-    }
-  }
-
-  labels = {
-    app        = "cdbentley"
-    managed-by = "terraform"
-  }
-
-  depends_on = [
-    google_project_service.required,
-    google_storage_bucket_iam_member.terraform_state_access_logs_writer,
   ]
 }
 
-resource "google_storage_bucket" "terraform_state_access_logs" {
-  #checkov:skip=CKV_GCP_62:This bucket is the sink for Terraform state access logs.
-  name                        = "${var.state_bucket_name}-access-logs"
-  project                     = var.project_id
-  location                    = var.state_bucket_location
-  uniform_bucket_level_access = true
-  public_access_prevention    = "enforced"
-  force_destroy               = false
-
-  versioning {
-    enabled = true
-  }
-
-  lifecycle_rule {
-    action {
-      type = "Delete"
-    }
-
-    condition {
-      age                   = 365
-      matches_storage_class = ["STANDARD"]
-    }
-  }
-
-  labels = {
-    app        = "cdbentley"
-    managed-by = "terraform"
-    purpose    = "terraform-state-access-logs"
-  }
-
-  depends_on = [google_project_service.required]
+moved {
+  from = google_project_service.required
+  to   = module.bootstrap.google_project_service.required
 }
 
-resource "google_storage_bucket_iam_member" "terraform_state_access_logs_writer" {
-  bucket = google_storage_bucket.terraform_state_access_logs.name
-  role   = "roles/storage.objectCreator"
-  member = "group:cloud-storage-analytics@google.com"
+moved {
+  from = google_storage_bucket.terraform_state
+  to   = module.bootstrap.google_storage_bucket.terraform_state
 }
 
-resource "google_iam_workload_identity_pool" "github" {
-  project                   = var.project_id
-  workload_identity_pool_id = "github-actions"
-  display_name              = "GitHub Actions"
-  description               = "GitHub Actions OIDC identities for ${local.github_repo_full_name}."
-
-  depends_on = [google_project_service.required]
+moved {
+  from = google_storage_bucket.terraform_state_access_logs
+  to   = module.bootstrap.google_storage_bucket.terraform_state_access_logs
 }
 
-resource "google_iam_workload_identity_pool_provider" "github" {
-  project                            = var.project_id
-  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
-  workload_identity_pool_provider_id = "github"
-  display_name                       = "GitHub"
-  description                        = "OIDC provider restricted to ${local.github_repo_full_name}."
-
-  attribute_mapping = {
-    "google.subject"                = "assertion.sub"
-    "attribute.repository_id"       = "assertion.repository_id"
-    "attribute.repository_owner_id" = "assertion.repository_owner_id"
-    "attribute.ref"                 = "assertion.ref"
-  }
-
-  attribute_condition = "assertion.repository_owner_id == '${var.github_owner_id}' && assertion.repository_id == '${var.github_repository_id}'"
-
-  oidc {
-    issuer_uri = "https://token.actions.githubusercontent.com/"
-  }
+moved {
+  from = google_storage_bucket_iam_member.terraform_state_access_logs_writer
+  to   = module.bootstrap.google_storage_bucket_iam_member.terraform_state_access_logs_writer
 }
 
-resource "google_service_account" "terraform" {
-  project      = var.project_id
-  account_id   = "gha-terraform"
-  display_name = "GitHub Actions Terraform"
-  description  = "Runs production Terraform from GitHub Actions on main."
-
-  depends_on = [google_project_service.required]
+moved {
+  from = google_iam_workload_identity_pool.github
+  to   = module.bootstrap.google_iam_workload_identity_pool.github
 }
 
-resource "google_service_account" "prod_deploy" {
-  project      = var.project_id
-  account_id   = "gha-prod-deploy"
-  display_name = "GitHub Actions Production Deploy"
-  description  = "Builds and deploys the production Cloud Run service from main."
-
-  depends_on = [google_project_service.required]
+moved {
+  from = google_iam_workload_identity_pool_provider.github
+  to   = module.bootstrap.google_iam_workload_identity_pool_provider.github
 }
 
-resource "google_service_account" "preview_deploy" {
-  project      = var.project_id
-  account_id   = "gha-preview-deploy"
-  display_name = "GitHub Actions Preview Deploy"
-  description  = "Builds, deploys, and deletes pull request Cloud Run previews."
-
-  depends_on = [google_project_service.required]
+moved {
+  from = google_service_account.terraform
+  to   = module.bootstrap.google_service_account.terraform
 }
 
-resource "google_service_account" "runtime" {
-  project      = var.project_id
-  account_id   = "cloud-run-runtime"
-  display_name = "Cloud Run Runtime"
-  description  = "Runtime identity for the cdbentley Cloud Run services."
-
-  depends_on = [google_project_service.required]
+moved {
+  from = google_service_account.prod_deploy
+  to   = module.bootstrap.google_service_account.prod_deploy
 }
 
-resource "google_project_iam_member" "terraform_project_roles" {
-  for_each = toset([
-    "roles/artifactregistry.admin",
-    "roles/browser",
-    "roles/run.admin",
-    "roles/serviceusage.serviceUsageAdmin",
-  ])
-
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.terraform.email}"
+moved {
+  from = google_service_account.preview_deploy
+  to   = module.bootstrap.google_service_account.preview_deploy
 }
 
-resource "google_project_iam_member" "deploy_project_roles" {
-  for_each = {
-    prod_browser      = { role = "roles/browser", email = google_service_account.prod_deploy.email }
-    prod_run_admin    = { role = "roles/run.admin", email = google_service_account.prod_deploy.email }
-    preview_browser   = { role = "roles/browser", email = google_service_account.preview_deploy.email }
-    preview_run_admin = { role = "roles/run.admin", email = google_service_account.preview_deploy.email }
-  }
-
-  project = var.project_id
-  role    = each.value.role
-  member  = "serviceAccount:${each.value.email}"
+moved {
+  from = google_service_account.runtime
+  to   = module.bootstrap.google_service_account.runtime
 }
 
-resource "google_storage_bucket_iam_member" "terraform_state_admin" {
-  bucket = google_storage_bucket.terraform_state.name
-  role   = "roles/storage.admin"
-  member = "serviceAccount:${google_service_account.terraform.email}"
+moved {
+  from = google_project_iam_member.terraform_project_roles
+  to   = module.bootstrap.google_project_iam_member.terraform_project_roles
 }
 
-resource "google_service_account_iam_member" "terraform_uses_runtime" {
-  service_account_id = google_service_account.runtime.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.terraform.email}"
+moved {
+  from = google_project_iam_member.deploy_project_roles
+  to   = module.bootstrap.google_project_iam_member.deploy_project_roles
 }
 
-resource "google_service_account_iam_member" "prod_deploy_uses_runtime" {
-  service_account_id = google_service_account.runtime.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.prod_deploy.email}"
+moved {
+  from = google_storage_bucket_iam_member.terraform_state_admin
+  to   = module.bootstrap.google_storage_bucket_iam_member.terraform_state_admin
 }
 
-resource "google_service_account_iam_member" "preview_deploy_uses_runtime" {
-  service_account_id = google_service_account.runtime.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.preview_deploy.email}"
+moved {
+  from = google_service_account_iam_member.terraform_uses_runtime
+  to   = module.bootstrap.google_service_account_iam_member.terraform_uses_runtime
 }
 
-resource "google_service_account_iam_member" "terraform_self_token_creator" {
-  service_account_id = google_service_account.terraform.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${google_service_account.terraform.email}"
+moved {
+  from = google_service_account_iam_member.prod_deploy_uses_runtime
+  to   = module.bootstrap.google_service_account_iam_member.prod_deploy_uses_runtime
 }
 
-resource "google_service_account_iam_member" "prod_deploy_self_token_creator" {
-  service_account_id = google_service_account.prod_deploy.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${google_service_account.prod_deploy.email}"
+moved {
+  from = google_service_account_iam_member.preview_deploy_uses_runtime
+  to   = module.bootstrap.google_service_account_iam_member.preview_deploy_uses_runtime
 }
 
-resource "google_service_account_iam_member" "preview_deploy_self_token_creator" {
-  service_account_id = google_service_account.preview_deploy.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${google_service_account.preview_deploy.email}"
+moved {
+  from = google_service_account_iam_member.terraform_self_token_creator
+  to   = module.bootstrap.google_service_account_iam_member.terraform_self_token_creator
 }
 
-resource "google_service_account_iam_member" "terraform_wif_main" {
-  service_account_id = google_service_account.terraform.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = local.github_prod_principal
+moved {
+  from = google_service_account_iam_member.prod_deploy_self_token_creator
+  to   = module.bootstrap.google_service_account_iam_member.prod_deploy_self_token_creator
 }
 
-resource "google_service_account_iam_member" "terraform_wif_main_token_creator" {
-  service_account_id = google_service_account.terraform.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = local.github_prod_principal
+moved {
+  from = google_service_account_iam_member.preview_deploy_self_token_creator
+  to   = module.bootstrap.google_service_account_iam_member.preview_deploy_self_token_creator
 }
 
-resource "google_service_account_iam_member" "prod_deploy_wif_main" {
-  service_account_id = google_service_account.prod_deploy.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = local.github_prod_principal
+moved {
+  from = google_service_account_iam_member.terraform_wif_main
+  to   = module.bootstrap.google_service_account_iam_member.terraform_wif_main
 }
 
-resource "google_service_account_iam_member" "prod_deploy_wif_main_token_creator" {
-  service_account_id = google_service_account.prod_deploy.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = local.github_prod_principal
+moved {
+  from = google_service_account_iam_member.terraform_wif_main_token_creator
+  to   = module.bootstrap.google_service_account_iam_member.terraform_wif_main_token_creator
 }
 
-resource "google_service_account_iam_member" "preview_deploy_wif_repo" {
-  service_account_id = google_service_account.preview_deploy.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = local.github_repo_principal_set
+moved {
+  from = google_service_account_iam_member.prod_deploy_wif_main
+  to   = module.bootstrap.google_service_account_iam_member.prod_deploy_wif_main
 }
 
-resource "google_service_account_iam_member" "preview_deploy_wif_repo_token_creator" {
-  service_account_id = google_service_account.preview_deploy.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = local.github_repo_principal_set
+moved {
+  from = google_service_account_iam_member.prod_deploy_wif_main_token_creator
+  to   = module.bootstrap.google_service_account_iam_member.prod_deploy_wif_main_token_creator
+}
+
+moved {
+  from = google_service_account_iam_member.preview_deploy_wif_repo
+  to   = module.bootstrap.google_service_account_iam_member.preview_deploy_wif_repo
+}
+
+moved {
+  from = google_service_account_iam_member.preview_deploy_wif_repo_token_creator
+  to   = module.bootstrap.google_service_account_iam_member.preview_deploy_wif_repo_token_creator
 }

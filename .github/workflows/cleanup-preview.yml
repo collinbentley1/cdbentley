@@ -5,45 +5,16 @@ on:
     types:
       - closed
 
-permissions: {}
-
-env:
-  PROJECT_ID: cdbentley
-  REGION: us-east4
-  SERVICE_NAME: cdbentley
-  CLOUDSDK_CORE_DISABLE_PROMPTS: "1"
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   cleanup:
-    name: Cleanup preview
-    runs-on: ubuntu-24.04
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: ${{ env.PROJECT_ID }}
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_PREVIEW_DEPLOY_SERVICE_ACCOUNT }}
-
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
-
-      - name: Delete preview service
-        run: |
-          set -euo pipefail
-          preview_service="${SERVICE_NAME}-pr-${{ github.event.pull_request.number }}"
-
-          if gcloud run services describe "$preview_service" --region="$REGION" --project="$PROJECT_ID" >/dev/null 2>&1; then
-            gcloud run services delete "$preview_service" --region="$REGION" --project="$PROJECT_ID" --quiet
-          else
-            echo "Preview service $preview_service does not exist; nothing to delete."
-          fi
-
+    uses: collinbentley1/platform/.github/workflows/cleanup-preview.yml@v0.1.2
+    with:
+      project-id: cdbentley
+      region: us-east4
+      service-name: cdbentley
+      workload-identity-provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      deploy-service-account: ${{ vars.GCP_PREVIEW_DEPLOY_SERVICE_ACCOUNT }}

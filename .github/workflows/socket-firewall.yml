@@ -13,66 +13,6 @@ permissions:
 jobs:
   firewall:
     name: Socket Firewall
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Install Socket Firewall
-        if: ${{ hashFiles('package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock') != '' && hashFiles('bun.lock', 'bunfig.toml') == '' }}
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall
-
-      - name: Detect dependency manager
-        id: dependency-manager
-        run: |
-          set -euo pipefail
-
-          if [ -f bun.lock ] || [ -f bunfig.toml ] || { [ -f package.json ] && grep -q '"packageManager"[[:space:]]*:[[:space:]]*"bun@' package.json; }; then
-            echo "name=bun" >> "$GITHUB_OUTPUT"
-          elif [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
-            echo "name=npm" >> "$GITHUB_OUTPUT"
-          elif [ -f pnpm-lock.yaml ]; then
-            echo "name=pnpm" >> "$GITHUB_OUTPUT"
-          elif [ -f yarn.lock ]; then
-            echo "name=yarn" >> "$GITHUB_OUTPUT"
-          elif [ -f package.json ]; then
-            echo "name=npm-package-lock" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=none" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Setup Bun canary
-        if: steps.dependency-manager.outputs.name == 'bun'
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: canary
-
-      - name: Run Bun install with Socket scanner
-        if: steps.dependency-manager.outputs.name == 'bun'
-        run: |
-          set -euo pipefail
-
-          bun run tools/verify-socket-config.ts
-          bun install --frozen-lockfile --ignore-scripts
-
-      - name: Run install through Socket Firewall
-        if: steps.dependency-manager.outputs.name != 'bun'
-        run: |
-          set -euo pipefail
-
-          if [ "${{ steps.dependency-manager.outputs.name }}" = "npm" ]; then
-            sfw npm ci --ignore-scripts
-          elif [ "${{ steps.dependency-manager.outputs.name }}" = "pnpm" ]; then
-            corepack enable
-            sfw pnpm install --frozen-lockfile --ignore-scripts
-          elif [ "${{ steps.dependency-manager.outputs.name }}" = "yarn" ]; then
-            corepack enable
-            sfw yarn install --immutable --ignore-scripts || sfw yarn install --frozen-lockfile --ignore-scripts
-          elif [ "${{ steps.dependency-manager.outputs.name }}" = "npm-package-lock" ]; then
-            sfw npm install --package-lock-only --ignore-scripts
-          else
-            echo "No supported package manifest or lockfile found; skipping Socket Firewall install check."
-          fi
+    uses: collinbentley1/platform/.github/workflows/socket-firewall.yml@v0.1.2
+    with:
+      bun-version: canary
