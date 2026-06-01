@@ -7,85 +7,14 @@ on:
       - main
   workflow_dispatch:
 
-permissions: {}
-
-concurrency:
-  group: infrastructure-${{ github.ref }}
-  cancel-in-progress: false
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  terraform-validate:
-    name: Terraform validate
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
-        with:
-          terraform_version: 1.14.5
-
-      - name: Check Terraform formatting
-        run: terraform fmt -check -recursive infra/terraform
-
-      - name: Validate Terraform roots
-        run: |
-          set -euo pipefail
-          for dir in infra/terraform/bootstrap infra/terraform/prod; do
-            terraform -chdir="$dir" init -backend=false -input=false
-            terraform -chdir="$dir" validate
-          done
-
-  checkov:
-    name: Checkov
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Run Checkov
-        uses: bridgecrewio/checkov-action@4048c972aae68d0b983a48bb3479aab2d877b898 # v12.3102.0
-        with:
-          directory: .
-          config_file: .checkov.yml
-
-  terraform-apply:
-    name: Terraform apply
-    runs-on: ubuntu-24.04
-    needs:
-      - terraform-validate
-      - checkov
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: cdbentley
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_TERRAFORM_SERVICE_ACCOUNT }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
-        with:
-          terraform_version: 1.14.5
-
-      - name: Apply production Terraform
-        run: |
-          set -euo pipefail
-          terraform -chdir=infra/terraform/prod init -input=false
-          terraform -chdir=infra/terraform/prod apply -auto-approve -input=false
+  infrastructure:
+    uses: collinbentley1/platform/.github/workflows/infrastructure.yml@v0.1.2
+    with:
+      project-id: cdbentley
+      workload-identity-provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      terraform-service-account: ${{ vars.GCP_TERRAFORM_SERVICE_ACCOUNT }}

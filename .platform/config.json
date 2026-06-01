@@ -1,0 +1,8 @@
+{
+  "name": "cdbentley",
+  "projectId": "cdbentley",
+  "region": "us-east4",
+  "serviceName": "cdbentley",
+  "artifactRegistryRepository": "site",
+  "platformVersion": "v0.1.2"
+}

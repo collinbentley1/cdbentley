@@ -8,111 +8,20 @@ on:
       - reopened
       - ready_for_review
 
-permissions: {}
-
-concurrency:
-  group: preview-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
-env:
-  PROJECT_ID: cdbentley
-  REGION: us-east4
-  ARTIFACT_REGISTRY_REPOSITORY: site
-  SERVICE_NAME: cdbentley
-  RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
 
 jobs:
   deploy:
-    name: Deploy preview
-    runs-on: ubuntu-24.04
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false
-    permissions:
-      contents: read
-      id-token: write
-      pull-requests: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Detect deployable app
-        id: app
-        run: |
-          set -euo pipefail
-          if [ -f Dockerfile ]; then
-            echo "deployable=true" >> "$GITHUB_OUTPUT"
-            echo "image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPOSITORY}/${SERVICE_NAME}:pr-${{ github.event.pull_request.number }}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-            echo "preview_service=${SERVICE_NAME}-pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "deployable=false" >> "$GITHUB_OUTPUT"
-            echo "No root-level Dockerfile exists yet; preview deployment skipped." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Authenticate to Google Cloud
-        if: steps.app.outputs.deployable == 'true'
-        id: auth
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          project_id: ${{ env.PROJECT_ID }}
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_PREVIEW_DEPLOY_SERVICE_ACCOUNT }}
-          token_format: access_token
-
-      - name: Setup Docker Buildx
-        if: steps.app.outputs.deployable == 'true'
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
-
-      - name: Login to Artifact Registry
-        if: steps.app.outputs.deployable == 'true'
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ${{ env.REGION }}-docker.pkg.dev
-          username: oauth2accesstoken
-          password: ${{ steps.auth.outputs.access_token }}
-
-      - name: Login to Docker Hardened Images
-        if: steps.app.outputs.deployable == 'true'
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: dhi.io
-          username: ${{ secrets.DHI_USERNAME }}
-          password: ${{ secrets.DHI_ACCESS_TOKEN }}
-
-      - name: Build and push image
-        if: steps.app.outputs.deployable == 'true'
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: ${{ steps.app.outputs.image }}
-
-      - name: Deploy preview to Cloud Run
-        if: steps.app.outputs.deployable == 'true'
-        id: deploy
-        uses: google-github-actions/deploy-cloudrun@2028e2d7d30a78c6910e0632e48dd561b064884d # v3
-        with:
-          service: ${{ steps.app.outputs.preview_service }}
-          image: ${{ steps.app.outputs.image }}
-          region: ${{ env.REGION }}
-          skip_default_labels: true
-          flags: >-
-            --no-invoker-iam-check
-            --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }}
-            --ingress=all
-            --min-instances=0
-            --max-instances=2
-            --memory=512Mi
-            --cpu=1
-            --concurrency=80
-            --timeout=300s
-            --labels=managed-by=github-actions,environment=preview,pr=${{ github.event.pull_request.number }}
-
-      - name: Comment preview URL
-        if: steps.app.outputs.deployable == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
-        run: |
-          set -euo pipefail
-          gh pr comment "${{ github.event.pull_request.number }}" --body "Preview deployed: ${PREVIEW_URL}"
+    uses: collinbentley1/platform/.github/workflows/deploy-preview.yml@v0.1.2
+    with:
+      project-id: cdbentley
+      region: us-east4
+      artifact-registry-repository: site
+      service-name: cdbentley
+      runtime-service-account: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+      workload-identity-provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      deploy-service-account: ${{ vars.GCP_PREVIEW_DEPLOY_SERVICE_ACCOUNT }}
+    secrets: inherit
