@@ -1,5 +1,4 @@
-import { extname, join, normalize } from "node:path";
-import { buildLesson, parseBoard, scoreBoard } from "./lesson.ts";
+import { extname, isAbsolute, join, normalize, sep } from "node:path";
 
 const PORT = Number(Bun.env.PORT ?? 3000);
 const IS_BUILT_SERVER = import.meta.dir.endsWith("/dist");
@@ -21,25 +20,6 @@ export async function handleRequest(request: Request): Promise<Response> {
 
   if (url.pathname === "/healthz") {
     return json({ ok: true });
-  }
-
-  if (url.pathname === "/api/lesson") {
-    return json(buildLesson(url.searchParams.get("seed") ?? undefined), {
-      "Cache-Control": "no-store",
-    });
-  }
-
-  if (url.pathname === "/api/score") {
-    const lesson = buildLesson(url.searchParams.get("seed") ?? undefined);
-    const board = parseBoard(url.searchParams.get("board"));
-
-    if (!board) {
-      return json({ error: "bad board" }, {}, 400);
-    }
-
-    return json(scoreBoard(board, lesson.glyph), {
-      "Cache-Control": "no-store",
-    });
   }
 
   return serveStatic(url.pathname);
@@ -66,11 +46,17 @@ function json(body: unknown, headers: HeadersInit = {}, status = 200): Response 
 }
 
 async function serveStatic(pathname: string): Promise<Response> {
-  const pathnameWithoutSlash = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+  let pathnameWithoutSlash: string;
+  try {
+    pathnameWithoutSlash = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+  } catch {
+    return new Response("not found", { status: 404 });
+  }
+
   const requestedPath = pathnameWithoutSlash === "favicon.ico" ? "favicon.svg" : pathnameWithoutSlash;
   const normalizedPath = normalize(requestedPath);
 
-  if (normalizedPath.startsWith("..") || normalizedPath.includes("/../")) {
+  if (isAbsolute(normalizedPath) || normalizedPath === ".." || normalizedPath.startsWith(`..${sep}`) || normalizedPath.includes(`${sep}..${sep}`)) {
     return new Response("not found", { status: 404 });
   }
 
