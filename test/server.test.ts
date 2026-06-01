@@ -19,6 +19,8 @@ describe("server", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
     expect(body).toContain("A WILD PORTFOLIO APPEARED");
+    expect(body).toContain("fonts.googleapis.com");
+    expect(body).toContain("family=Press+Start+2P&family=Caveat");
     expect(body).toContain("/assets/client.js");
   });
 
