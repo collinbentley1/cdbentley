@@ -52,4 +52,12 @@ prefix: cdbentley/prod
 
 The Bun frontend/backend is intentionally not scaffolded yet. The deployment workflows skip cleanly until a root-level `Dockerfile` exists.
 
-Socket Firewall Free supports npm, yarn, pnpm, pip, uv, and cargo. For a Bun-only dependency install, keep a supported npm/yarn/pnpm lockfile path available in CI if install-time Socket Firewall enforcement is required.
+When the Bun app is added, configure Socket's native Bun scanner before relying on dependency installs in CI:
+
+```toml
+# bunfig.toml
+[install.security]
+scanner = "@socketsecurity/bun-security-scanner"
+```
+
+Add `@socketsecurity/bun-security-scanner` as a dev dependency and commit `bun.lock`. The `Socket Firewall` workflow detects Bun projects and runs `bun install --frozen-lockfile --ignore-scripts` with that scanner configured.
