@@ -14,11 +14,8 @@ output "cloud_run_service_uri" {
 }
 
 output "cloud_run_domain_mappings" {
-  description = "Production Cloud Run custom domain mappings and DNS records."
+  description = "Production Cloud Run custom domain DNS records."
   value = {
-    for domain, mapping in google_cloud_run_domain_mapping.site : domain => {
-      conditions       = try(mapping.status[0].conditions, [])
-      resource_records = try(mapping.status[0].resource_records, [])
-    }
+    for domain, mapping in google_cloud_run_domain_mapping.site : domain => try(mapping.status[0].resource_records, [])
   }
 }
