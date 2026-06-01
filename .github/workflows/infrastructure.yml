@@ -2,17 +2,9 @@ name: Infrastructure
 
 on:
   pull_request:
-    paths:
-      - infra/**
-      - .checkov.yml
-      - .github/workflows/infrastructure.yml
   push:
     branches:
       - main
-    paths:
-      - infra/**
-      - .checkov.yml
-      - .github/workflows/infrastructure.yml
   workflow_dispatch:
 
 permissions: {}
@@ -97,4 +89,3 @@ jobs:
           set -euo pipefail
           terraform -chdir=infra/terraform/prod init -input=false
           terraform -chdir=infra/terraform/prod apply -auto-approve -input=false
-
