@@ -1,0 +1,38 @@
+# Google GitHub Actions generated credentials
+gha-creds-*.json
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl.tmp
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# JavaScript and Bun, once the app exists
+node_modules/
+.bun/
+dist/
+build/
+.next/
+.output/
+coverage/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+

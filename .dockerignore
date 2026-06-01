@@ -1,0 +1,11 @@
+.git
+.github
+.terraform
+infra
+outputs
+work
+node_modules
+gha-creds-*.json
+.env
+.env.*
+
