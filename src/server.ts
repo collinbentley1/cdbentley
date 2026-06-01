@@ -1,11 +1,10 @@
-import { existsSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { buildLesson, parseBoard, scoreBoard } from "./lesson.ts";
 
 const PORT = Number(Bun.env.PORT ?? 3000);
 const BUILT_PUBLIC_DIR = import.meta.dir.endsWith("/dist") ? join(import.meta.dir, "public") : join(import.meta.dir, "..", "dist", "public");
 const SOURCE_PUBLIC_DIR = join(import.meta.dir, "..", "public");
-const PUBLIC_DIR = Bun.env.PUBLIC_DIR ?? (existsSync(BUILT_PUBLIC_DIR) ? BUILT_PUBLIC_DIR : SOURCE_PUBLIC_DIR);
+const PUBLIC_DIR = Bun.env.PUBLIC_DIR ?? (import.meta.dir.endsWith("/dist") ? BUILT_PUBLIC_DIR : SOURCE_PUBLIC_DIR);
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".css": "text/css; charset=utf-8",
@@ -67,7 +66,8 @@ function json(body: unknown, headers: HeadersInit = {}, status = 200): Response 
 
 async function serveStatic(pathname: string): Promise<Response> {
   const pathnameWithoutSlash = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
-  const normalizedPath = normalize(pathnameWithoutSlash);
+  const requestedPath = pathnameWithoutSlash === "favicon.ico" ? "favicon.svg" : pathnameWithoutSlash;
+  const normalizedPath = normalize(requestedPath);
 
   if (normalizedPath.startsWith("..") || normalizedPath.includes("/../")) {
     return new Response("not found", { status: 404 });
@@ -82,7 +82,7 @@ async function serveStatic(pathname: string): Promise<Response> {
 
   return new Response(file, {
     headers: {
-      "Cache-Control": normalizedPath === "index.html" ? "no-cache" : "public, max-age=31536000, immutable",
+      "Cache-Control": normalizedPath === "index.html" ? "no-cache" : "public, max-age=300",
       "Content-Type": CONTENT_TYPES[extname(filePath)] ?? "application/octet-stream",
     },
   });

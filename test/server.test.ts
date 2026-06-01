@@ -29,4 +29,21 @@ describe("server", () => {
     expect(response.status).toBe(400);
     expect(body.error).toBe("bad board");
   });
+
+  test("serves fixed static assets with revalidating cache headers", async () => {
+    const response = await handleRequest(new Request("http://localhost/assets/styles.css"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300");
+  });
+
+  test("serves a crisp svg favicon", async () => {
+    const response = await handleRequest(new Request("http://localhost/favicon.ico"));
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("image/svg+xml");
+    expect(body).toContain("<svg");
+    expect(body).toContain("shape-rendering=\"crispEdges\"");
+  });
 });

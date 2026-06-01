@@ -6,10 +6,12 @@ const failures: string[] = [];
 
 await requireContains("Dockerfile", "dhi.io/bun", "Dockerfile must use Docker Hardened Bun images.");
 await requireContains("Dockerfile", "bun upgrade --canary", "Dockerfile must upgrade Bun to the latest canary.");
-await requireContains("bunfig.toml", 'scanner = "@socketsecurity/bun-security-scanner"', "Socket scanner must be configured for Bun installs.");
+await requireContains("public/index.html", 'rel="icon"', "The document must link a favicon.");
 await rejectContains("public/index.html", "https://", "The frontend should not load third-party assets.");
 await rejectContains("public/assets/styles.css", "@import", "Styles should not import third-party design libraries.");
 await rejectContains("src/client.ts", "react", "The frontend should stay framework-free.");
+
+await import("./verify-socket-config.ts");
 
 if (failures.length > 0) {
   console.error(failures.join("\n"));
