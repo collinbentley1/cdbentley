@@ -55,16 +55,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if ! grep -Eq 'scanner[[:space:]]*=[[:space:]]*"@socketsecurity/bun-security-scanner"' bunfig.toml; then
-            echo "::error::Bun projects must configure [install.security] scanner = \"@socketsecurity/bun-security-scanner\" in bunfig.toml."
-            exit 1
-          fi
-
-          if ! grep -q '"@socketsecurity/bun-security-scanner"' package.json; then
-            echo "::error::Bun projects must include @socketsecurity/bun-security-scanner as a dev dependency."
-            exit 1
-          fi
-
+          bun run tools/verify-socket-config.ts
           bun install --frozen-lockfile --ignore-scripts
 
       - name: Run install through Socket Firewall

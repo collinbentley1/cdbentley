@@ -31,6 +31,7 @@ const serverBuild = await Bun.build({
 assertBuild(serverBuild, "server");
 
 await Bun.write(join(distPublicDir, "index.html"), Bun.file(join(publicDir, "index.html")));
+await Bun.write(join(distPublicDir, "favicon.svg"), Bun.file(join(publicDir, "favicon.svg")));
 await Bun.write(join(distPublicDir, "assets", "styles.css"), Bun.file(join(publicDir, "assets", "styles.css")));
 
 function assertBuild(result: Bun.BuildOutput, label: string): void {
