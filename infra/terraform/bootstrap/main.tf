@@ -39,6 +39,11 @@ resource "google_storage_bucket" "terraform_state" {
   public_access_prevention    = "enforced"
   force_destroy               = false
 
+  logging {
+    log_bucket        = google_storage_bucket.terraform_state_access_logs.name
+    log_object_prefix = "terraform-state/"
+  }
+
   versioning {
     enabled = true
   }
@@ -61,7 +66,49 @@ resource "google_storage_bucket" "terraform_state" {
     managed-by = "terraform"
   }
 
+  depends_on = [
+    google_project_service.required,
+    google_storage_bucket_iam_member.terraform_state_access_logs_writer,
+  ]
+}
+
+resource "google_storage_bucket" "terraform_state_access_logs" {
+  #checkov:skip=CKV_GCP_62:This bucket is the sink for Terraform state access logs.
+  name                        = "${var.state_bucket_name}-access-logs"
+  project                     = var.project_id
+  location                    = var.state_bucket_location
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+
+    condition {
+      age                   = 365
+      matches_storage_class = ["STANDARD"]
+    }
+  }
+
+  labels = {
+    app        = "cdbentley"
+    managed-by = "terraform"
+    purpose    = "terraform-state-access-logs"
+  }
+
   depends_on = [google_project_service.required]
+}
+
+resource "google_storage_bucket_iam_member" "terraform_state_access_logs_writer" {
+  bucket = google_storage_bucket.terraform_state_access_logs.name
+  role   = "roles/storage.objectCreator"
+  member = "group:cloud-storage-analytics@google.com"
 }
 
 resource "google_iam_workload_identity_pool" "github" {
@@ -133,9 +180,9 @@ resource "google_service_account" "runtime" {
 resource "google_project_iam_member" "terraform_project_roles" {
   for_each = toset([
     "roles/artifactregistry.admin",
+    "roles/browser",
     "roles/run.admin",
     "roles/serviceusage.serviceUsageAdmin",
-    "roles/viewer",
   ])
 
   project = var.project_id
@@ -145,10 +192,10 @@ resource "google_project_iam_member" "terraform_project_roles" {
 
 resource "google_project_iam_member" "deploy_project_roles" {
   for_each = {
+    prod_browser      = { role = "roles/browser", email = google_service_account.prod_deploy.email }
     prod_run_admin    = { role = "roles/run.admin", email = google_service_account.prod_deploy.email }
-    prod_viewer       = { role = "roles/viewer", email = google_service_account.prod_deploy.email }
+    preview_browser   = { role = "roles/browser", email = google_service_account.preview_deploy.email }
     preview_run_admin = { role = "roles/run.admin", email = google_service_account.preview_deploy.email }
-    preview_viewer    = { role = "roles/viewer", email = google_service_account.preview_deploy.email }
   }
 
   project = var.project_id
