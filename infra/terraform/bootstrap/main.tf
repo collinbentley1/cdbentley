@@ -180,6 +180,24 @@ resource "google_service_account_iam_member" "preview_deploy_uses_runtime" {
   member             = "serviceAccount:${google_service_account.preview_deploy.email}"
 }
 
+resource "google_service_account_iam_member" "terraform_self_token_creator" {
+  service_account_id = google_service_account.terraform.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.terraform.email}"
+}
+
+resource "google_service_account_iam_member" "prod_deploy_self_token_creator" {
+  service_account_id = google_service_account.prod_deploy.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.prod_deploy.email}"
+}
+
+resource "google_service_account_iam_member" "preview_deploy_self_token_creator" {
+  service_account_id = google_service_account.preview_deploy.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.preview_deploy.email}"
+}
+
 resource "google_service_account_iam_member" "terraform_wif_main" {
   service_account_id = google_service_account.terraform.name
   role               = "roles/iam.workloadIdentityUser"
