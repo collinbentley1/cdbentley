@@ -184,9 +184,21 @@ resource "google_service_account_iam_member" "terraform_wif_main" {
   member             = local.github_main_principal
 }
 
+resource "google_service_account_iam_member" "terraform_wif_main_token_creator" {
+  service_account_id = google_service_account.terraform.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = local.github_main_principal
+}
+
 resource "google_service_account_iam_member" "prod_deploy_wif_main" {
   service_account_id = google_service_account.prod_deploy.name
   role               = "roles/iam.workloadIdentityUser"
+  member             = local.github_main_principal
+}
+
+resource "google_service_account_iam_member" "prod_deploy_wif_main_token_creator" {
+  service_account_id = google_service_account.prod_deploy.name
+  role               = "roles/iam.serviceAccountTokenCreator"
   member             = local.github_main_principal
 }
 
@@ -196,3 +208,8 @@ resource "google_service_account_iam_member" "preview_deploy_wif_repo" {
   member             = local.github_repo_principal_set
 }
 
+resource "google_service_account_iam_member" "preview_deploy_wif_repo_token_creator" {
+  service_account_id = google_service_account.preview_deploy.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = local.github_repo_principal_set
+}
