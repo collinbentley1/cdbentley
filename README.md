@@ -13,9 +13,9 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 
 ## Deployment model
 
-- Pull request updates deploy ephemeral Cloud Run preview services named `cdbentley-pr-<number>` once an application `Dockerfile` exists.
+- Pull request updates deploy ephemeral Cloud Run preview services named `cdbentley-pr-<number>`.
 - Closing a pull request deletes its preview Cloud Run service.
-- Merges to `main` deploy the production Cloud Run service named `cdbentley` once an application `Dockerfile` exists.
+- Merges to `main` deploy the production Cloud Run service named `cdbentley`.
 - Terraform does not manage preview environments. It manages only long-lived shared infrastructure.
 
 ## Bootstrap
@@ -50,14 +50,12 @@ prefix: cdbentley/prod
 
 ## Application
 
-The Bun frontend/backend is intentionally not scaffolded yet. The deployment workflows skip cleanly until a root-level `Dockerfile` exists.
+The site is a pure Bun frontend/backend. Local verification uses the latest Bun canary:
 
-When the Bun app is added, configure Socket's native Bun scanner before relying on dependency installs in CI:
-
-```toml
-# bunfig.toml
-[install.security]
-scanner = "@socketsecurity/bun-security-scanner"
+```sh
+bun upgrade --canary
+bun run hooks:install
+bun run verify
 ```
 
-Add `@socketsecurity/bun-security-scanner` as a dev dependency and commit `bun.lock`. The `Socket Firewall` workflow detects Bun projects and runs `bun install --frozen-lockfile --ignore-scripts` with that scanner configured.
+Socket's native Bun scanner is configured in `bunfig.toml`, and CI runs Bun canary for install, formatting, linting, tests, and build. The production container uses Docker Hardened Images for Bun and upgrades Bun to the latest canary during the Docker build.
