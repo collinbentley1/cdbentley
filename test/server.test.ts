@@ -1,3 +1,5 @@
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { describe, expect, test } from "bun:test";
 import { handleRequest } from "../src/server.ts";
 import { buildLesson, serializeBoard } from "../src/lesson.ts";
@@ -45,5 +47,22 @@ describe("server", () => {
     expect(response.headers.get("Content-Type")).toBe("image/svg+xml");
     expect(body).toContain("<svg");
     expect(body).toContain("shape-rendering=\"crispEdges\"");
+  });
+
+  test("serves built-only assets during source dev", async () => {
+    const builtAssetPath = join(import.meta.dir, "..", "dist", "public", "assets", "dev-only.js");
+    await mkdir(dirname(builtAssetPath), { recursive: true });
+    await writeFile(builtAssetPath, "console.log('dev asset');");
+
+    try {
+      const response = await handleRequest(new Request("http://localhost/assets/dev-only.js"));
+      const body = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("text/javascript; charset=utf-8");
+      expect(body).toContain("dev asset");
+    } finally {
+      await rm(builtAssetPath, { force: true });
+    }
   });
 });

@@ -2,9 +2,10 @@ import { extname, join, normalize } from "node:path";
 import { buildLesson, parseBoard, scoreBoard } from "./lesson.ts";
 
 const PORT = Number(Bun.env.PORT ?? 3000);
+const IS_BUILT_SERVER = import.meta.dir.endsWith("/dist");
 const BUILT_PUBLIC_DIR = import.meta.dir.endsWith("/dist") ? join(import.meta.dir, "public") : join(import.meta.dir, "..", "dist", "public");
 const SOURCE_PUBLIC_DIR = join(import.meta.dir, "..", "public");
-const PUBLIC_DIR = Bun.env.PUBLIC_DIR ?? (import.meta.dir.endsWith("/dist") ? BUILT_PUBLIC_DIR : SOURCE_PUBLIC_DIR);
+const PUBLIC_DIR = Bun.env.PUBLIC_DIR ?? (IS_BUILT_SERVER ? BUILT_PUBLIC_DIR : SOURCE_PUBLIC_DIR);
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".css": "text/css; charset=utf-8",
@@ -73,8 +74,13 @@ async function serveStatic(pathname: string): Promise<Response> {
     return new Response("not found", { status: 404 });
   }
 
-  const filePath = join(PUBLIC_DIR, normalizedPath);
-  const file = Bun.file(filePath);
+  let filePath = join(PUBLIC_DIR, normalizedPath);
+  let file = Bun.file(filePath);
+
+  if (!(await file.exists()) && !IS_BUILT_SERVER && PUBLIC_DIR === SOURCE_PUBLIC_DIR) {
+    filePath = join(BUILT_PUBLIC_DIR, normalizedPath);
+    file = Bun.file(filePath);
+  }
 
   if (!(await file.exists())) {
     return new Response("not found", { status: 404 });
