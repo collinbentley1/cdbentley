@@ -15,9 +15,11 @@ locals {
 
   github_repo_full_name  = "${var.github_owner}/${var.github_repo}"
   github_main_subject    = "repo:${local.github_repo_full_name}:ref:refs/heads/main"
+  github_prod_subject    = "repo:${local.github_repo_full_name}:environment:production"
   workload_identity_pool = "projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}"
 
   github_main_principal     = "principal://iam.googleapis.com/${local.workload_identity_pool}/subject/${local.github_main_subject}"
+  github_prod_principal     = "principal://iam.googleapis.com/${local.workload_identity_pool}/subject/${local.github_prod_subject}"
   github_repo_principal_set = "principalSet://iam.googleapis.com/${local.workload_identity_pool}/attribute.repository_id/${var.github_repository_id}"
 }
 
@@ -181,25 +183,25 @@ resource "google_service_account_iam_member" "preview_deploy_uses_runtime" {
 resource "google_service_account_iam_member" "terraform_wif_main" {
   service_account_id = google_service_account.terraform.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = local.github_main_principal
+  member             = local.github_prod_principal
 }
 
 resource "google_service_account_iam_member" "terraform_wif_main_token_creator" {
   service_account_id = google_service_account.terraform.name
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = local.github_main_principal
+  member             = local.github_prod_principal
 }
 
 resource "google_service_account_iam_member" "prod_deploy_wif_main" {
   service_account_id = google_service_account.prod_deploy.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = local.github_main_principal
+  member             = local.github_prod_principal
 }
 
 resource "google_service_account_iam_member" "prod_deploy_wif_main_token_creator" {
   service_account_id = google_service_account.prod_deploy.name
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = local.github_main_principal
+  member             = local.github_prod_principal
 }
 
 resource "google_service_account_iam_member" "preview_deploy_wif_repo" {
