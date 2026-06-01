@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Collin Bentley</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <main class="shell" aria-label="Collin Bentley">
+      <section class="mast">
+        <h1 id="name">Collin Bentley</h1>
+        <p id="note" class="note">chalk</p>
+      </section>
+
+      <section class="stage" aria-label="pixel lesson">
+        <div class="target">
+          <canvas id="target" width="220" height="220" aria-label="target"></canvas>
+        </div>
+        <button id="board-button" class="board-button" type="button" aria-label="pixel board">
+          <canvas id="board" width="440" height="440"></canvas>
+        </button>
+      </section>
+
+      <section class="footer-row">
+        <div id="facts" class="facts" aria-label="facts"></div>
+        <div class="controls">
+          <button id="shuffle" type="button">mix</button>
+          <button id="reset" type="button">reset</button>
+          <output id="meter">0/121</output>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/assets/client.js"></script>
+  </body>
+</html>

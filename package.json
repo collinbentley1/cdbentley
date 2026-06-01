@@ -1,0 +1,28 @@
+{
+  "name": "cdbentley",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0-canary.1",
+  "engines": {
+    "bun": ">=1.4.0-canary.1"
+  },
+  "scripts": {
+    "dev": "bun run build && bun --watch src/server.ts",
+    "start": "bun dist/server.js",
+    "build": "bun run tools/build.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "bun run tools/lint.ts && bun run typecheck",
+    "format": "bun run tools/format.ts --write",
+    "format:check": "bun run tools/format.ts --check",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "verify": "bun ci && bun run format:check && bun run lint && bun test && bun run build",
+    "verify:ci": "bun run format:check && bun run lint && bun test && bun run build"
+  },
+  "devDependencies": {
+    "@socketsecurity/bun-security-scanner": "1.1.2",
+    "@types/bun": "1.3.14",
+    "typescript": "5.9.3"
+  }
+}
