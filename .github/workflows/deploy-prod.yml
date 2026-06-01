@@ -90,6 +90,7 @@ jobs:
           service: ${{ env.SERVICE_NAME }}
           image: ${{ steps.app.outputs.image }}
           region: ${{ env.REGION }}
+          skip_default_labels: true
           flags: >-
             --no-invoker-iam-check
             --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }}
