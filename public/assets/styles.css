@@ -11,9 +11,9 @@
   --equine: #9a6b3f;
   --gold: #d8a93b;
   --stage-w: 920px;
-  --font-pixel: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
-  --font-hand: "Comic Sans MS", "Bradley Hand", ui-rounded, cursive;
-  --font-round: ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-pixel: "Press Start 2P", ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --font-hand: "Caveat", "Comic Sans MS", "Bradley Hand", ui-rounded, cursive;
+  --font-round: "Fredoka", ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif;
 }
 
 * {
