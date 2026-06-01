@@ -44,185 +44,6 @@ type ChapterState = Chapter & {
   open: boolean;
 };
 
-const SPRITE_DATA: {
-  palette: Record<string, string | null>;
-  sprites: Record<SpriteName, readonly string[]>;
-} = {
-  palette: {
-    " ": null,
-    ".": null,
-    E: "#5c8c37",
-    F: "#845c38",
-    G: "#96969e",
-    H: "#462a18",
-    J: "#26606c",
-    M: "#4a96a6",
-    P: "#242e46",
-    Q: "#d64a6e",
-    R: "#b4282e",
-    S: "#d6a680",
-    W: "#c8cdd2",
-    X: "#363c50",
-    Z: "#1c3460",
-    a: "#f5ecd6",
-    b: "#3e312a",
-    c: "#ec5c60",
-    d: "#3c342e",
-    e: "#7cb64e",
-    f: "#ac8054",
-    g: "#e0e0e4",
-    h: "#684228",
-    j: "#3c8c96",
-    k: "#18161e",
-    l: "#7a5434",
-    m: "#78cdd6",
-    n: "#96d278",
-    o: "#262230",
-    p: "#34405c",
-    q: "#ff7894",
-    r: "#e43a3e",
-    s: "#f5cda5",
-    t: "#6eaa5a",
-    u: "#fafafa",
-    w: "#f4f4ee",
-    x: "#586078",
-    y: "#f4ce54",
-    z: "#284880",
-  },
-  sprites: {
-    TRAINER: [
-      "      oooooo    ",
-      "    ooHHHHHHoo  ",
-      "   oHHHHHHHHHo  ",
-      "   oHhhhhhhhHo  ",
-      "   oHhssssshHo  ",
-      "   ohsssssssho  ",
-      "   ohsosssosho  ",
-      "   ohssoossssho ",
-      "   ohsssssssho  ",
-      "    oSsssssSo   ",
-      "    ooSsssSoo   ",
-      "   ojjowwojjjo  ",
-      "  ojjjjwwjjjjjo ",
-      "  ojJjjwwjjjJjo ",
-      "  ojJjjwwjjjJjo ",
-      "  oojJjwwjJjooo ",
-      "   opppppppp o  ",
-      "   oppoopppoo   ",
-      "   oppo oppo    ",
-      "   obbo obbo    ",
-    ],
-    POKEBALL: [
-      "                ",
-      "    oooooooo    ",
-      "   oorrrrrroo   ",
-      "  orrrrrrrrrro  ",
-      " oorrrrrrrrrroo ",
-      " orrrrroorrrrro ",
-      " orrrroggorrrro ",
-      " kkkkoggggokkkk ",
-      " kkkkoggggokkkk ",
-      " owwwwoggowwwwo ",
-      " owwwwwoowwwwwo ",
-      " oowwwwwwwwwwoo ",
-      "  owwwwwwwwwwo  ",
-      "   oowwwwwwoo   ",
-      "    oooooooo    ",
-      "                ",
-    ],
-    PEAR: [
-      "        ll      ",
-      "       lnl      ",
-      "      lnnl      ",
-      "      oeeo      ",
-      "     oeyeeo     ",
-      "    oeyeeeeo    ",
-      "   oeyeeeeeeo   ",
-      "  oeyeeeeeeeeo  ",
-      "  oeeeeeeeeeEo  ",
-      "  oeeeeeeeeeEo  ",
-      "  oeeeeeeeeEEo  ",
-      "   oeeeeeEEEo   ",
-      "   oeeeeEEEo    ",
-      "    oeeEEEo     ",
-      "     oEEEo      ",
-      "      ooo       ",
-    ],
-    HEART: [
-      "                ",
-      "   ooo   ooo    ",
-      "  oqqqo oqqqo   ",
-      " oqqqqqoqqqqqo  ",
-      " oquqqqqqqqqqo  ",
-      " oquqqqqqqqqqo  ",
-      " oqqqqqqqqqQQo  ",
-      "  oqqqqqqqQQo   ",
-      "   oqqqqqQQo    ",
-      "    oqqqQQo     ",
-      "     oqQQo      ",
-      "      oQo       ",
-      "       o        ",
-      "   m   m   m    ",
-      "  m m m m m m   ",
-      "   m   m   m    ",
-    ],
-    HOUSE: [
-      "       oo       ",
-      "      orro      ",
-      "     orrrro     ",
-      "    orrrrrro    ",
-      "   orrrrrrrro   ",
-      "  orrrrrrrrrro  ",
-      " orrrrrrrrrrrro ",
-      " owwwwwwwwwwwwo ",
-      " owwwwoccowwwwo ",
-      " owwwocccco wwo ",
-      " owwoccccccowwo ",
-      " owwwocccco wwo ",
-      " owwwwoccowwwwo ",
-      " owwwwwwwwwwwwo ",
-      " owwddwwwwddwwo ",
-      "  oooooooooooo  ",
-    ],
-    LAPTOP: [
-      "                ",
-      "  oooooooooooo  ",
-      "  oXtttttttttXo ",
-      "  oXt ott t tXo ",
-      "  oXtto ottttXo ",
-      "  oXt o ottttXo ",
-      "  oXtttto otXXo ",
-      "  oXttt ottttXo ",
-      "  oXtttttttttXo ",
-      "  oXXXXXXXXXXXo ",
-      " oxxxxxxxxxxxxo ",
-      " oxxxxxxxxxxxxo ",
-      "oxxxxxxxxxxxxxxo",
-      "oxxxxxxxxxxxxxxo",
-      " oXXXXXXXXXXXXo ",
-      "  oooooooooooo  ",
-    ],
-    HORSE: [
-      "            ooo ",
-      "          ooFFFo",
-      "         oFffFFo",
-      "        oFfffFoo",
-      "   oo   oFfffo  ",
-      "  oFFoo oFffo   ",
-      "  oFffFooffffo  ",
-      "  offfffffffffo ",
-      " offffffffffffo ",
-      " offffffffffffo ",
-      " ofFffffffffFfo ",
-      " ofo ofo ofo ofo",
-      " ofo ofo ofo ofo",
-      " obo obo obo obo",
-      "                ",
-      "                ",
-    ],
-  },
-};
-
 const STAGE_W = 920;
 const STAGE_H = 2900;
 const HAND = { x: 176, y: 252 };
@@ -316,6 +137,16 @@ const CHAPTERS: ChapterState[] = [
   },
 ];
 
+const SPRITE_ASSETS: Record<SpriteName, { src: string; width: number; height: number }> = {
+  TRAINER: { src: "/assets/sprites/trainer.png", width: 128, height: 128 },
+  POKEBALL: { src: "/assets/sprites/pokeball.png", width: 128, height: 128 },
+  PEAR: { src: "/assets/sprites/pear.png", width: 128, height: 128 },
+  HEART: { src: "/assets/sprites/healthyr.png", width: 128, height: 128 },
+  HOUSE: { src: "/assets/sprites/humana.png", width: 128, height: 128 },
+  LAPTOP: { src: "/assets/sprites/yale.png", width: 128, height: 128 },
+  HORSE: { src: "/assets/sprites/horse.png", width: 128, height: 128 },
+};
+
 const wrap = getHtmlElement("wrap");
 const stage = getHtmlElement("stage");
 const mroot = getHtmlElement("mroot");
@@ -327,34 +158,19 @@ applyMode();
 window.addEventListener("resize", applyMode);
 MQ.addEventListener("change", applyMode);
 
-function buildSprite(name: SpriteName, scale: number): HTMLCanvasElement {
-  const grid = SPRITE_DATA.sprites[name];
-  const height = grid.length;
-  const width = Math.max(...grid.map((row) => row.length));
-  const canvas = document.createElement("canvas");
-  canvas.width = width * scale;
-  canvas.height = height * scale;
-  canvas.style.width = `${width * scale}px`;
-  canvas.style.height = `${height * scale}px`;
-
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas 2D is unavailable");
-  }
-
-  context.imageSmoothingEnabled = false;
-  for (let y = 0; y < height; y += 1) {
-    const row = grid[y] ?? "";
-    for (let x = 0; x < row.length; x += 1) {
-      const color = SPRITE_DATA.palette[row[x] ?? " "];
-      if (color) {
-        context.fillStyle = color;
-        context.fillRect(x * scale, y * scale, scale, scale);
-      }
-    }
-  }
-
-  return canvas;
+function buildSprite(name: SpriteName, scale: number): HTMLImageElement {
+  const asset = SPRITE_ASSETS[name];
+  const image = document.createElement("img");
+  image.alt = "";
+  image.className = "sprite";
+  image.decoding = "async";
+  image.draggable = false;
+  image.src = asset.src;
+  image.width = asset.width * scale;
+  image.height = asset.height * scale;
+  image.style.width = `${asset.width * scale}px`;
+  image.style.height = `${asset.height * scale}px`;
+  return image;
 }
 
 function buildDesktop(signal: AbortSignal): void {
@@ -370,8 +186,8 @@ function buildDesktop(signal: AbortSignal): void {
   trainerEl.style.opacity = "0";
   bubbleEl.className = "";
 
-  if (!trainerEl.querySelector("canvas")) {
-    const trainerSprite = buildSprite("TRAINER", 8);
+  if (!trainerEl.querySelector(".sprite")) {
+    const trainerSprite = buildSprite("TRAINER", 1);
     trainerSprite.style.position = "absolute";
     trainerSprite.style.left = "0";
     trainerSprite.style.top = "0";
@@ -424,11 +240,11 @@ function buildDesktop(signal: AbortSignal): void {
     node.append(...sparks);
 
     const item = div("itemSprite");
-    item.append(buildSprite(chapter.sprite, 6));
+    item.append(buildSprite(chapter.sprite, 0.75));
     node.append(item);
 
     const ball = div("ball");
-    ball.append(buildSprite("POKEBALL", 4));
+    ball.append(buildSprite("POKEBALL", 0.5));
     node.append(ball);
 
     const card = div(`card ${direction < 0 ? "left" : "right"}`);
@@ -544,7 +360,7 @@ function buildMobile(signal: AbortSignal): void {
 
   const trainer = div();
   trainer.id = "mtrainer";
-  trainer.append(buildSprite("TRAINER", 6), div("shadow"));
+  trainer.append(buildSprite("TRAINER", 0.75), div("shadow"));
   const tag = div("tag");
   tag.textContent = "▶ TRAINER · LV.∞";
   trainer.append(tag);
@@ -576,11 +392,11 @@ function buildMobile(signal: AbortSignal): void {
     badge.append(...sparks);
 
     const item = div("mitem");
-    item.append(buildSprite(chapter.sprite, 4));
+    item.append(buildSprite(chapter.sprite, 0.5));
     badge.append(item);
 
     const ball = div("mball");
-    ball.append(buildSprite("POKEBALL", 3));
+    ball.append(buildSprite("POKEBALL", 0.375));
     badge.append(ball);
 
     chap.append(badge);
@@ -746,7 +562,7 @@ function flyDesktopBall(signal: AbortSignal): void {
 
   const flyball = div();
   flyball.id = "flyball";
-  const sprite = buildSprite("POKEBALL", 4);
+  const sprite = buildSprite("POKEBALL", 0.5);
   flyball.append(sprite);
   flyball.style.left = `${HAND.x}px`;
   flyball.style.top = `${HAND.y}px`;
@@ -803,7 +619,7 @@ function throwMobileBall(trainer: HTMLDivElement, signal: AbortSignal, done: () 
 
   const flyball = div();
   flyball.id = "mflyball";
-  const sprite = buildSprite("POKEBALL", 3);
+  const sprite = buildSprite("POKEBALL", 0.375);
   flyball.append(sprite);
   mroot.append(flyball);
 

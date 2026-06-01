@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { cp, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 const distDir = join(import.meta.dir, "..", "dist");
@@ -32,7 +32,7 @@ assertBuild(serverBuild, "server");
 
 await Bun.write(join(distPublicDir, "index.html"), Bun.file(join(publicDir, "index.html")));
 await Bun.write(join(distPublicDir, "favicon.svg"), Bun.file(join(publicDir, "favicon.svg")));
-await Bun.write(join(distPublicDir, "assets", "styles.css"), Bun.file(join(publicDir, "assets", "styles.css")));
+await cp(join(publicDir, "assets"), join(distPublicDir, "assets"), { recursive: true });
 
 function assertBuild(result: Bun.BuildOutput, label: string): void {
   if (!result.success) {

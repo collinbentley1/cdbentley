@@ -81,10 +81,16 @@ body::after {
   }
 }
 
-canvas {
+canvas,
+.sprite {
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+.sprite {
+  pointer-events: none;
+  user-select: none;
 }
 
 #wrap {
