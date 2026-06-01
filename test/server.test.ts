@@ -31,6 +31,13 @@ describe("server", () => {
     expect(response.headers.get("Cache-Control")).toBe("public, max-age=300");
   });
 
+  test("serves sprite assets as png images", async () => {
+    const response = await handleRequest(new Request("http://localhost/assets/sprites/trainer.png"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("image/png");
+  });
+
   test("serves a crisp svg favicon", async () => {
     const response = await handleRequest(new Request("http://localhost/favicon.ico"));
     const body = await response.text();
