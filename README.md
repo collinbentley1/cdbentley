@@ -2,7 +2,7 @@
 
 Personal site infrastructure and deployment automation for `cdbentley`.
 
-This repository is public for visibility, but it is not an open source project and is not accepting external contributions.
+This repository is MIT-licensed, but it is not accepting external contributions.
 
 ## What is here
 
