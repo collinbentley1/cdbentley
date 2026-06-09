@@ -137,8 +137,15 @@ function initJourney(ctx: Ctx): void {
   // --- path ----------------------------------------------------------------
   let totalLength = 0;
   let anchors: Array<{ scroll: number; distance: number }> = [];
+  let layoutSignature = "";
 
   function layout(): void {
+    // Re-laying the path is expensive; skip when nothing moved.
+    const signature = `${ctx.journey.clientWidth}x${ctx.journey.scrollHeight}x${window.innerHeight}`;
+    if (signature === layoutSignature) {
+      return;
+    }
+    layoutSignature = signature;
     const journeyRect = ctx.journey.getBoundingClientRect();
     const journeyTop = journeyRect.top + window.scrollY;
     const width = ctx.journey.clientWidth;
@@ -775,19 +782,24 @@ function preloadSheets(followers: Follower[]): void {
 }
 
 function distanceAtPoint(path: SVGPathElement, total: number, point: { x: number; y: number }, pointIndex: number, pointCount: number): number {
-  // Sample around the proportional guess and keep the closest path position.
+  // Coarse-then-fine search around the proportional guess (getPointAtLength is
+  // expensive; keep the call count low — this runs once per station per layout).
   const guess = (total * pointIndex) / Math.max(1, pointCount - 1);
-  const windowSize = (total / Math.max(1, pointCount - 1)) * 1.6;
+  let windowSize = (total / Math.max(1, pointCount - 1)) * 1.6;
   let bestDistance = guess;
-  let bestError = Number.POSITIVE_INFINITY;
-  for (let step = -40; step <= 40; step += 1) {
-    const candidate = clamp(guess + (step / 40) * windowSize, 0, total);
-    const sample = path.getPointAtLength(candidate);
-    const error = (sample.x - point.x) ** 2 + (sample.y - point.y) ** 2;
-    if (error < bestError) {
-      bestError = error;
-      bestDistance = candidate;
+  for (let pass = 0; pass < 2; pass += 1) {
+    let bestError = Number.POSITIVE_INFINITY;
+    const center = bestDistance;
+    for (let step = -6; step <= 6; step += 1) {
+      const candidate = clamp(center + (step / 6) * windowSize, 0, total);
+      const sample = path.getPointAtLength(candidate);
+      const error = (sample.x - point.x) ** 2 + (sample.y - point.y) ** 2;
+      if (error < bestError) {
+        bestError = error;
+        bestDistance = candidate;
+      }
     }
+    windowSize /= 6;
   }
   return bestDistance;
 }

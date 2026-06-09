@@ -22,6 +22,7 @@ function renderJourney(): string {
   <div class="sky" id="sky" aria-hidden="true"></div>
   <div class="stars" id="stars" aria-hidden="true"></div>
 
+  <main id="main" tabindex="-1">
   <header class="trailhead scene" id="scene-trailhead" data-scene="trailhead">
     <p class="hud-chip pixel-chip" id="hud">${escapeHtml(HUD_CHIP)}</p>
     <h1 class="pixel-title">${escapeHtml(TRAILHEAD.title)}</h1>
@@ -52,6 +53,7 @@ ${scenes}
     <p class="endcap-tbc">${escapeHtml(ENDCAP.tbc)}</p>
     <p class="endcap-sub pixel-chip">${escapeHtml(ENDCAP.sub)}</p>
   </section>
+  </main>
 
   <div class="grass-patch" id="grass-patch" aria-hidden="true" title="psst"></div>
 
