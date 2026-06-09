@@ -231,6 +231,8 @@ function initJourney(ctx: Ctx): void {
   let lastMoveAt = performance.now();
   let waveUntil = performance.now() + 2800;
   let lastNearestStation = -1;
+  let lastHousekeeping = 0;
+  let lastSkyColor = "";
 
   function setSprite(element: HTMLElement, src: string, frames: number, frame: number, frameWidth: number, frameHeight: number, scale: number, row = 0, rows = 1, flip = false): void {
     const w = Math.round(frameWidth * scale);
@@ -353,8 +355,11 @@ function initJourney(ctx: Ctx): void {
       placeAt(follower.element, { x: followPoint.x + normalX * side, y: followPoint.y + normalY * side });
     }
 
-    tintSky();
-    forceReveal();
+    if (now - lastHousekeeping > 180) {
+      lastHousekeeping = now;
+      tintSky();
+      forceReveal();
+    }
     requestAnimationFrame(frameLoop);
   }
 
@@ -554,9 +559,13 @@ function initJourney(ctx: Ctx): void {
     }
     const max = document.documentElement.scrollHeight - window.innerHeight;
     const progress = max > 0 ? clamp(window.scrollY / max, 0, 1) : 0;
-    sky.style.backgroundColor = lerpStops(skyStops, progress);
-    if (starsRoot instanceof HTMLElement) {
-      starsRoot.style.opacity = String(clamp((progress - 0.7) / 0.3, 0, 1) * 0.85);
+    const color = lerpStops(skyStops, progress);
+    if (color !== lastSkyColor) {
+      lastSkyColor = color;
+      sky.style.backgroundColor = color;
+      if (starsRoot instanceof HTMLElement) {
+        starsRoot.style.opacity = String(clamp((progress - 0.7) / 0.3, 0, 1) * 0.85);
+      }
     }
   }
 
