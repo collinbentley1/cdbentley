@@ -410,7 +410,6 @@ body.page-journey {
   font-family: var(--font-pixel);
   font-size: 8px;
   letter-spacing: 1px;
-  opacity: 0.75;
 }
 
 @media (hover: none) {
