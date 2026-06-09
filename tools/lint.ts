@@ -7,11 +7,11 @@ const allowedIndexOrigins = new Set(["https://fonts.googleapis.com", "https://fo
 
 await requireContains("Dockerfile", "dhi.io/bun", "Dockerfile must use Docker Hardened Bun images.");
 await requireContains("Dockerfile", "bun upgrade --canary", "Dockerfile must upgrade Bun to the latest canary.");
-await requireContains("public/index.html", 'rel="icon"', "The document must link a favicon.");
-await requireContains("public/index.html", "family=Press+Start+2P&family=Caveat", "The document must load the portfolio display fonts.");
-await rejectUnapprovedHttpsUrls("public/index.html", allowedIndexOrigins);
+await requireContains("src/pages/layout.ts", 'rel="icon"', "The document must link a favicon.");
+await requireContains("src/pages/layout.ts", "family=Press+Start+2P&family=Caveat", "The document must load the portfolio display fonts.");
+await rejectUnapprovedHttpsUrls("src/pages/layout.ts", allowedIndexOrigins);
 await rejectContains("public/assets/styles.css", "@import", "Styles should not import third-party design libraries.");
-await rejectContains("src/client.ts", "react", "The frontend should stay framework-free.");
+await rejectContains("src/client/journey.ts", "react", "The frontend should stay framework-free.");
 
 await import("./verify-socket-config.ts");
 
