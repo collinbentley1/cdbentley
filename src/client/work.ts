@@ -1,9 +1,8 @@
 /** Live demos for the /work pages. All payloads are canned; no external calls. */
 
 import { WORK_PAGES, type AvaDemo, type HistoryDemo, type MedlockDemo } from "../../content/work.ts";
-import { wireCopy } from "./shared.ts";
+import { reducedMotion, wireCopy } from "./shared.ts";
 
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const medlockRoot = document.querySelector<HTMLElement>('[data-demo="medlock"]');
 if (medlockRoot) {

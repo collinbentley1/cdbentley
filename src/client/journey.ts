@@ -8,6 +8,8 @@
  * - prefers-reduced-motion: cross-fade between stations, instant reveals
  */
 
+import { reducedMotion } from "./shared.ts";
+
 type CompanionName = "horse" | "bulldog" | "robot" | "crane" | "pigeon" | "pear";
 
 type SpriteMeta = {
@@ -43,8 +45,6 @@ const COMPANIONS: Record<CompanionName, SpriteMeta> = {
 function meta(frameWidth: number, frameHeight: number, scale: number, name: string): SpriteMeta {
   return { frameHeight, frameWidth, idleFrames: 2, idleSrc: `${SPRITES}/${name}-idle.png`, scale, walkFrames: 4, walkSrc: `${SPRITES}/${name}-walk.png` };
 }
-
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 const journey = document.getElementById("journey");
 const trailLayer = document.getElementById("trail-layer");

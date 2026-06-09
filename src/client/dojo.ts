@@ -4,10 +4,9 @@
  */
 
 import { BASE_PROMPT, CONSTRAINT_ANSWERS, CONSTRAINT_SENSEI, FEAR_LEVELS, FORMATS, FORMAT_SENSEI, GROUP_SIZES, LEVEL_UP, RATE_RESPONSE, ROLES, ROLE_SENSEI, USELESS_ANSWER } from "../../content/dojo.ts";
-import { wireCopy } from "./shared.ts";
+import { reducedMotion, wireCopy } from "./shared.ts";
 
 const root = document.querySelector<HTMLElement>("[data-dojo]");
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 if (root) {
   initDojo(root);

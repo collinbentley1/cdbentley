@@ -1,5 +1,14 @@
 /** Site-wide behavior: colophon dialog + copy-to-clipboard buttons. */
 
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+/** OS preference, with a ?reduced query override so the path is testable anywhere. */
+export const reducedMotion = {
+  get matches(): boolean {
+    return reducedMotionQuery.matches || new URLSearchParams(window.location.search).has("reduced");
+  },
+};
+
 const colophon = document.getElementById("colophon");
 
 if (colophon instanceof HTMLDialogElement) {
