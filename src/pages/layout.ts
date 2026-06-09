@@ -14,6 +14,8 @@ export type PageSpec = {
   bodyClass?: string;
   /** Skip the standard footer (the journey renders its own, with extras). */
   bareFooter?: boolean;
+  /** Extra tags appended to <head> (preloads etc). */
+  head?: string;
 };
 
 export function renderPage(spec: PageSpec): string {
@@ -48,6 +50,7 @@ export function renderPage(spec: PageSpec): string {
     <link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png">
     <link rel="stylesheet" href="/assets/styles.css">
     <script>document.documentElement.classList.add("js")</script>
+    ${spec.head ?? ""}
   </head>
   <body${spec.bodyClass ? ` class="${spec.bodyClass}"` : ""}>
     <a class="skip-link" href="#main">Skip to content</a>

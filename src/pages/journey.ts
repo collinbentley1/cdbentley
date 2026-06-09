@@ -9,6 +9,9 @@ export function journeyPage(): string {
     body: renderJourney(),
     bodyClass: "page-journey",
     description: SITE.description,
+    // The walker is the LCP element; let the browser discover its first sheets immediately.
+    head: `<link rel="preload" href="/assets/sprites/trainer-wave.png" as="image" fetchpriority="high">
+    <link rel="preload" href="/assets/sprites/trainer-idle.png" as="image">`,
     path: "/",
     script: "journey",
     title: SITE.title,
