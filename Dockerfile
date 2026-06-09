@@ -13,6 +13,7 @@ RUN bun ci
 
 FROM deps AS build
 COPY Dockerfile ./
+COPY content ./content
 COPY public ./public
 COPY src ./src
 COPY test ./test
