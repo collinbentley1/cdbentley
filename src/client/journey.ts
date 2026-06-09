@@ -385,12 +385,12 @@ function initJourney(ctx: Ctx): void {
 
   function crossFadeTo(index: number): void {
     const station = stations[index];
-    const point = station ? { x: station.point.x - 40, y: station.point.y } : pointAt(0);
+    const baseDistance = station ? station.distance : 0;
     ctx.walkerRoot.style.transition = "opacity 150ms";
     ctx.walkerRoot.style.opacity = "0";
     window.setTimeout(() => {
       setSprite(trainerEl, TRAINER.idleSrc, 4, 0, 128, 128, TRAINER.scale);
-      placeAt(trainerEl, point);
+      placeAt(trainerEl, pointAt(baseDistance));
       let shown = 0;
       for (const follower of followers) {
         const joined = index >= follower.stationIndex;
@@ -398,7 +398,7 @@ function initJourney(ctx: Ctx): void {
         if (joined) {
           shown += 1;
           setSprite(follower.element, follower.meta.idleSrc, follower.meta.idleFrames, 0, follower.meta.frameWidth, follower.meta.frameHeight, follower.meta.scale);
-          placeAt(follower.element, { x: point.x - 56 * shown, y: point.y });
+          placeAt(follower.element, pointAt(Math.max(0, baseDistance - 100 * shown)));
         }
       }
       for (const [stationIndex, candidate] of stations.entries()) {
