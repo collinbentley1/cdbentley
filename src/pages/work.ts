@@ -14,7 +14,7 @@ export function workIndexPage(): string {
   ).join("\n");
 
   return renderPage({
-    body: `<main id="main" class="page work-index">
+    body: `<main id="main" tabindex="-1" class="page work-index">
   <header class="page-header">
     <h1 class="pixel-title">${WORK_INDEX.title}</h1>
     <p class="page-intro">${escapeHtml(WORK_INDEX.intro)}</p>
@@ -43,7 +43,7 @@ export function workDetailPage(slug: string): string | null {
     : "";
 
   return renderPage({
-    body: `<main id="main" class="page work-detail" data-work="${page.slug}">
+    body: `<main id="main" tabindex="-1" class="page work-detail" data-work="${page.slug}">
   <header class="page-header">
     <p class="breadcrumb"><a href="/work">← the work</a></p>
     <h1 class="pixel-title">${escapeHtml(page.title)}</h1>

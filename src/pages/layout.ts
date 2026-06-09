@@ -41,6 +41,9 @@ export function renderPage(spec: PageSpec): string {
     <meta property="og:image" content="${SITE.origin}/assets/og/og.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:image" content="${SITE.origin}/assets/og/og-square.png">
+    <meta property="og:image:width" content="630">
+    <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="${SITE.origin}/assets/og/og.png">
     <link rel="preload" href="/assets/fonts/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin>

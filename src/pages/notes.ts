@@ -20,7 +20,7 @@ export function notesIndexPage(): string {
   }).join("\n");
 
   return renderPage({
-    body: `<main id="main" class="page notes-index">
+    body: `<main id="main" tabindex="-1" class="page notes-index">
   <header class="page-header">
     <h1 class="pixel-title">THE NOTES</h1>
     <p class="page-intro">${escapeHtml(NOTES_INTRO)}</p>
@@ -42,7 +42,7 @@ export function essayPage(slug: string): string | null {
   }
 
   return renderPage({
-    body: `<main id="main" class="page essay">
+    body: `<main id="main" tabindex="-1" class="page essay">
   <article aria-labelledby="essay-title">
     <header class="page-header">
       <p class="breadcrumb"><a href="/notes">← the notes</a></p>

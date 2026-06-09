@@ -17,7 +17,7 @@ export function dojoPage(): string {
 function renderDojo(): string {
   const steps = SCREEN_LABELS.map((label, index) => `<li class="dojo-step${index === 0 ? " step-active" : ""}" data-step-marker="${index}"><span class="step-dot"></span><span class="step-label pixel-small">${escapeHtml(label)}</span></li>`).join("");
 
-  return `<main id="main" class="page dojo" data-dojo>
+  return `<main id="main" tabindex="-1" class="page dojo" data-dojo>
   <header class="dojo-header">
     <h1 class="pixel-title">${DOJO_HEADER.title}</h1>
     <p class="dojo-tagline">— ${escapeHtml(DOJO_HEADER.titleSuffix)}</p>
