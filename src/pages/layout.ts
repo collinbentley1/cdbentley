@@ -41,9 +41,8 @@ export function renderPage(spec: PageSpec): string {
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="${SITE.origin}/assets/og/og.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Caveat:wght@600&display=swap" rel="stylesheet">
+    <link rel="preload" href="/assets/fonts/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/caveat-600-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
     <link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png">

@@ -39,7 +39,7 @@ export type RunsettaDemo = {
   pace: string[];
   weather: string[];
   mood: string[];
-  /** lines[pace][weather][mood] */
+  /** lines[pace][mood][weather] */
   lines: string[][][];
 };
 

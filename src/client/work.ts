@@ -239,7 +239,7 @@ function initRunsetta(root: HTMLElement): void {
   const indexes: Record<string, number> = { mood: 0, pace: 0, weather: 0 };
 
   function currentLine(): string {
-    return lines[indexes.pace ?? 0]?.[indexes.weather ?? 0]?.[indexes.mood ?? 0] ?? "";
+    return lines[indexes.pace ?? 0]?.[indexes.mood ?? 0]?.[indexes.weather ?? 0] ?? "";
   }
 
   function update(): void {

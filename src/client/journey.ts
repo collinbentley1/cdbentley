@@ -486,7 +486,11 @@ function initJourney(ctx: Ctx): void {
     observer.unobserve(element);
   }
 
-  /** Belt-and-suspenders fallback: force-reveal anything within 40% of viewport center. */
+  /**
+   * Belt-and-suspenders fallback (A1): force-reveal anything within 40% of the
+   * viewport center — or anything already scrolled past, so jump-scrolls that
+   * leap over a card (where IntersectionObserver never fires) can't ghost it.
+   */
   function forceReveal(): void {
     if (pending.size === 0) {
       return;
@@ -496,7 +500,9 @@ function initJourney(ctx: Ctx): void {
     for (const element of [...pending]) {
       const rect = element.getBoundingClientRect();
       const elementCenter = rect.top + rect.height / 2;
-      if (Math.abs(elementCenter - center) < limit || (rect.top < window.innerHeight && rect.bottom > 0 && rect.height > window.innerHeight * 0.6)) {
+      const withinOrPassed = elementCenter - center < limit;
+      const tallAndVisible = rect.top < window.innerHeight && rect.bottom > 0 && rect.height > window.innerHeight * 0.6;
+      if (withinOrPassed || tallAndVisible) {
         reveal(element);
       }
     }

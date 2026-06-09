@@ -3,6 +3,22 @@
    red #C24B41, gold #D9A441. Bitmap face for headings/chips/HUD only;
    humanist body; handwritten script reserved for margin notes. */
 
+@font-face {
+  font-display: swap;
+  font-family: "Press Start 2P";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/assets/fonts/press-start-2p-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-display: swap;
+  font-family: "Caveat";
+  font-style: normal;
+  font-weight: 600;
+  src: url("/assets/fonts/caveat-600-latin.woff2") format("woff2");
+}
+
 :root {
   color-scheme: only light;
   --parchment: #ede6cc;
@@ -1703,7 +1719,12 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .honest-line {
+  display: inline-block;
   max-width: 56ch;
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  background: rgb(246 241 227 / 92%);
+  border: 1px dashed rgb(43 43 51 / 35%);
   color: var(--ink-soft);
   font-size: 15px;
   font-style: italic;

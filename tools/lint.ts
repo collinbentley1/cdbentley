@@ -3,12 +3,12 @@ import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
 const failures: string[] = [];
-const allowedIndexOrigins = new Set(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]);
+const allowedIndexOrigins = new Set(["https://cdbentley.com"]);
 
 await requireContains("Dockerfile", "dhi.io/bun", "Dockerfile must use Docker Hardened Bun images.");
 await requireContains("Dockerfile", "bun upgrade --canary", "Dockerfile must upgrade Bun to the latest canary.");
 await requireContains("src/pages/layout.ts", 'rel="icon"', "The document must link a favicon.");
-await requireContains("src/pages/layout.ts", "family=Press+Start+2P&family=Caveat", "The document must load the portfolio display fonts.");
+await requireContains("public/assets/styles.css", 'font-family: "Press Start 2P"', "The portfolio display fonts must be self-hosted.");
 await rejectUnapprovedHttpsUrls("src/pages/layout.ts", allowedIndexOrigins);
 await rejectContains("public/assets/styles.css", "@import", "Styles should not import third-party design libraries.");
 await rejectContains("src/client/journey.ts", "react", "The frontend should stay framework-free.");
