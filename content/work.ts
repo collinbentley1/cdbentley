@@ -75,7 +75,7 @@ export const WORK_PAGES: WorkPage[] = [
       "Tools: solid_fetch_vitals (read-only by design) and vitals_scan, which hands the camera step to the browser — the server can't touch hardware. It also ships a medlock://context resource so the model gets deployment and safety context, not just the human.",
     ],
     demo: {
-      endpoint: "https://medlock.ai/mcp",
+      endpoint: "https://medlock.ai/api/mcp",
       kind: "medlock",
       tools: [
         {
