@@ -97,7 +97,7 @@ function renderDemo(page: WorkPage): string {
         <div class="terminal"><p class="terminal-label pixel-small">← response</p><pre class="terminal-pane" data-pane="response"></pre></div>
       </div>
       <div class="endpoint-block">
-        <p class="pixel-small">ADD TO CLAUDE — this demo's payloads mirror the live public endpoint:</p>
+        <p class="pixel-small">ADD TO CLAUDE — the responses above are verbatim captures from the live public endpoint:</p>
         <div class="endpoint-row"><code class="endpoint" data-endpoint>${demo.endpoint}</code><button class="pixel-button" type="button" data-copy-endpoint>copy</button></div>
         <p class="demo-fineprint">The public deployment serves deterministic demo vitals only — connect it to Claude without handing over anything real.</p>
       </div>
@@ -142,7 +142,7 @@ function renderDemo(page: WorkPage): string {
       <div class="coach-output">
         <div class="speech-bubble coach-bubble" data-coach-line aria-live="polite">set the dials, coach is listening…</div>
         <button class="pixel-button" type="button" data-say>▶ hear it</button>
-        <p class="demo-fineprint">voice: your browser's speech synthesis, standing in until the real recorded set lands.</p>
+        <p class="demo-fineprint">voice: pre-rendered synthetic recordings (no live API), standing in until Collin records the real set.</p>
       </div>
       <script type="application/json" data-coach-lines>${JSON.stringify(demo.lines).replaceAll("<", "\\u003c")}</script>
     </div>`;

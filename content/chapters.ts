@@ -81,7 +81,7 @@ export const SCENES: Scene[] = [
   },
   {
     beat: 1,
-    body: "A year teaching computer science and robotics to young learners in Beijing. My students' science and reading scores climbed a full grade-level past previous cohorts — but the real curriculum was watching a seven-year-old realize she could make the robot obey her.",
+    body: "A year teaching computer science and robotics to young learners in Beijing. My students' science and reading scores climbed a full grade-level past previous cohorts — but the real curriculum was watching a seven-year-old realize she could make the robot obey *her*.",
     chips: [{ label: "TEACHING", level: 5, mastered: true }],
     companion: "crane",
     key: "beijing",

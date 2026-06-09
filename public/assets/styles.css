@@ -550,9 +550,12 @@ html.js #hello-bubble {
 
 .walker-sprite {
   position: absolute;
+  top: 0;
+  left: 0;
   background-repeat: no-repeat;
   image-rendering: pixelated;
   transform-origin: 50% 100%;
+  will-change: transform;
 }
 
 .scenes {
@@ -761,10 +764,11 @@ html.js .reveal.revealed {
   font-size: 28px;
 }
 
+/* The endcap's "to be continued…" is the closing margin note of the trail. */
 .endcap-tbc {
   margin: 8px 0;
-  font-family: var(--font-hand);
   font-size: 30px;
+  transform: none;
 }
 
 .endcap-sub {
@@ -864,8 +868,8 @@ html.js .reveal.revealed {
 .work-strap {
   margin: 2px 0 10px;
   color: var(--red);
-  font-family: var(--font-hand);
-  font-size: 24px;
+  font-size: 19px;
+  font-style: italic;
 }
 
 .work-problem {
@@ -1194,22 +1198,11 @@ html.js .reveal.revealed {
   background: var(--gold);
   border: 2px solid var(--ink);
   opacity: 0;
+  will-change: transform;
 }
 
 .lane.committing .lane-commit {
-  animation: commit-fly 700ms steps(7) forwards;
-}
-
-@keyframes commit-fly {
-  0% {
-    opacity: 1;
-    right: 70%;
-  }
-
-  100% {
-    opacity: 1;
-    right: 0%;
-  }
+  opacity: 1;
 }
 
 .merge-bar {
@@ -1231,9 +1224,10 @@ html.js .reveal.revealed {
 .merge-track::after {
   position: absolute;
   inset: 0;
-  width: 0;
   background: var(--gold);
   content: "";
+  transform: scaleX(0);
+  transform-origin: left;
 }
 
 .merge-bar.merged .merge-track::after {
@@ -1242,7 +1236,7 @@ html.js .reveal.revealed {
 
 @keyframes merge-fill {
   to {
-    width: 100%;
+    transform: scaleX(1);
   }
 }
 
@@ -1371,12 +1365,15 @@ input[type="range"]::-moz-range-thumb {
 
 .map-viewport {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 130px;
   height: 90px;
   border: 3px dashed var(--red);
   opacity: 0;
   transform: translate(-50%, -50%);
-  transition: left 900ms cubic-bezier(0.5, 0, 0.3, 1), top 900ms cubic-bezier(0.5, 0, 0.3, 1), opacity 300ms;
+  transition: transform 900ms cubic-bezier(0.5, 0, 0.3, 1), opacity 300ms;
+  will-change: transform;
 }
 
 .map-viewport.flying {
@@ -1465,8 +1462,9 @@ input[type="range"]::-moz-range-thumb {
 
 .dojo-tagline {
   margin: 10px 0 4px;
-  font-family: var(--font-hand);
-  font-size: 26px;
+  color: var(--ink-soft);
+  font-size: 19px;
+  font-style: italic;
 }
 
 .dojo-subhead {
@@ -1766,6 +1764,12 @@ input[type="range"]::-moz-range-thumb {
   html.js .reveal {
     opacity: 1;
     transform: none;
+  }
+
+  /* The station cross-fade (§4 reduced motion) is an opacity fade, not motion —
+     exempt it from the global transition kill so it stays a fade, not a blink. */
+  .walker {
+    transition-duration: 150ms !important;
   }
 
   .speaker-toggle {

@@ -53,7 +53,7 @@ ${scenes}
 
   <section class="endcap" id="endcap" aria-label="The story continues">
     <div class="endcap-star" aria-hidden="true">✦</div>
-    <p class="endcap-tbc">${escapeHtml(ENDCAP.tbc)}</p>
+    <p class="endcap-tbc margin-note">${escapeHtml(ENDCAP.tbc)}</p>
     <p class="endcap-sub pixel-chip">${escapeHtml(ENDCAP.sub)}</p>
   </section>
   </main>
@@ -91,7 +91,7 @@ function renderScene(scene: Scene, index: number): string {
         <p class="card-no pixel-small">No.${number} — ${escapeHtml(scene.kicker)}</p>
         <h2 class="card-title pixel-heading" id="card-title-${scene.key}">${escapeHtml(scene.title)}</h2>
         ${scene.role ? `<p class="card-role">${escapeHtml(scene.role)}</p>` : ""}
-        <p class="card-body">${escapeHtml(scene.body)}</p>
+        <p class="card-body">${emphasize(escapeHtml(scene.body))}</p>
         <ul class="chips" role="list">
         ${chips}
         </ul>
@@ -100,6 +100,11 @@ function renderScene(scene: Scene, index: number): string {
       ${signposts}
       ${scene.marginNote ? `<p class="margin-note">${escapeHtml(scene.marginNote)}</p>` : ""}
     </li>`;
+}
+
+/** The brief's copy uses markdown-style *emphasis*; carry it into the page. */
+function emphasize(escaped: string): string {
+  return escaped.replace(/\*([^*]+)\*/g, "<em>$1</em>");
 }
 
 function renderChip(chip: Chip): string {

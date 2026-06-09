@@ -66,8 +66,10 @@ function typePre(element: HTMLElement, text: string, done?: () => void): void {
   }
   element.textContent = "";
   let cursor = 0;
+  // Scale the step so even long captured payloads finish in about a second.
+  const step = Math.max(14, Math.ceil(text.length / 70));
   const timer = window.setInterval(() => {
-    cursor += 14;
+    cursor += step;
     element.textContent = text.slice(0, cursor);
     if (cursor >= text.length) {
       window.clearInterval(timer);
@@ -210,6 +212,16 @@ function initOtseek(root: HTMLElement): void {
       window.setTimeout(
         () => {
           lane.classList.add("committing");
+          // Fly the commit dot via transform only (§4: no layout animation).
+          const commit = lane.querySelector<HTMLElement>("[data-commit]");
+          const track = lane.querySelector<HTMLElement>(".lane-track");
+          if (commit && track) {
+            commit.style.transition = "none";
+            commit.style.transform = `translateX(${-(track.clientWidth - 14)}px)`;
+            void commit.offsetWidth;
+            commit.style.transition = reducedMotion.matches ? "none" : "transform 700ms steps(7)";
+            commit.style.transform = "translateX(0)";
+          }
         },
         reducedMotion.matches ? 0 : 220 * lanes.length + 320 * index,
       );
@@ -262,16 +274,24 @@ function initRunsetta(root: HTMLElement): void {
     });
   }
 
+  let player: HTMLAudioElement | null = null;
   sayButton?.addEventListener("click", () => {
     const line = currentLine();
-    if (!line || !("speechSynthesis" in window)) {
+    if (!line) {
       return;
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(line);
-    utterance.rate = 1.02;
-    utterance.pitch = 1.05;
-    window.speechSynthesis.speak(utterance);
+    // Pre-rendered recording (no live API); browser speech only if the file fails.
+    player?.pause();
+    player = new Audio(`/assets/audio/coach/coach-${indexes.pace ?? 0}-${indexes.mood ?? 0}-${indexes.weather ?? 0}.m4a`);
+    player.play().catch(() => {
+      if (!("speechSynthesis" in window)) {
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(line);
+      utterance.rate = 1.02;
+      window.speechSynthesis.speak(utterance);
+    });
   });
 
   update();
@@ -290,14 +310,18 @@ function initHistory(root: HTMLElement): void {
   const flyButton = root.querySelector<HTMLButtonElement>("[data-fly]");
   const pins = [...root.querySelectorAll<HTMLElement>(".map-pin")];
 
+  const map = root.querySelector<HTMLElement>("[data-map]");
+
   function visit(index: number): void {
     const entry = entries[index];
-    if (!entry || !viewport) {
+    if (!entry || !viewport || !map) {
       return;
     }
     viewport.classList.add("flying");
-    viewport.style.left = `${entry.x}%`;
-    viewport.style.top = `${entry.y}%`;
+    // Fly via transform only (§4): convert the entry's % position to pixels.
+    const x = (map.clientWidth * entry.x) / 100;
+    const y = (map.clientHeight * entry.y) / 100;
+    viewport.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -50%)`;
     pins.forEach((pin, pinIndex) => pin.classList.toggle("visited", pinIndex <= index));
     if (note) {
       note.textContent = `${entry.label} — ${entry.note}`;

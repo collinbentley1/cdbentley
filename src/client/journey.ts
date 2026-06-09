@@ -241,6 +241,7 @@ function initJourney(ctx: Ctx): void {
   let lastHousekeeping = 0;
   let lastSkyColor = "";
 
+  /** Sprites animate via background-position (stepped frames); never layout. */
   function setSprite(element: HTMLElement, src: string, frames: number, frame: number, frameWidth: number, frameHeight: number, scale: number, row = 0, rows = 1, flip = false): void {
     const w = Math.round(frameWidth * scale);
     const h = Math.round(frameHeight * scale);
@@ -249,12 +250,13 @@ function initJourney(ctx: Ctx): void {
     element.style.backgroundImage = `url(${src})`;
     element.style.backgroundSize = `${w * frames}px ${h * rows}px`;
     element.style.backgroundPosition = `${-frame * w}px ${-row * h}px`;
-    element.style.transform = flip ? "translate(-50%, -100%) scaleX(-1)" : "translate(-50%, -100%)";
+    element.dataset.flip = flip ? "1" : "";
   }
 
+  /** Position via transform only (§4: transform/opacity, no layout animation). */
   function placeAt(element: HTMLElement, point: { x: number; y: number }): void {
-    element.style.left = `${Math.round(point.x)}px`;
-    element.style.top = `${Math.round(point.y)}px`;
+    const flip = element.dataset.flip ? " scaleX(-1)" : "";
+    element.style.transform = `translate3d(${Math.round(point.x)}px, ${Math.round(point.y)}px, 0) translate(-50%, -100%)${flip}`;
   }
 
   function pointAt(distance: number): { x: number; y: number } {

@@ -77,6 +77,8 @@ export const WORK_PAGES: WorkPage[] = [
     demo: {
       endpoint: "https://medlock.ai/api/mcp",
       kind: "medlock",
+      // Responses below are verbatim captures from the live public endpoint
+      // (POST https://medlock.ai/api/mcp, Streamable HTTP), taken 2026-06-09.
       tools: [
         {
           blurb: "Read-only vitals from the demo pod",
@@ -90,21 +92,62 @@ export const WORK_PAGES: WorkPage[] = [
     "arguments": {}
   }
 }`,
-          response: `{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "content": [{
-      "type": "text",
-      "text": "demo pod vitals —
-      heart_rate: 62 bpm
-      blood_pressure: 118/76
-      spo2: 98%
-      source: deterministic demo
-      (public deploys never serve
-      real patient data)"
-    }]
-  }
+          response: `// result.content[0].text — verbatim
+// from the live endpoint:
+{
+  "audit": {
+    "clientId": "anonymous-demo",
+    "readOnly": true,
+    "tool": "solid_fetch_vitals"
+  },
+  "records": [
+    {
+      "confidence": 0.98,
+      "displayName": "Heart rate",
+      "observedAt": "2026-05-29T13:04:00.000Z",
+      "source": "demo-solid-pod",
+      "type": "heart_rate",
+      "unit": "bpm",
+      "value": "72"
+    },
+    {
+      "confidence": 0.97,
+      "displayName": "Blood pressure",
+      "observedAt": "2026-05-29T13:05:00.000Z",
+      "source": "demo-solid-pod",
+      "type": "blood_pressure",
+      "unit": "mmHg",
+      "value": "120/78"
+    },
+    {
+      "confidence": 0.96,
+      "displayName": "Blood oxygen",
+      "observedAt": "2026-05-29T13:06:00.000Z",
+      "source": "demo-solid-pod",
+      "type": "blood_oxygen",
+      "unit": "%",
+      "value": "98"
+    },
+    {
+      "confidence": 0.94,
+      "displayName": "Respiratory rate",
+      "observedAt": "2026-05-29T13:07:00.000Z",
+      "source": "demo-solid-pod",
+      "type": "respiratory_rate",
+      "unit": "breaths/min",
+      "value": "14"
+    },
+    {
+      "confidence": 0.95,
+      "displayName": "Temperature",
+      "observedAt": "2026-05-29T13:08:00.000Z",
+      "source": "demo-solid-pod",
+      "type": "temperature",
+      "unit": "F",
+      "value": "98.4"
+    }
+  ],
+  "source": "demo-solid-pod"
 }`,
         },
         {
@@ -119,18 +162,23 @@ export const WORK_PAGES: WorkPage[] = [
     "arguments": {}
   }
 }`,
-          response: `{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "result": {
-    "content": [{
-      "type": "text",
-      "text": "scan ready — open the
-      handoff URL in your browser.
-      The camera activates there,
-      never from this server."
-    }]
-  }
+          response: `// result.content[0].text — verbatim
+// from the live endpoint:
+{
+  "device": "front",
+  "instructions": [
+    "Open the scan URL in a trusted browser session.",
+    "Grant camera access only after the browser explains the local processing flow.",
+    "Keep your finger still over the camera lens until the quality indicator is stable."
+  ],
+  "privacyMode": "local-first",
+  "scanUrl": "https://medlock.ai/scan?device=front",
+  "status": "ready",
+  "supportedMeasurements": [
+    "heart_rate",
+    "blood_oxygen",
+    "respiratory_rate"
+  ]
 }`,
         },
       ],
@@ -176,7 +224,7 @@ export const WORK_PAGES: WorkPage[] = [
         {
           assistant: "Done — here's your river day: 8:45 check-in at the outpost, 9:30 Lower Canyon float (about 3 hours on the water), wetsuits included, back by 1:00 for lunch. I've held it as an itinerary; checkout happens with the operator directly.",
           durableObjectWrite: true,
-          tool: { name: "plan-itinerary", note: "One Durable Object per itinerary — repeated clicks and model retries serialize to a single write. No double-booked rafts." },
+          tool: { name: "itinerary · quote · checkout-handoff", note: "The planning flow's write path: one Durable Object per itinerary, so repeated clicks and model retries serialize to a single write. No double-booked rafts." },
           user: "Perfect. Book the morning float for the five of us.",
         },
       ],
