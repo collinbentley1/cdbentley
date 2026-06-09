@@ -151,7 +151,7 @@ async function serveStatic(pathname: string): Promise<Response> {
 
   return new Response(file, {
     headers: {
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": IS_BUILT_SERVER ? "public, max-age=300" : "no-cache",
       "Content-Type": CONTENT_TYPES[extname(filePath)] ?? "application/octet-stream",
     },
   });

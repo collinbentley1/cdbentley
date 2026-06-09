@@ -96,11 +96,11 @@ describe("server", () => {
     expect(robots).toContain("Sitemap: https://cdbentley.com/sitemap.xml");
   });
 
-  test("serves fixed static assets with revalidating cache headers", async () => {
+  test("serves static assets fresh in dev (built server caches)", async () => {
     const response = await handleRequest(new Request("http://localhost/assets/styles.css"));
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300");
+    expect(response.headers.get("Cache-Control")).toBe("no-cache");
   });
 
   test("serves sprite assets as png images", async () => {
