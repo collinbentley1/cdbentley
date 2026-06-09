@@ -80,10 +80,21 @@ body::after {
 }
 
 @media (prefers-color-scheme: dark) {
-  html,
-  body {
+  html {
     background-color: var(--parchment) !important;
+  }
+
+  body {
     color: var(--ink) !important;
+  }
+
+  body:not(.page-journey) {
+    background-color: var(--parchment) !important;
+  }
+
+  /* The journey body stays transparent so the time-of-day sky shows through. */
+  body.page-journey {
+    background-color: transparent !important;
   }
 }
 
