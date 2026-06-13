@@ -43,13 +43,17 @@ function buildFrameImage(width: number, height: number, parts: Array<{ grid: str
   return frame;
 }
 
-// --- Companions -------------------------------------------------------------
-for (const companion of COMPANIONS) {
-  const walkFrames = companion.walk.map((parts) => buildFrameImage(companion.width, companion.height, parts, companion.palette));
-  const idleFrames = companion.idle.map((parts) => buildFrameImage(companion.width, companion.height, parts, companion.palette));
-  await write(join(SPRITES, `${companion.name}-walk.png`), sheet(walkFrames));
-  await write(join(SPRITES, `${companion.name}-idle.png`), sheet(idleFrames));
+// --- Companions (high-fidelity shaded renderer) -----------------------------
+{
+  const { HI_COMPANIONS } = await import("./companions-hi.ts");
+  const { renderSprite } = await import("./render.ts");
+  for (const companion of HI_COMPANIONS) {
+    await write(join(SPRITES, `${companion.name}-walk.png`), sheet(companion.walk.map((f) => renderSprite(f))));
+    await write(join(SPRITES, `${companion.name}-idle.png`), sheet(companion.idle.map((f) => renderSprite(f))));
+  }
 }
+void COMPANIONS;
+void buildFrameImage;
 
 // --- Horse + sensei ----------------------------------------------------------
 const horse = await buildHorseDerived();

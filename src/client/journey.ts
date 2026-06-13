@@ -33,15 +33,16 @@ const TRAINER = {
   waveSrc: `${SPRITES}/trainer-wave.png`,
 };
 
-// Companion scale dropped 2.6 -> 1.85 and horse 0.62 -> 0.82 to close the
-// pixel-density gap with the painted 128px trainer (visual-critique finding).
+// Companions are now high-fidelity shaded sprites (tools/sprites/render.ts) at
+// larger native sizes, rendered ~0.9x so they read as creatures beside the
+// painted 128px trainer/horse while sharing their pixel density.
 const COMPANIONS: Record<CompanionName, SpriteMeta> = {
-  bulldog: meta(27, 18, 1.85, "bulldog"),
-  crane: meta(24, 20, 1.85, "crane"),
+  bulldog: meta(66, 48, 0.9, "bulldog"),
+  crane: meta(56, 60, 0.9, "crane"),
   horse: { frameHeight: 128, frameWidth: 128, idleFrames: 2, idleSrc: `${SPRITES}/horse-idle.png`, scale: 0.82, walkFrames: 4, walkSrc: `${SPRITES}/horse-walk.png` },
-  pear: meta(19, 19, 1.85, "pear"),
-  pigeon: meta(23, 18, 1.85, "pigeon"),
-  robot: meta(21, 20, 1.85, "robot"),
+  pear: meta(38, 50, 0.9, "pear"),
+  pigeon: meta(50, 40, 0.9, "pigeon"),
+  robot: meta(56, 60, 0.9, "robot"),
 };
 
 function meta(frameWidth: number, frameHeight: number, scale: number, name: string): SpriteMeta {
