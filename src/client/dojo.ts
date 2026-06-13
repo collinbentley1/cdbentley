@@ -1,10 +1,13 @@
 /**
- * The Dojo (§5.4) — fully scripted teaching loop. No API is ever called;
- * every Riverbot answer ships canned in content/dojo.ts.
+ * The Dojo v2 — "FIND THE FLAW". Fully scripted; no model is called and no
+ * score leaves the tab. Ten confident answers, one planted flaw each: the
+ * visitor clicks the sentence they distrust, the verdict names the failure
+ * mode, and the end screen reports a real capability read — accuracy, speed
+ * per catch, category breakdown, and improvement across runs.
  */
 
-import { BASE_PROMPT, CONSTRAINT_ANSWERS, CONSTRAINT_SENSEI, FEAR_LEVELS, FORMATS, FORMAT_SENSEI, GROUP_SIZES, LEVEL_UP, RATE_RESPONSE, ROLES, ROLE_SENSEI, USELESS_ANSWER } from "../../content/dojo.ts";
-import { reducedMotion, wireCopy } from "./shared.ts";
+import { END, ITEMS, PREMISE, VERDICT, type DojoItem } from "../../content/dojo.ts";
+import { reducedMotion } from "./shared.ts";
 
 const root = document.querySelector<HTMLElement>("[data-dojo]");
 
@@ -12,15 +15,34 @@ if (root) {
   initDojo(root);
 }
 
-function initDojo(root: HTMLElement): void {
-  const screens = [...root.querySelectorAll<HTMLElement>(".dojo-screen")];
-  const markers = [...root.querySelectorAll<HTMLElement>("[data-step-marker]")];
-  const promptText = root.querySelector<HTMLElement>("[data-prompt-text]");
+type Result = {
+  item: DojoItem;
+  correct: boolean;
+  ms: number;
+};
+
+function initDojo(dojo: HTMLElement): void {
+  const screens = {
+    end: dojo.querySelector<HTMLElement>('[data-screen="end"]'),
+    intro: dojo.querySelector<HTMLElement>('[data-screen="intro"]'),
+    play: dojo.querySelector<HTMLElement>('[data-screen="play"]'),
+  };
+  const answerBox = dojo.querySelector<HTMLElement>("[data-answer-box]");
+  const verdictBox = dojo.querySelector<HTMLElement>("[data-verdict-box]");
+  const verdictLine = dojo.querySelector<HTMLElement>("[data-verdict-line]");
+  const verdictCategory = dojo.querySelector<HTMLElement>("[data-verdict-category]");
+  const verdictExplanation = dojo.querySelector<HTMLElement>("[data-verdict-explanation]");
+  const itemCounter = dojo.querySelector<HTMLElement>("[data-item-counter]");
+  const difficultyChip = dojo.querySelector<HTMLElement>("[data-difficulty]");
+  const dots = [...dojo.querySelectorAll<HTMLElement>("[data-dot]")];
   const senseiBubble = document.getElementById("sensei-bubble");
 
-  let roleIndex = 0;
-  let groupIndex = 0;
-  let fearIndex = 0;
+  let order = ITEMS.map((_, index) => index);
+  let position = 0;
+  let shownAt = 0;
+  let results: Result[] = [];
+  let lastRunScore: number | null = null;
+  let runSeed = 1;
 
   function speak(line: string): void {
     if (!(senseiBubble instanceof HTMLElement)) {
@@ -33,226 +55,156 @@ function initDojo(root: HTMLElement): void {
     senseiBubble.setAttribute("aria-hidden", "false");
   }
 
-  function setPrompt(parts: Array<{ text: string; fresh?: boolean }>): void {
-    if (!promptText) {
+  function show(name: keyof typeof screens): void {
+    for (const [key, screen] of Object.entries(screens)) {
+      if (screen) {
+        screen.hidden = key !== name;
+        screen.classList.toggle("screen-active", key === name);
+      }
+    }
+  }
+
+  // --- play ------------------------------------------------------------------
+
+  function renderItem(): void {
+    const item = ITEMS[order[position] ?? 0];
+    if (!item || !answerBox) {
       return;
     }
-    promptText.replaceChildren(
-      ...parts.flatMap((part, index) => {
-        const span = document.createElement("span");
-        span.className = part.fresh ? "prompt-add" : "prompt-base";
-        span.textContent = part.text;
-        return index > 0 ? [document.createTextNode(" "), span] : [span];
-      }),
-    );
-  }
-
-  function promptParts(stage: number): Array<{ text: string; fresh?: boolean }> {
-    const parts: Array<{ text: string; fresh?: boolean }> = [];
-    if (stage >= 1) {
-      parts.push({ fresh: stage === 1, text: ROLES[roleIndex]?.prefix ?? "" });
+    if (itemCounter) {
+      itemCounter.textContent = `ITEM ${position + 1} / ${ITEMS.length}`;
     }
-    parts.push({ text: BASE_PROMPT + (stage >= 2 ? "." : "") });
-    if (stage >= 2) {
-      parts.push({ fresh: stage === 2, text: `We are ${GROUP_SIZES[groupIndex]} people; fear level: ${FEAR_LEVELS[fearIndex]}.` });
+    if (difficultyChip) {
+      difficultyChip.textContent = item.difficulty;
+      difficultyChip.dataset.level = item.difficulty;
     }
-    if (stage >= 3) {
-      parts.push({ fresh: true, text: FORMATS[formatIndex]?.example ?? "" });
-    }
-    return parts;
-  }
-
-  function show(index: number): void {
-    screens.forEach((screen, screenIndex) => {
-      screen.hidden = screenIndex !== index;
-      screen.classList.toggle("screen-active", screenIndex === index);
+    dots.forEach((dot, index) => {
+      dot.classList.toggle("dot-current", index === position);
     });
-    markers.forEach((marker, markerIndex) => {
-      marker.classList.toggle("step-active", markerIndex === index);
-      marker.classList.toggle("step-done", markerIndex < index);
+
+    answerBox.replaceChildren();
+    if (verdictBox) {
+      verdictBox.hidden = true;
+    }
+
+    item.sentences.forEach((sentence, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "flaw-sentence";
+      button.textContent = sentence;
+      button.dataset.sentence = String(index);
+      button.addEventListener("click", () => choose(item, index, button));
+      answerBox.append(button);
+      answerBox.append(document.createTextNode(" "));
     });
-    const active = screens[index];
-    const focusable = active?.querySelector<HTMLElement>("button, a, input");
-    focusable?.focus({ preventScroll: false });
+
+    if (item.code) {
+      const pre = document.createElement("pre");
+      pre.className = "flaw-code";
+      pre.textContent = item.code;
+      answerBox.append(pre);
+    }
+
+    shownAt = performance.now();
+    answerBox.querySelector<HTMLElement>(".flaw-sentence")?.focus({ preventScroll: true });
   }
 
-  function typeInto(element: HTMLElement, text: string, done?: () => void): void {
-    if (reducedMotion.matches) {
-      element.textContent = text;
-      done?.();
+  function choose(item: DojoItem, chosen: number, button: HTMLButtonElement): void {
+    if (!answerBox || answerBox.dataset.locked === "1") {
       return;
     }
-    element.textContent = "";
-    let cursor = 0;
-    const timer = window.setInterval(() => {
-      cursor += 2;
-      element.textContent = text.slice(0, cursor);
-      if (cursor >= text.length) {
-        window.clearInterval(timer);
-        done?.();
-      }
-    }, 24);
-  }
+    answerBox.dataset.locked = "1";
+    const correct = chosen === item.flawIndex;
+    results.push({ correct, item, ms: performance.now() - shownAt });
 
-  // --- Screen 0: TRY -----------------------------------------------------------
-  const answer0 = root.querySelector<HTMLElement>('[data-answer="0"]');
-  const rateRow = root.querySelector<HTMLElement>("[data-rate-row]");
-  const verdict = root.querySelector<HTMLElement>("[data-verdict]");
-
-  if (answer0) {
-    typeInto(answer0, USELESS_ANSWER, () => {
-      if (rateRow) {
-        rateRow.hidden = false;
-      }
-    });
-  }
-
-  for (const button of root.querySelectorAll<HTMLButtonElement>("[data-rate]")) {
-    button.addEventListener("click", () => {
-      if (verdict) {
-        verdict.hidden = false;
-        verdict.textContent = RATE_RESPONSE;
-      }
-      speak(RATE_RESPONSE);
-      showNextRow(0);
-    });
-  }
-
-  // --- Screen 1: ROLE -----------------------------------------------------------
-  const answer1 = root.querySelector<HTMLElement>('[data-answer="1"]');
-  for (const button of root.querySelectorAll<HTMLButtonElement>("[data-role]")) {
-    button.addEventListener("click", () => {
-      roleIndex = Number(button.dataset.role ?? 0);
-      pressOnly(root.querySelectorAll<HTMLButtonElement>("[data-role]"), button);
-      setPrompt(promptParts(1));
-      if (answer1) {
-        typeInto(answer1, ROLES[roleIndex]?.answer ?? "", () => {
-          speak(ROLE_SENSEI);
-          showNextRow(1);
-        });
-      }
-    });
-  }
-
-  // --- Screen 2: CONSTRAINTS -------------------------------------------------------
-  const answer2 = root.querySelector<HTMLElement>('[data-answer="2"]');
-  let constraintTouched = false;
-
-  function updateConstraints(): void {
-    setPrompt(promptParts(2));
-    const line = CONSTRAINT_ANSWERS[groupIndex]?.[fearIndex] ?? "";
-    if (answer2) {
-      answer2.textContent = line;
+    const sentences = [...answerBox.querySelectorAll<HTMLButtonElement>(".flaw-sentence")];
+    for (const sentence of sentences) {
+      sentence.disabled = true;
     }
-    if (!constraintTouched) {
-      constraintTouched = true;
-      speak(CONSTRAINT_SENSEI);
-      showNextRow(2);
+    button.classList.add(correct ? "chosen-right" : "chosen-wrong");
+    if (!correct) {
+      sentences[item.flawIndex]?.classList.add("the-flaw");
     }
+
+    const dot = dots[position];
+    if (dot) {
+      dot.classList.add(correct ? "dot-hit" : "dot-miss");
+    }
+
+    if (verdictBox && verdictLine && verdictCategory && verdictExplanation) {
+      verdictLine.textContent = correct ? "Caught it." : "It slipped past.";
+      verdictLine.dataset.state = correct ? "right" : "wrong";
+      verdictCategory.textContent = `FAILURE MODE: ${item.category.toUpperCase()}`;
+      verdictExplanation.textContent = item.explanation;
+      verdictBox.hidden = false;
+      verdictBox.querySelector<HTMLElement>("[data-next-item]")?.focus({ preventScroll: true });
+    }
+
+    speak(correct ? VERDICT.correct.replace("{category}", item.category) : VERDICT.wrong.replace("{n}", String(item.flawIndex + 1)).replace("{category}", item.category));
   }
 
-  for (const slider of root.querySelectorAll<HTMLInputElement>("[data-dojo-slider]")) {
-    const name = slider.dataset.dojoSlider;
-    const valueLabel = root.querySelector<HTMLElement>(`[data-dojo-slider-value="${name}"]`);
-    slider.addEventListener("input", () => {
-      const index = Number(slider.value);
-      const values = name === "group" ? GROUP_SIZES : FEAR_LEVELS;
-      if (name === "group") {
-        groupIndex = index;
+  function next(): void {
+    if (answerBox) {
+      delete answerBox.dataset.locked;
+    }
+    position += 1;
+    if (position >= order.length) {
+      finish();
+      return;
+    }
+    renderItem();
+  }
+
+  // --- end -------------------------------------------------------------------
+
+  function finish(): void {
+    show("end");
+    const caught = results.filter((result) => result.correct).length;
+
+    const closing = dojo.querySelector<HTMLElement>("[data-end-closing]");
+    if (closing) {
+      closing.textContent = END.closing.replace("{n}", String(caught));
+    }
+
+    const half = Math.ceil(results.length / 2);
+    const round1 = results.slice(0, half);
+    const round2 = results.slice(half);
+    const rounds = dojo.querySelector<HTMLElement>("[data-end-rounds]");
+    if (rounds) {
+      rounds.textContent = `Round 1 (easy–medium): ${round1.filter((r) => r.correct).length}/${round1.length} · Round 2 (medium–hard): ${round2.filter((r) => r.correct).length}/${round2.length}. ${END.roundNote}`;
+    }
+
+    const speed = dojo.querySelector<HTMLElement>("[data-end-speed]");
+    if (speed) {
+      const times = results.map((result) => result.ms).sort((a, b) => a - b);
+      const median = times[Math.floor(times.length / 2)] ?? 0;
+      const fastestCatch = results.filter((r) => r.correct).sort((a, b) => a.ms - b.ms)[0];
+      speed.textContent = `Median read-to-verdict: ${(median / 1000).toFixed(1)}s.` + (fastestCatch ? ` Fastest catch: ${(fastestCatch.ms / 1000).toFixed(1)}s (${fastestCatch.item.category}).` : "");
+    }
+
+    const categories = dojo.querySelector<HTMLElement>("[data-end-categories]");
+    if (categories) {
+      const missed = results.filter((result) => !result.correct).map((result) => result.item.category);
+      categories.textContent = missed.length === 0 ? END.perfectNote : `${END.slippedLabel} ${missed.join(", ")}.`;
+    }
+
+    const delta = dojo.querySelector<HTMLElement>("[data-end-delta]");
+    if (delta) {
+      if (lastRunScore !== null) {
+        delta.hidden = false;
+        const trend = caught > lastRunScore ? "harder to fool than last run" : caught === lastRunScore ? "holding steady" : "the flaws shuffled — stay suspicious";
+        delta.textContent = `last run ${lastRunScore}/10 → this run ${caught}/10 — ${trend}`;
       } else {
-        fearIndex = index;
+        delta.hidden = true;
       }
-      const label = values[index] ?? "";
-      slider.setAttribute("aria-valuetext", label);
-      if (valueLabel) {
-        valueLabel.textContent = label;
-      }
-      updateConstraints();
-    });
-  }
-
-  // --- Screen 3: EXAMPLE -------------------------------------------------------------
-  let formatIndex = 0;
-  const answer3 = root.querySelector<HTMLElement>('[data-answer="3"]');
-  for (const button of root.querySelectorAll<HTMLButtonElement>("[data-format]")) {
-    button.addEventListener("click", () => {
-      formatIndex = Number(button.dataset.format ?? 0);
-      pressOnly(root.querySelectorAll<HTMLButtonElement>("[data-format]"), button);
-      setPrompt(promptParts(3));
-      if (answer3) {
-        renderFormatted(answer3, formatIndex);
-        speak(FORMAT_SENSEI);
-        showNextRow(3);
-      }
-    });
-  }
-
-  function renderFormatted(element: HTMLElement, index: number): void {
-    const format = FORMATS[index];
-    if (!format) {
-      return;
     }
-    element.replaceChildren();
-    const intro = document.createElement("p");
-    intro.textContent = format.answer.intro;
-    intro.style.marginTop = "0";
-    element.append(intro);
-    if ("rows" in format.answer) {
-      const table = document.createElement("table");
-      for (const [time, item] of format.answer.rows) {
-        const row = table.insertRow();
-        row.insertCell().textContent = time ?? "";
-        row.insertCell().textContent = item ?? "";
-      }
-      element.append(table);
-    } else {
-      const list = document.createElement("ul");
-      for (const item of format.answer.checklist) {
-        const li = document.createElement("li");
-        li.textContent = item;
-        list.append(li);
-      }
-      element.append(list);
-      const outro = document.createElement("p");
-      outro.textContent = format.answer.outro;
-      element.append(outro);
-    }
+    lastRunScore = caught;
+
+    dropEndCairn();
   }
 
-  // --- Screen 4: LEVEL UP ----------------------------------------------------------------
-  const cheatButton = root.querySelector("[data-copy-cheat]");
-  if (cheatButton) {
-    wireCopy(cheatButton, () => LEVEL_UP.cheatLine);
-  }
-
-  // --- navigation -------------------------------------------------------------------------
-  function showNextRow(index: number): void {
-    const row = root.querySelector<HTMLElement>(`[data-next-row="${index}"]`);
-    if (row) {
-      row.hidden = false;
-    }
-  }
-
-  let screenIndex = 0;
-  for (const button of root.querySelectorAll<HTMLButtonElement>("[data-next]")) {
-    button.addEventListener("click", () => {
-      screenIndex += 1;
-      show(screenIndex);
-      if (screenIndex === 1) {
-        speak("Pick a role. Any of them.");
-      }
-      if (screenIndex === 2) {
-        setPrompt(promptParts(1));
-      }
-      if (screenIndex === 4) {
-        levelUp();
-      }
-    });
-  }
-
-  function levelUp(): void {
-    speak(LEVEL_UP.title);
-    const cairn = root.querySelector<HTMLElement>("[data-dojo-cairn]");
+  function dropEndCairn(): void {
+    const cairn = dojo.querySelector<HTMLElement>("[data-dojo-cairn]");
     if (!cairn) {
       return;
     }
@@ -276,12 +228,39 @@ function initDojo(root: HTMLElement): void {
     }, 90 + 3 * 50);
   }
 
-  show(0);
-  setPrompt([{ text: BASE_PROMPT }]);
+  // --- wiring ------------------------------------------------------------------
+
+  dojo.querySelector("[data-start]")?.addEventListener("click", () => {
+    show("play");
+    position = 0;
+    results = [];
+    renderItem();
+  });
+
+  dojo.querySelector("[data-next-item]")?.addEventListener("click", next);
+
+  dojo.querySelector("[data-replay]")?.addEventListener("click", () => {
+    // Deterministic reshuffle per run; difficulty still ramps within each half.
+    runSeed += 1;
+    const easyMedium = ITEMS.map((_, index) => index).filter((index) => ITEMS[index]?.difficulty !== "hard");
+    const hard = ITEMS.map((_, index) => index).filter((index) => ITEMS[index]?.difficulty === "hard");
+    order = [...rotate(easyMedium, runSeed), ...rotate(hard, runSeed)];
+    position = 0;
+    results = [];
+    dots.forEach((dot) => dot.classList.remove("dot-hit", "dot-miss", "dot-current"));
+    const cairn = dojo.querySelector<HTMLElement>("[data-dojo-cairn]");
+    if (cairn) {
+      cairn.style.backgroundImage = "url(/assets/sprites/cairn-3.png)";
+      cairn.style.backgroundSize = "100% 100%";
+    }
+    show("play");
+    renderItem();
+  });
+
+  speak(PREMISE.senseiIntro);
 }
 
-function pressOnly(buttons: Iterable<HTMLButtonElement>, active: HTMLButtonElement): void {
-  for (const button of buttons) {
-    button.setAttribute("aria-pressed", button === active ? "true" : "false");
-  }
+function rotate<T>(values: T[], by: number): T[] {
+  const shift = by % values.length;
+  return [...values.slice(shift), ...values.slice(0, shift)];
 }

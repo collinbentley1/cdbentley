@@ -76,15 +76,41 @@ describe("server", () => {
     expect(body).toContain("Ask whether the human grew");
   });
 
-  test("dojo renders the scripted screens with no API calls", async () => {
+  test("dojo renders Find the Flaw with no API calls", async () => {
     const response = await handleRequest(new Request("http://localhost/dojo"));
     const body = await response.text();
 
     expect(response.status).toBe(200);
     expect(body).toContain("THE DOJO");
-    expect(body).toContain("GIVE IT A ROLE");
-    expect(body).toContain("plan me a trip");
+    expect(body).toContain("FIND THE FLAW");
+    expect(body).toContain("catching machines being confidently wrong");
+    expect(body).toContain("no model was called");
     expect(body).toContain("/assets/dojo.js");
+    expect(body).not.toContain("Riverbot");
+    expect(body).not.toContain("GIVE IT A ROLE");
+  });
+
+  test("dojo items are well-formed: one flaw each, escalating difficulty", async () => {
+    const { ITEMS } = await import("../content/dojo.ts");
+
+    expect(ITEMS.length).toBe(10);
+    expect(ITEMS.filter((item) => item.difficulty === "easy").length).toBe(2);
+    expect(ITEMS.filter((item) => item.difficulty === "medium").length).toBe(4);
+    expect(ITEMS.filter((item) => item.difficulty === "hard").length).toBe(4);
+    const categories = new Set(ITEMS.map((item) => item.category));
+    expect(categories.size).toBe(10);
+    for (const item of ITEMS) {
+      expect(item.sentences.length).toBeGreaterThanOrEqual(4);
+      expect(item.sentences.length).toBeLessThanOrEqual(6);
+      expect(item.flawIndex).toBeGreaterThanOrEqual(0);
+      expect(item.flawIndex).toBeLessThan(item.sentences.length);
+      expect(item.explanation.length).toBeGreaterThan(40);
+    }
+    // difficulty never decreases through the list
+    const rank = { easy: 0, hard: 2, medium: 1 } as const;
+    for (let index = 1; index < ITEMS.length; index += 1) {
+      expect(rank[ITEMS[index]!.difficulty]).toBeGreaterThanOrEqual(rank[ITEMS[index - 1]!.difficulty]);
+    }
   });
 
   test("serves sitemap and robots", async () => {

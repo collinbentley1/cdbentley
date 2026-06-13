@@ -1,8 +1,13 @@
 /**
- * /dojo — §5.4. The capability artifact. Fully scripted; every response below is
- * canned and no API is ever called. The skill taught: "three moves of context"
- * (role · constraints · example), practiced against a fictional trip-planning
- * assistant, "Riverbot".
+ * /dojo v2 — "FIND THE FLAW".
+ * The durable human skill of the AI era isn't writing prompts — it's catching
+ * machines being confidently wrong. Ten confident answers, each hiding exactly
+ * one planted, realistic flaw. The visitor clicks the sentence they distrust;
+ * the verdict names the failure-mode category so the learning transfers.
+ *
+ * Fully scripted: no model is called, nothing is tracked, scores live and die
+ * in the tab. Every item drafted for Collin to author or heavily edit — the
+ * non-flaw sentences must stay true, and the flaws genuinely good fakes.
  */
 
 export const DOJO_HEADER = {
@@ -11,111 +16,191 @@ export const DOJO_HEADER = {
   titleSuffix: "leave knowing one move you didn't have.",
 } as const;
 
-export const BASE_PROMPT = "plan me a trip";
-
-/** Screen 1 — TRY. The starving model's confident, useless wall. */
-export const USELESS_ANSWER =
-  "Great question! Trips really depend on what you're looking for. Colorado has options for everyone: rafting (it depends on the season!), hiking (it depends on your fitness!), hot springs (it depends on your budget!). I'd recommend researching what suits your group, considering weather, and booking in advance — or last-minute, which can also work. Let me know if you'd like more general suggestions!";
-
-export const RATE_RESPONSE = "Correct. It's useless. Not because the model is weak — because it's starving.";
-
-/** Screen 2 — MOVE 1: GIVE IT A ROLE. */
-export const ROLES = [
-  {
-    answer:
-      "Let's find your family calm water first. The Lower Canyon float is the run I'd put my own kids on: class II, minimum age six, guides who narrate every riffle before you reach it. Wetsuits and life jackets are included and fitted on shore, where it's calm. Nobody is ever more than twenty feet from a guide, and the photo raft catches the smiles, not the worry.",
-    chip: "river guide for nervous families",
-    key: "guide",
-    prefix: "You are a river guide who specializes in nervous families.",
-  },
-  {
-    answer:
-      "Then allow me to suggest the private-charter morning: your own raft and senior guide on the canyon's quietest stretch, launching ahead of the public trips. A riverside table follows — chilled towels, local trout, a view your phone will not do justice to. Transfers from your lodge are handled. You'll touch nothing but the water, and only if you choose to.",
-    chip: "luxury concierge",
-    key: "concierge",
-    prefix: "You are a luxury travel concierge.",
-  },
-  {
-    answer:
-      "Okay, broke-but-brave plan: book the weekday afternoon raft slot — same rapids, fewer dollars than Saturday. Split a campsite at the river access (cheapest beds in the canyon, bring earplugs), and the gear's all included so nobody rents a wetsuit twice. Pack your own lunch; buy the photo pack once for the whole group and share it.",
-    chip: "budget trip planner for students",
-    key: "budget",
-    prefix: "You are a budget trip planner for students.",
-  },
-] as const;
-
-export const ROLE_SENSEI = "Same model. One sentence of role. Notice what it stopped guessing about.";
-
-/** Screen 3 — MOVE 2: GIVE IT CONSTRAINTS. Two sliders → 9 variants (group × fear). */
-export const GROUP_SIZES = ["2", "6", "12"] as const;
-export const FEAR_LEVELS = ["none", "some", "please-no-rapids"] as const;
-
-/** CONSTRAINT_ANSWERS[groupIndex][fearIndex] — two sentences each. */
-export const CONSTRAINT_ANSWERS: string[][] = [
-  [
-    "For two fearless paddlers, skip the big raft: take inflatable kayaks down the class III stretch, one each. You'll earn every splash and have no one to blame but each other.",
-    "For two of you with a few butterflies, a guided half-day raft on class II-III water is the sweet spot. You'll share a boat with a calm crew and a guide who reads the river out loud.",
-    "Two people, zero rapids: take the scenic float — flat, slow water with canyon walls doing all the drama. Bring binoculars; this stretch is where the herons hang out.",
-  ],
-  [
-    "Six thrill-seekers fill exactly one raft — your crew, your guide, nobody else's elbows. Go full-day class III-IV and argue about who screamed at the wave train.",
-    "Six with mixed nerves still fits one raft, which is the point: you stay together. The class II-III half-day has enough splash for the bold and enough calm for the rest.",
-    "Six and strictly no rapids: the morning float plus the canyon zipline keeps everyone moving without a single wave. The water stays flat; the adrenaline comes from the cables.",
-  ],
-  [
-    "Twelve confident paddlers means a two-raft convoy, and yes, the guides will let you race. Book the full-day run with the canyon lunch beach — it's built for groups exactly like yours.",
-    "Twelve with a range of courage splits perfectly: one raft takes the spicier line, one takes the gentle one, and you reunite at the same lunch beach. Everyone gets the trip they wanted and the same stories at dinner.",
-    "Twelve, no rapids, no problem: charter the flat-water float with a riverside picnic — it runs rain or shine and nobody gets splashed past the knees. The hardest part is herding twelve people into the vans by 8:45.",
-  ],
-];
-
-export const CONSTRAINT_SENSEI = "Constraints aren't limits on the model. They're limits on its hallucinations.";
-
-/** Screen 4 — MOVE 3: SHOW AN EXAMPLE. Two output formats. */
-export const FORMATS = [
-  {
-    answer: {
-      intro: "Your river day, in the format you asked for:",
-      rows: [
-        ["8:00", "Coffee at the outpost; waivers and wetsuit fitting"],
-        ["8:45", "Vans to the put-in — guide talk on the way"],
-        ["9:30", "On the water (the stretch your sliders picked)"],
-        ["12:30", "Lunch beach: tacos, sun, optional cliff-jump photos"],
-        ["14:00", "Back at the outpost; photos ready by 15:00"],
-      ],
-    },
-    example: "format it like: 8:00 — coffee · 9:30 — on the water",
-    key: "day-grid",
-    label: "a day-grid schedule",
-  },
-  {
-    answer: {
-      checklist: ["swimsuit worn under clothes (changing rooms are scarce)", "water shoes or old sneakers — no flip-flops on a raft", "sunscreen, applied before the wetsuit goes on", "dry change of clothes left in the van", "cash tip for your guide (they earn it)"],
-      intro: "Pack this, then show up — the plan runs itself:",
-      outro: "Trip: morning check-in, guided float on your chosen stretch, lunch beach, back by 14:00.",
-    },
-    example: "format it like a packing checklist first, plan second",
-    key: "packing-first",
-    label: "a packing-first checklist",
-  },
-] as const;
-
-export const FORMAT_SENSEI = "You just taught it. That's all teaching a model is — showing, not hoping.";
-
-/** Screen 5 — LEVEL UP. */
-export const LEVEL_UP = {
-  buttons: [
-    { href: "/notes", label: "read why this matters →" },
-    { href: "/", label: "who built this →" },
-  ],
-  cheatLine: "role + constraints + example",
-  honest: "Total canned demo, by the way — no model was called. The moves are real. Try them on a live one tonight.",
-  recap: [
-    { move: "GIVE IT A ROLE", plain: "Tell it who it is. One sentence kills a page of guessing." },
-    { move: "GIVE IT CONSTRAINTS", plain: "Say what's true about your situation. Every fact you add is a hallucination you subtract." },
-    { move: "SHOW AN EXAMPLE", plain: "Paste the shape you want back. Showing beats describing, every time." },
-  ],
-  title: "+1 LEVEL — that was YOUR level, not ours.",
+export const PREMISE = {
+  body: "The durable skill of the AI era isn't writing prompts — it's catching machines being confidently wrong. Below are ten confident answers. Each contains exactly one planted flaw. Click the sentence you don't trust.",
+  senseiIntro: "Ten answers. Each hides exactly one flaw. Trust nothing on style.",
+  start: "▶ BEGIN — ITEM 1 OF 10",
 } as const;
 
-export const SCREEN_LABELS = ["TRY", "MOVE 1 — GIVE IT A ROLE", "MOVE 2 — GIVE IT CONSTRAINTS", "MOVE 3 — SHOW AN EXAMPLE", "LEVEL UP"] as const;
+export type DojoItem = {
+  id: string;
+  difficulty: "easy" | "medium" | "hard";
+  /** Failure-mode label — the thing that transfers. */
+  category: string;
+  /** 4-6 confident sentences; exactly one is wrong. */
+  sentences: string[];
+  /** Optional code block shown between the prose and the choices. */
+  code?: string;
+  flawIndex: number;
+  /** Two lines: why it's wrong + why this failure mode survives review. */
+  explanation: string;
+};
+
+export const ITEMS: DojoItem[] = [
+  {
+    category: "fabricated statistic",
+    difficulty: "easy",
+    explanation: "That suspiciously precise number is invented — no such 2021 census exists. Decimal-point precision is the tell: nobody can measure what they haven't discovered yet.",
+    flawIndex: 2,
+    id: "pacific",
+    sentences: [
+      "The Pacific is the largest ocean on Earth, covering more area than all the continents combined.",
+      "It holds roughly half of the world's ocean water.",
+      "A 2021 census of marine life concluded that 84.6% of Pacific species remain undiscovered.",
+      "The Mariana Trench, the deepest known point in any ocean, lies in the western Pacific.",
+      "Despite its name, the Pacific hosts most of Earth's active volcanoes along the Ring of Fire.",
+    ],
+  },
+  {
+    category: "wrong date",
+    difficulty: "easy",
+    explanation: "Apollo 17 left the Moon in December 1972, not 1975. Dates that are merely “about right” are where confident answers drift — close enough to read past, wrong all the same.",
+    flawIndex: 3,
+    id: "apollo",
+    sentences: [
+      "NASA's Apollo program put twelve astronauts on the lunar surface between 1969 and 1972.",
+      "Apollo 11's Eagle lander touched down in the Sea of Tranquility in July 1969.",
+      "Apollo 13 never landed; an oxygen tank exploded en route and the crew returned safely.",
+      "The final mission, Apollo 17, left the Moon in December 1975, and no human has walked there since.",
+      "Apollo 17's crew included Harrison Schmitt, the only professional geologist to walk on the Moon.",
+    ],
+  },
+  {
+    category: "unit error",
+    difficulty: "medium",
+    explanation: "Moonlight reaches Earth in about 1.3 seconds, not minutes. The digits were right and the unit wasn't — unit slips survive because the number looks correct at a glance.",
+    flawIndex: 1,
+    id: "moonlight",
+    sentences: [
+      "The Moon orbits Earth at an average distance of about 384,000 kilometers.",
+      "Reflected sunlight from the Moon takes about 1.3 minutes to reach your eyes.",
+      "Because the Moon's orbit is slightly elliptical, its apparent size in our sky varies — the origin of so-called supermoons.",
+      "The same face of the Moon always points toward Earth, because its rotation is tidally locked to its orbit.",
+      "The Moon drifts about 3.8 centimeters farther from Earth each year, measured with laser reflectors the Apollo crews left behind.",
+    ],
+  },
+  {
+    category: "hallucinated API",
+    difficulty: "medium",
+    explanation: "There is no Array.prototype.unique() in JavaScript — the real one-liner is [...new Set(values)]. Hallucinated methods look exactly like real ones; the only defense is the docs.",
+    flawIndex: 1,
+    id: "unique",
+    sentences: [
+      "Removing duplicates from a JavaScript array is a one-liner in modern engines.",
+      "Every array ships with a built-in unique() method, so values.unique() returns the deduplicated array.",
+      "Building a Set also works — [...new Set(values)] stores each value once and spreads back into an array.",
+      "For arrays of objects, neither approach compares by content: Sets dedupe object references, not deep equality.",
+      "ES2023 added immutable helpers like toSorted() and toReversed() that return new arrays instead of mutating.",
+    ],
+  },
+  {
+    category: "false attribution",
+    difficulty: "medium",
+    explanation: "Einstein never said it — the line first surfaces in 1980s addiction-recovery literature. Quotes migrate toward famous names; an attribution is a claim like any other.",
+    flawIndex: 2,
+    id: "einstein",
+    sentences: [
+      "Albert Einstein won the 1921 Nobel Prize in Physics for the photoelectric effect, not for relativity.",
+      "He spent his later years at the Institute for Advanced Study in Princeton, chasing a unified field theory.",
+      "He also left us a definition of madness, famously writing that insanity is “doing the same thing over and over again and expecting different results.”",
+      "His 1905 “miracle year” papers covered Brownian motion, special relativity, and mass–energy equivalence.",
+      "Time magazine named him Person of the Century in 1999.",
+    ],
+  },
+  {
+    category: "plausible-but-wrong history",
+    difficulty: "medium",
+    explanation: "The library declined over centuries; Caesar's fire damaged it at most partially, and no single documented blaze ended it. Tidy, dramatic endings are a hallmark of plausible-but-wrong history.",
+    flawIndex: 3,
+    id: "alexandria",
+    sentences: [
+      "The Library of Alexandria was founded in the early third century BC under the Ptolemaic dynasty.",
+      "It formed part of a larger research institution, the Mouseion, which housed salaried scholars.",
+      "Estimates of its collection vary enormously, from tens of thousands to several hundred thousand scrolls.",
+      "Its end is well documented: the entire collection burned in a single catastrophic fire during Julius Caesar's siege in 48 BC.",
+      "Alexandria itself remained a major center of learning well into late antiquity.",
+    ],
+  },
+  {
+    category: "reversed causality",
+    difficulty: "hard",
+    explanation: "The arrow points the other way: being tall gets you selected into elite basketball — playing it doesn't make you taller. When two things travel together, ask which causes which.",
+    flawIndex: 2,
+    id: "height",
+    sentences: [
+      "The average NBA player stands about six feet six inches, nearly a foot above the average American man.",
+      "Height correlates with success at nearly every position, though guards run shorter than centers.",
+      "This is partly because intensive basketball training during adolescence stimulates bone growth, adding measurable height by adulthood.",
+      "Scouts evaluate wingspan alongside height, since reach shapes both shooting and defense.",
+      "Shorter players still reach the Hall of Fame — Allen Iverson was listed at six feet even.",
+    ],
+  },
+  {
+    category: "base-rate neglect",
+    difficulty: "hard",
+    explanation: "At 1-in-10,000 prevalence, a beep is roughly 1% likely to be real — one true hit drowns in about a hundred false alarms. “Accuracy” never answers “what does a positive mean”; base rates do.",
+    flawIndex: 2,
+    id: "scanner",
+    sentences: [
+      "Imagine an airport scanner that correctly flags 99 of every 100 prohibited items, and wrongly beeps at just 1 of every 100 clean bags.",
+      "Suppose only one bag in ten thousand actually contains a prohibited item.",
+      "So when the scanner beeps at a bag, there is roughly a 99 percent chance the bag contains one.",
+      "Screeners still resolve every beep with a hand search, which is why secondary inspection exists.",
+      "The same arithmetic governs spam filters and medical screening alike.",
+    ],
+  },
+  {
+    category: "off-by-one",
+    difficulty: "hard",
+    explanation: "The condition i < prices.length - 1 stops one short — the last price never lands in the total. Off-by-ones live exactly where code reads fine and runs wrong.",
+    flawIndex: 2,
+    id: "cart",
+    code: `function sumPrices(prices) {
+  let total = 0;
+  for (let i = 0; i < prices.length - 1; i++) {
+    total += prices[i];
+  }
+  return total;
+}`,
+    sentences: [
+      "This helper computes a cart total in plain JavaScript.",
+      "It initializes an accumulator to zero before the loop begins.",
+      "The loop walks the entire array, so every element of prices is added to the total.",
+      "Because it only reads from the array, the function has no side effects on its input.",
+      "An empty cart returns zero, since the loop body never executes.",
+    ],
+  },
+  {
+    category: "citation mismatch",
+    difficulty: "hard",
+    explanation: "The citation is real; the claim isn't in it. Miller measured short-term span — long-term memory has no seven-item cap. The most durable errors hide behind genuine references.",
+    flawIndex: 2,
+    id: "miller",
+    sentences: [
+      "Working memory is strikingly small relative to everything else the brain does.",
+      "George Miller's 1956 paper “The Magical Number Seven, Plus or Minus Two” is among the most cited in psychology.",
+      "In it, Miller showed that long-term memory tops out at about seven items, which is why phone numbers were designed with seven digits.",
+      "Later work suggests the true short-term span is closer to four chunks for most material.",
+      "Chunking — grouping digits into meaningful units — is how people stretch that limit every day.",
+    ],
+  },
+];
+
+export const VERDICT = {
+  correct: "Caught. That one was {category}.",
+  wrong: "It slipped past — the flaw was sentence {n}: {category}.",
+} as const;
+
+export const END = {
+  buttons: [
+    { href: "/notes/riding-instructors", label: "read why this matters →" },
+    { href: "/", label: "who built this →" },
+  ],
+  closing: "You caught {n}/10. The errors here were planted by a human. Real ones won't announce themselves — that's the skill.",
+  honest: "Planted by a human, scored in your browser, forgotten when you close the tab — no model was called, and nothing about you leaves this page.",
+  perfectNote: "Nothing got past you this round.",
+  replay: "↺ RUN IT AGAIN — different order, same flaws",
+  roundNote: "Round 2 is harder by design — holding your accuracy there is the real improvement.",
+  slippedLabel: "Got past you:",
+  title: "+1 LEVEL — that was YOUR level, not ours.",
+} as const;
