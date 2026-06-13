@@ -20,53 +20,57 @@ const ease = (phase: number): number => Math.sin((phase / 4) * Math.PI * 2);
 // ---------------------------------------------------------------- bulldog ---
 
 const BULLDOG_MATS = {
-  ear: { ramp: ["#3a2616", "#5b3c22", "#724c2c", "#8a5e38"] },
-  fawn: { ramp: ["#6b5a3c", "#897150", "#a68d64", "#c2a87e", "#dcc79c", "#efe2c2"], specular: false },
-  nose: { ramp: ["#1c1a20", "#2b2b33", "#3d3640"], flat: false },
+  ear: { ramp: ["#2e1c10", "#46301c", "#5b3c22", "#724c2c"] },
+  // darker outline (explicit) so the pale body holds against the sandy trail
+  fawn: { outline: "#3a2c1a", ramp: ["#6b5a3c", "#897150", "#a68d64", "#c2a87e", "#dcc79c", "#efe2c2"], specular: false },
+  jowl: { outline: "#3a2c1a", ramp: ["#5e4e34", "#7a6446", "#96815c", "#b29a72"] },
+  nose: { flat: false, ramp: ["#16161e", "#22202a", "#33313d"] },
   saddle: { ramp: ["#3a2616", "#5b3c22", "#7a5230", "#9a6a3c", "#b5824c"] },
 };
 
 function bulldogFrame(legSwing: number, bob: number): SpriteSpec {
   const baseY = 42 - bob;
-  // Short, thick, wide-set legs (a bulldog stands low and planted).
-  const leg = (x: number, swing: number): Prim => ({ ax: x, ay: baseY - 5, bx: x + swing, by: baseY, kind: "capsule", mat: "fawn", r: 4 });
+  // Front legs shorter than back (bulldog's low-slung front), wide-set.
+  const leg = (x: number, swing: number, top: number): Prim => ({ ax: x, ay: top - bob, bx: x + swing, by: baseY, kind: "capsule", mat: "fawn", r: 4 });
   return {
     decals: [
-      // brow + eye
-      { grid: "###\n#o.", palette: { "#": "#2b2b33", o: "#d8d2c0" }, x: 46, y: 18 - bob },
-      // jowl wrinkle under the eye
-      { grid: "w", palette: { w: "#8a7450" }, x: 50, y: 24 - bob },
+      // deep-set eye under a heavy brow
+      { grid: "##\n#o", palette: { "#": "#1c1a20", o: "#cfc8b4" }, x: 49, y: 22 - bob },
+      // brow wrinkle — the one pixel that says "bulldog"
+      { grid: "ww\n.w", palette: { w: "#6b5a3c" }, x: 52, y: 18 - bob },
     ],
     height: 48,
     materials: BULLDOG_MATS,
     prims: [
-      // legs — wide stance, fronts planted forward
-      leg(18, -legSwing),
-      leg(28, legSwing),
-      leg(44, legSwing * 0.7),
-      leg(52, -legSwing * 0.7),
+      // back legs (taller) then front legs (shorter, planted forward)
+      leg(17, -legSwing, 35),
+      leg(26, legSwing, 35),
+      leg(46, legSwing * 0.7, 37),
+      leg(54, -legSwing * 0.7, 37),
       // stubby tail
-      { ax: 8, ay: 26 - bob, bx: 4, by: 22 - bob, kind: "capsule", mat: "fawn", r: 2.2 },
+      { ax: 7, ay: 27 - bob, bx: 3, by: 23 - bob, kind: "capsule", mat: "fawn", r: 2.2 },
       // torso — low and wide, hindquarters narrower than the chest
-      { kind: "ellipse", mat: "fawn", rx: 18, ry: 11, x: 25, y: 29 - bob },
-      // broad chest, set forward and low
-      { kind: "ellipse", mat: "fawn", rx: 13, ry: 13, x: 43, y: 30 - bob },
-      // brown saddle — flush color patch inside the back, no silhouette hump
-      { bias: 6, kind: "ellipse", mat: "saddle", rx: 14, ry: 4.5, x: 23, y: 23 - bob },
-      // big blocky head, the bulldog's defining mass
-      { kind: "rect", mat: "fawn", round: 7, rx: 12, ry: 11, x: 50, y: 25 - bob },
+      { kind: "ellipse", mat: "fawn", rx: 17, ry: 10, x: 23, y: 30 - bob },
+      // broad low-slung chest, dropping below the elbow line
+      { kind: "ellipse", mat: "fawn", rx: 12, ry: 13, x: 40, y: 32 - bob },
+      // brown saddle — flush color patch, no silhouette hump
+      { bias: 6, kind: "ellipse", mat: "saddle", rx: 13, ry: 4, x: 22, y: 24 - bob },
+      // massive head — the bulldog's signature, wider than tall, set low
+      { kind: "rect", mat: "fawn", round: 6, rx: 13, ry: 11, x: 52, y: 27 - bob },
       // folded rose ear flat on the skull
-      { bias: 4, kind: "rect", mat: "ear", round: 2, rx: 4, ry: 3, x: 46, y: 17 - bob },
-      // muzzle block
-      { bias: 2, kind: "rect", mat: "fawn", round: 3, rx: 7, ry: 6, x: 57, y: 28 - bob },
-      // protruding lower jaw (the underbite) juts past the muzzle
-      { bias: 7, kind: "rect", mat: "fawn", round: 2, rx: 5, ry: 3, x: 60, y: 31 - bob },
-      // nose
-      { bias: 10, kind: "rect", mat: "nose", round: 2, rx: 2.6, ry: 2.2, x: 63, y: 27 - bob },
+      { bias: 4, kind: "rect", mat: "ear", round: 2, rx: 3.5, ry: 3, x: 47, y: 19 - bob },
+      // jowl mass hanging at the lower front of the face
+      { bias: 3, kind: "rect", mat: "jowl", round: 3, rx: 6, ry: 5, x: 62, y: 32 - bob },
+      // short pushed-in muzzle (flat front, not a protruding snout)
+      { bias: 5, kind: "rect", mat: "fawn", round: 1, rx: 3, ry: 4, x: 64, y: 29 - bob },
+      // underbite — lower jaw juts 1px past the muzzle at the bottom
+      { bias: 8, kind: "rect", mat: "jowl", round: 1, rx: 4, ry: 2, x: 64, y: 34 - bob },
+      // black nose high on the flat face
+      { bias: 11, kind: "rect", mat: "nose", round: 1, rx: 2.2, ry: 2, x: 66, y: 29 - bob },
     ],
     roundness: 6,
-    shadow: { rx: 27, ry: 4, x: 32, y: 46 },
-    width: 70,
+    shadow: { rx: 28, ry: 4, x: 32, y: 46 },
+    width: 74,
   };
 }
 
@@ -75,7 +79,7 @@ export const BULLDOG_HI: HiCompanion = {
   idle: [bulldogFrame(0, 0), bulldogFrame(0, 1)],
   name: "bulldog",
   walk: [bulldogFrame(4, 0), bulldogFrame(0, 1), bulldogFrame(-4, 0), bulldogFrame(0, 1)],
-  width: 70,
+  width: 74,
 };
 
 // ------------------------------------------------------------------ robot ---
@@ -152,8 +156,10 @@ function pigeonFrame(legSwing: number, headDx: number, bob: number): SpriteSpec 
     decals: [
       // iridescent neck patch
       { grid: "tp\npt", palette: { p: "#7e5e8c", t: "#4f8c7e" }, x: 30, y: 16 - bob },
-      // eye
-      { grid: "e", palette: { e: "#16161e" }, x: 35 + headDx, y: 12 - bob },
+      // eye — white ring + dark pupil so it reads against the grey head
+      { grid: "w\ne", palette: { e: "#16161e", w: "#e8e8e2" }, x: 35 + headDx, y: 11 - bob },
+      // dark line separating the beak from the face
+      { grid: "kk", palette: { k: "#2b2b33" }, x: 40 + headDx, y: 10 - bob },
       // stethoscope: tube + chestpiece
       { grid: "R..R\n.RR.\n.SS.", palette: { R: "#b8543f", S: "#c8ccd2" }, x: 26, y: 18 - bob },
     ],
@@ -227,11 +233,13 @@ function pearFrame(legSwing: number, lean: number, bob: number): SpriteSpec {
   };
 }
 
+// A legged pear waddle-hops: it lifts and leans on the push-off frames and
+// plants flat between, so the walk reads as motion rather than a slid prop.
 export const PEAR_HI: HiCompanion = {
   height: 50,
-  idle: [pearFrame(0, 0, 0), pearFrame(0, 0, 1)],
+  idle: [pearFrame(0, 1, 0), pearFrame(0, -1, 1)],
   name: "pear",
-  walk: [pearFrame(4, 2, 0), pearFrame(0, 0, 2), pearFrame(-4, -2, 0), pearFrame(0, 0, 2)],
+  walk: [pearFrame(5, 2, 3), pearFrame(0, 0, 0), pearFrame(-5, -2, 3), pearFrame(0, 0, 0)],
   width: 38,
 };
 
@@ -259,6 +267,9 @@ function craneFrame(stride: number, headDx: number, bob: number): SpriteSpec {
       { ax: 20 + stride, ay: 44, bx: 22 + stride, by: 54, kind: "capsule", mat: "leg", r: 1.8 },
       { ax: 26, ay: 32 - bob, bx: 28 - stride, by: 44, kind: "capsule", mat: "leg", r: 2 },
       { ax: 28 - stride, ay: 44, bx: 26 - stride, by: 54, kind: "capsule", mat: "leg", r: 1.8 },
+      // foot blobs so the ground connection reads even when legs go thin
+      { bias: 2, kind: "ellipse", mat: "leg", rx: 2.6, ry: 1.4, x: 22 + stride, y: 54 },
+      { bias: 2, kind: "ellipse", mat: "leg", rx: 2.6, ry: 1.4, x: 26 - stride, y: 54 },
       // body
       { kind: "ellipse", mat: "white", rx: 12, ry: 8, x: 24, y: 26 - bob },
       // black tail bustle draping at the rear (iconic red-crowned crane)

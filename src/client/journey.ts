@@ -37,7 +37,7 @@ const TRAINER = {
 // larger native sizes, rendered ~0.9x so they read as creatures beside the
 // painted 128px trainer/horse while sharing their pixel density.
 const COMPANIONS: Record<CompanionName, SpriteMeta> = {
-  bulldog: meta(70, 48, 0.9, "bulldog"),
+  bulldog: meta(74, 48, 0.9, "bulldog"),
   crane: meta(56, 60, 0.9, "crane"),
   horse: { frameHeight: 128, frameWidth: 128, idleFrames: 2, idleSrc: `${SPRITES}/horse-idle.png`, scale: 0.82, walkFrames: 4, walkSrc: `${SPRITES}/horse-walk.png` },
   pear: meta(38, 50, 0.9, "pear"),
