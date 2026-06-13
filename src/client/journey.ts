@@ -234,44 +234,42 @@ function initJourney(ctx: Ctx): void {
     vergeRoot.replaceChildren();
     vergePieces.length = 0;
     const width = ctx.journey.clientWidth;
-    const step = 34;
-    let index = 0;
-    for (let along = 24; along < totalLength - 24; along += step) {
+    // One piece per step on an alternating side — kept sparse so the path edge
+    // reads as ground without flooding the DOM or the path-sampling budget.
+    const step = 60;
+    const frag = document.createDocumentFragment();
+    let i = 0;
+    for (let along = 30; along < totalLength - 30; along += step, i += 1) {
       const seed = Math.floor(along);
-      // Two tufts per step, one each side, with jitter; an occasional pebble.
-      for (const dir of [-1, 1] as const) {
-        if (rand(seed * 3 + dir) > 0.82) {
-          continue;
-        }
-        const point = pointAt(along + (rand(seed + dir) - 0.5) * step);
-        const offset = 16 + rand(seed * 7 + dir) * 26;
-        const tangent = pointAt(along + 6);
-        const back = pointAt(along - 6);
-        const len = Math.hypot(tangent.x - back.x, tangent.y - back.y) || 1;
-        const nx = (-(tangent.y - back.y) / len) * dir;
-        const ny = ((tangent.x - back.x) / len) * dir;
-        const pebble = rand(seed * 11 + dir) > 0.8;
-        const variant = Math.floor(rand(seed * 5 + dir) * (pebble ? 2 : 3));
-        const scale = 2;
-        const sw = (pebble ? 4 : 11) * scale;
-        const sh = (pebble ? 4 : 3) * scale;
-        const x = point.x + nx * offset - sw / 2;
-        const y = point.y + ny * offset - sh;
-        if (x < 2 || x > width - sw - 2) {
-          continue;
-        }
-        const piece = document.createElement("div");
-        piece.className = "verge-piece";
-        piece.style.width = `${sw}px`;
-        piece.style.height = `${sh}px`;
-        piece.style.backgroundImage = `url(${SPRITES}/${pebble ? `pebble-${variant}` : `grass-tuft-${variant}`}.png)`;
-        piece.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
-        vergeRoot.append(piece);
-        vergePieces.push(piece);
-        index += 1;
+      if (rand(seed * 3) > 0.85) {
+        continue;
       }
+      const dir = i % 2 === 0 ? -1 : 1;
+      const point = pointAt(along);
+      const ahead = pointAt(along + 7);
+      const len = Math.hypot(ahead.x - point.x, ahead.y - point.y) || 1;
+      const nx = (-(ahead.y - point.y) / len) * dir;
+      const ny = ((ahead.x - point.x) / len) * dir;
+      const offset = 18 + rand(seed * 7) * 24;
+      const pebble = rand(seed * 11) > 0.78;
+      const variant = Math.floor(rand(seed * 5) * (pebble ? 2 : 3));
+      const sw = (pebble ? 4 : 11) * 2;
+      const sh = (pebble ? 4 : 3) * 2;
+      const x = point.x + nx * offset - sw / 2;
+      const y = point.y + ny * offset - sh;
+      if (x < 2 || x > width - sw - 2) {
+        continue;
+      }
+      const piece = document.createElement("div");
+      piece.className = "verge-piece";
+      piece.style.width = `${sw}px`;
+      piece.style.height = `${sh}px`;
+      piece.style.backgroundImage = `url(${SPRITES}/${pebble ? `pebble-${variant}` : `grass-tuft-${variant}`}.png)`;
+      piece.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+      frag.append(piece);
+      vergePieces.push(piece);
     }
-    void index;
+    vergeRoot.append(frag);
   }
 
   /** Horizon strips drift slower than the page — cheap pixel parallax. */
