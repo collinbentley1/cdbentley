@@ -83,6 +83,7 @@ function initDojo(dojo: HTMLElement): void {
     });
 
     answerBox.replaceChildren();
+    delete answerBox.dataset.locked;
     if (verdictBox) {
       verdictBox.hidden = true;
     }
