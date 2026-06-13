@@ -27,47 +27,46 @@ const BULLDOG_MATS = {
 };
 
 function bulldogFrame(legSwing: number, bob: number): SpriteSpec {
-  const baseY = 38 - bob;
-  const leg = (x: number, swing: number): Prim => ({ ax: x, ay: baseY - 6, bx: x + swing, by: baseY, kind: "capsule", mat: "fawn", r: 3.4 });
+  const baseY = 42 - bob;
+  // Short, thick, wide-set legs (a bulldog stands low and planted).
+  const leg = (x: number, swing: number): Prim => ({ ax: x, ay: baseY - 5, bx: x + swing, by: baseY, kind: "capsule", mat: "fawn", r: 4 });
   return {
     decals: [
-      {
-        grid: "##\n#o",
-        palette: { "#": "#2b2b33", o: "#d8d2c0" },
-        x: 50,
-        y: 17 - bob,
-      },
-      // wet nose highlight
-      { grid: "n", palette: { n: "#5b5560" }, x: 57, y: 21 - bob },
+      // brow + eye
+      { grid: "###\n#o.", palette: { "#": "#2b2b33", o: "#d8d2c0" }, x: 46, y: 18 - bob },
+      // jowl wrinkle under the eye
+      { grid: "w", palette: { w: "#8a7450" }, x: 50, y: 24 - bob },
     ],
     height: 48,
     materials: BULLDOG_MATS,
     prims: [
-      // back legs then front legs (so fronts read in front)
-      leg(20, -legSwing),
-      leg(40, legSwing),
-      leg(26, legSwing * 0.8),
-      leg(46, -legSwing * 0.8),
-      // tail
-      { ax: 9, ay: 22 - bob, bx: 4, by: 17 - bob, kind: "capsule", mat: "fawn", r: 2.4 },
-      // torso
-      { kind: "ellipse", mat: "fawn", rx: 21, ry: 13, x: 28, y: 24 - bob },
-      // chest
-      { kind: "ellipse", mat: "fawn", rx: 11, ry: 12, x: 44, y: 27 - bob },
-      // brown saddle on the back (bias so it wins the top material)
-      { bias: 6, kind: "ellipse", mat: "saddle", rx: 16, ry: 7, x: 26, y: 16 - bob },
-      // head
-      { kind: "circle", mat: "fawn", r: 12, x: 49, y: 20 - bob },
-      // snout
-      { kind: "rect", mat: "fawn", round: 3, rx: 7, ry: 5, x: 56, y: 24 - bob },
-      // nose tip
-      { bias: 8, kind: "circle", mat: "nose", r: 3, x: 60, y: 23 - bob },
-      // ear
-      { bias: 4, kind: "ellipse", mat: "ear", rx: 4, ry: 6, x: 45, y: 12 - bob },
+      // legs — wide stance, fronts planted forward
+      leg(18, -legSwing),
+      leg(28, legSwing),
+      leg(44, legSwing * 0.7),
+      leg(52, -legSwing * 0.7),
+      // stubby tail
+      { ax: 8, ay: 26 - bob, bx: 4, by: 22 - bob, kind: "capsule", mat: "fawn", r: 2.2 },
+      // torso — low and wide, hindquarters narrower than the chest
+      { kind: "ellipse", mat: "fawn", rx: 18, ry: 11, x: 25, y: 29 - bob },
+      // broad chest, set forward and low
+      { kind: "ellipse", mat: "fawn", rx: 13, ry: 13, x: 43, y: 30 - bob },
+      // brown saddle — flush color patch inside the back, no silhouette hump
+      { bias: 6, kind: "ellipse", mat: "saddle", rx: 14, ry: 4.5, x: 23, y: 23 - bob },
+      // big blocky head, the bulldog's defining mass
+      { kind: "rect", mat: "fawn", round: 7, rx: 12, ry: 11, x: 50, y: 25 - bob },
+      // folded rose ear flat on the skull
+      { bias: 4, kind: "rect", mat: "ear", round: 2, rx: 4, ry: 3, x: 46, y: 17 - bob },
+      // muzzle block
+      { bias: 2, kind: "rect", mat: "fawn", round: 3, rx: 7, ry: 6, x: 57, y: 28 - bob },
+      // protruding lower jaw (the underbite) juts past the muzzle
+      { bias: 7, kind: "rect", mat: "fawn", round: 2, rx: 5, ry: 3, x: 60, y: 31 - bob },
+      // nose
+      { bias: 10, kind: "rect", mat: "nose", round: 2, rx: 2.6, ry: 2.2, x: 63, y: 27 - bob },
     ],
     roundness: 6,
-    shadow: { rx: 26, ry: 4, x: 32, y: 46 },
-    width: 66,
+    shadow: { rx: 27, ry: 4, x: 32, y: 46 },
+    width: 70,
   };
 }
 
@@ -75,15 +74,17 @@ export const BULLDOG_HI: HiCompanion = {
   height: 48,
   idle: [bulldogFrame(0, 0), bulldogFrame(0, 1)],
   name: "bulldog",
-  walk: [bulldogFrame(5, 0), bulldogFrame(0, 1), bulldogFrame(-5, 0), bulldogFrame(0, 1)],
-  width: 66,
+  walk: [bulldogFrame(4, 0), bulldogFrame(0, 1), bulldogFrame(-4, 0), bulldogFrame(0, 1)],
+  width: 70,
 };
 
 // ------------------------------------------------------------------ robot ---
 
 const ROBOT_MATS = {
   antenna: { ramp: ["#2b2b33", "#3d3640", "#54505e"] },
-  metal: { ramp: ["#8f8872", "#ada592", "#c8c1aa", "#ddd6bf", "#efe9d4", "#fbf8ee"], specular: true },
+  // Warm off-white (not stark white) so the robot joins the parchment scene
+  // instead of stealing the anchor from the horse.
+  metal: { ramp: ["#7e765f", "#998f74", "#b3a988", "#c8be9e", "#dcd2b4", "#ece2c6"], specular: true },
   screen: { ramp: ["#16222a", "#1c2e38", "#244049"] },
   tread: { ramp: ["#1c1a20", "#2b2b33", "#3d3640", "#54505e"] },
 };
@@ -142,7 +143,7 @@ export const ROBOT_HI: HiCompanion = {
 
 const PIGEON_MATS = {
   beak: { ramp: ["#9a6a1e", "#c08a2e", "#d9a441", "#ecc060"] },
-  body: { ramp: ["#3f434c", "#52576180", "#5e6470", "#767c88", "#9097a0", "#aab0b8"].map((c) => c.slice(0, 7)), specular: false },
+  body: { ramp: ["#3a3e47", "#4c515b", "#646a76", "#828896", "#a4aab4", "#c6ccd4"], specular: false },
   leg: { ramp: ["#7a3a32", "#9a4a3e", "#b8543f"] },
 };
 
@@ -189,30 +190,37 @@ export const PIGEON_HI: HiCompanion = {
 // ------------------------------------------------------------------- pear ---
 
 const PEAR_MATS = {
-  leaf: { ramp: ["#3a5220", "#4f6b2c", "#5c8c37", "#74a046", "#8fb85e"] },
-  leg: { ramp: ["#2b2b33", "#3d3640"] },
-  pear: { ramp: ["#54631f", "#6f8a2e", "#86a23c", "#9cbf52", "#b6d06e", "#cfe28c"], specular: true },
+  leaf: { ramp: ["#3a5220", "#4f6b2c", "#5c8c37", "#74a046", "#8fb85e", "#a8cc70"] },
+  leg: { ramp: ["#22202a", "#33313d", "#4a4754"] },
+  // Wide tonal range + specular so the body has clear volume even tiny.
+  pear: { ramp: ["#3a4e18", "#566f24", "#739330", "#92b446", "#b2d062", "#d2e88a", "#e8f4ac"], specular: true },
   stem: { ramp: ["#4a3018", "#6b4426", "#8a5a33"] },
 };
 
 function pearFrame(legSwing: number, lean: number, bob: number): SpriteSpec {
   return {
-    decals: [{ grid: "f", palette: { f: "#6f8a2e" }, x: 12 + lean, y: 28 - bob }, { grid: "f", palette: { f: "#6f8a2e" }, x: 20 + lean, y: 33 - bob }],
+    decals: [
+      // freckles ride the lower-right shadow side
+      { grid: "f", palette: { f: "#739330" }, x: 21 + lean, y: 36 - bob },
+      { grid: "f", palette: { f: "#739330" }, x: 24 + lean, y: 31 - bob },
+    ],
     height: 50,
+    light: { x: -0.6, y: -0.7, z: 0.5 },
     materials: PEAR_MATS,
     prims: [
       // legs
-      { ax: 13, ay: 42 - bob, bx: 12 - legSwing, by: 47, kind: "capsule", mat: "leg", r: 1.8 },
-      { ax: 21, ay: 42 - bob, bx: 22 + legSwing, by: 47, kind: "capsule", mat: "leg", r: 1.8 },
-      // pear body: small top + big bottom
-      { kind: "circle", mat: "pear", r: 9, x: 17 + lean, y: 22 - bob },
-      { kind: "circle", mat: "pear", r: 13, x: 17, y: 34 - bob },
+      { ax: 14, ay: 43 - bob, bx: 13 - legSwing, by: 47, kind: "capsule", mat: "leg", r: 1.9 },
+      { ax: 21, ay: 43 - bob, bx: 22 + legSwing, by: 47, kind: "capsule", mat: "leg", r: 1.9 },
+      // pear body: a smooth taper (neck → shoulders → belly), not a snowman
+      { kind: "circle", mat: "pear", r: 6.5, x: 17 + lean, y: 21 - bob },
+      { kind: "circle", mat: "pear", r: 10, x: 17 + Math.round(lean / 2), y: 28 - bob },
+      { kind: "circle", mat: "pear", r: 12.5, x: 17, y: 36 - bob },
       // stem
       { kind: "capsule", mat: "stem", r: 1.6, ax: 18 + lean, ay: 14 - bob, bx: 20 + lean, by: 8 - bob },
       // leaf
       { bias: 3, kind: "ellipse", mat: "leaf", rx: 5, ry: 2.6, x: 25 + lean, y: 9 - bob },
     ],
-    roundness: 9,
+    roundness: 10,
     shadow: { rx: 15, ry: 3, x: 17, y: 48 },
     width: 38,
   };
@@ -220,9 +228,9 @@ function pearFrame(legSwing: number, lean: number, bob: number): SpriteSpec {
 
 export const PEAR_HI: HiCompanion = {
   height: 50,
-  idle: [pearFrame(0, 0, 0), pearFrame(0, 1, 1)],
+  idle: [pearFrame(0, 0, 0), pearFrame(0, 0, 1)],
   name: "pear",
-  walk: [pearFrame(3, 1, 0), pearFrame(0, 0, 1), pearFrame(-3, -1, 0), pearFrame(0, 0, 1)],
+  walk: [pearFrame(4, 2, 0), pearFrame(0, 0, 2), pearFrame(-4, -2, 0), pearFrame(0, 0, 2)],
   width: 38,
 };
 
@@ -234,6 +242,8 @@ const CRANE_MATS = {
   beak: { ramp: ["#2b2b33", "#3d3640"] },
   black: { ramp: ["#16161e", "#22202a", "#33313d", "#46434f"] },
   crown: { flat: true, ramp: ["#c24b41"] },
+  // Charcoal legs with a lit grey edge so they stay grounded at small sizes.
+  leg: { ramp: ["#16161e", "#2b2b33", "#46434f", "#6b6776"] },
   white: { ramp: ["#9aa0a8", "#bcc0c4", "#d4d6d6", "#e8e8e2", "#f5f4ee", "#fdfdf8"], specular: false },
 };
 
@@ -243,11 +253,11 @@ function craneFrame(stride: number, headDx: number, bob: number): SpriteSpec {
     height: 60,
     materials: CRANE_MATS,
     prims: [
-      // long striding legs (toe joint kink)
-      { ax: 22, ay: 32 - bob, bx: 20 + stride, by: 44, kind: "capsule", mat: "black", r: 1.4 },
-      { ax: 20 + stride, ay: 44, bx: 22 + stride, by: 54, kind: "capsule", mat: "black", r: 1.3 },
-      { ax: 26, ay: 32 - bob, bx: 28 - stride, by: 44, kind: "capsule", mat: "black", r: 1.4 },
-      { ax: 28 - stride, ay: 44, bx: 26 - stride, by: 54, kind: "capsule", mat: "black", r: 1.3 },
+      // long striding legs (toe joint kink) — thickened so a lit edge survives
+      { ax: 22, ay: 32 - bob, bx: 20 + stride, by: 44, kind: "capsule", mat: "leg", r: 2 },
+      { ax: 20 + stride, ay: 44, bx: 22 + stride, by: 54, kind: "capsule", mat: "leg", r: 1.8 },
+      { ax: 26, ay: 32 - bob, bx: 28 - stride, by: 44, kind: "capsule", mat: "leg", r: 2 },
+      { ax: 28 - stride, ay: 44, bx: 26 - stride, by: 54, kind: "capsule", mat: "leg", r: 1.8 },
       // body
       { kind: "ellipse", mat: "white", rx: 12, ry: 8, x: 24, y: 26 - bob },
       // black tail bustle draping at the rear (iconic red-crowned crane)
