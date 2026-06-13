@@ -191,26 +191,30 @@ export function renderSprite(spec: SpriteSpec): Image {
       }
 
       // Faked rounded normal: in-plane points outward (SDF gradient), tilting
-      // toward the viewer as the surface thickens inward.
+      // toward the viewer as the surface thickens inward. The dome is
+      // asymptotic (depth/(depth+roundness)) so it never fully flattens — the
+      // lit→shadow gradient carries across the whole form, not just the rim,
+      // which is what gives a proper three-tone rounded read at any size.
       const gx = sampleSdf(px + 1, py) - sampleSdf(px - 1, py);
       const gy = sampleSdf(px, py + 1) - sampleSdf(px, py - 1);
       const glen = Math.hypot(gx, gy) || 1;
-      const t = Math.min(1, depth / roundness);
-      const dome = Math.sin((t * Math.PI) / 2); // 0 at rim → 1 deep
+      const dome = depth / (depth + roundness);
       let nx = (gx / glen) * (1 - dome);
       let ny = (gy / glen) * (1 - dome);
-      let nz = dome + 0.12;
+      let nz = dome * 1.15 + 0.1;
       const nlen = Math.hypot(nx, ny, nz) || 1;
       nx /= nlen;
       ny /= nlen;
       nz /= nlen;
 
-      const diffuse = Math.max(0, nx * lx + ny * ly + nz * lz);
-      let brightness = 0.32 + 0.78 * diffuse;
+      const diffuse = nx * lx + ny * ly + nz * lz;
+      // Half-Lambert: maps the lit→shadow range wide so highlight, mid-tone,
+      // and shadow all land on distinct ramp steps (mid-tone dominant).
+      let brightness = 0.47 * diffuse + 0.52;
 
       // Specular bite near the lit pole.
-      if (material.specular && diffuse > 0.86 && depth > roundness * 0.7) {
-        brightness += 0.4;
+      if (material.specular && diffuse > 0.82 && dome > 0.4) {
+        brightness += 0.3;
       }
       brightness = Math.max(0, Math.min(0.999, brightness));
 

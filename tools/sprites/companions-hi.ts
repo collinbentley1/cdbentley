@@ -192,8 +192,9 @@ export const PIGEON_HI: HiCompanion = {
 const PEAR_MATS = {
   leaf: { ramp: ["#3a5220", "#4f6b2c", "#5c8c37", "#74a046", "#8fb85e", "#a8cc70"] },
   leg: { ramp: ["#22202a", "#33313d", "#4a4754"] },
-  // Wide tonal range + specular so the body has clear volume even tiny.
-  pear: { ramp: ["#3a4e18", "#566f24", "#739330", "#92b446", "#b2d062", "#d2e88a", "#e8f4ac"], specular: true },
+  // Muted olive-green (desaturated ~20%, value dropped) so the pear sits in
+  // the parade instead of drawing the eye off the horse — wide range + specular.
+  pear: { ramp: ["#36441c", "#4a5a26", "#5e7034", "#748744", "#8c9c5a", "#a6b474", "#c2cc92"], specular: true },
   stem: { ramp: ["#4a3018", "#6b4426", "#8a5a33"] },
 };
 
