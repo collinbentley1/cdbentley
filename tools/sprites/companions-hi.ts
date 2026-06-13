@@ -21,9 +21,10 @@ const ease = (phase: number): number => Math.sin((phase / 4) * Math.PI * 2);
 
 const BULLDOG_MATS = {
   ear: { ramp: ["#2e1c10", "#46301c", "#5b3c22", "#724c2c"] },
-  // darker outline (explicit) so the pale body holds against the sandy trail
-  fawn: { outline: "#3a2c1a", ramp: ["#6b5a3c", "#897150", "#a68d64", "#c2a87e", "#dcc79c", "#efe2c2"], specular: false },
-  jowl: { outline: "#3a2c1a", ramp: ["#5e4e34", "#7a6446", "#96815c", "#b29a72"] },
+  // Warm tan (darker than the parchment trail) + dark outline so the body
+  // reads with clear value separation against the sandy path.
+  fawn: { outline: "#352812", ramp: ["#54421f", "#6b5630", "#857046", "#9e885a", "#b8a06e", "#ceba86"], specular: false },
+  jowl: { outline: "#352812", ramp: ["#4e3c22", "#6a5232", "#867048", "#a08a5e"] },
   nose: { flat: false, ramp: ["#16161e", "#22202a", "#33313d"] },
   saddle: { ramp: ["#3a2616", "#5b3c22", "#7a5230", "#9a6a3c", "#b5824c"] },
 };
@@ -37,7 +38,9 @@ function bulldogFrame(legSwing: number, bob: number): SpriteSpec {
       // deep-set eye under a heavy brow
       { grid: "##\n#o", palette: { "#": "#1c1a20", o: "#cfc8b4" }, x: 49, y: 22 - bob },
       // brow wrinkle — the one pixel that says "bulldog"
-      { grid: "ww\n.w", palette: { w: "#6b5a3c" }, x: 52, y: 18 - bob },
+      { grid: "ww\n.w", palette: { w: "#54421f" }, x: 52, y: 18 - bob },
+      // neck crease separates the big head from the shoulder mass
+      { grid: "c\nc\nc", palette: { c: "#4e3c22" }, x: 43, y: 22 - bob },
     ],
     height: 48,
     materials: BULLDOG_MATS,
