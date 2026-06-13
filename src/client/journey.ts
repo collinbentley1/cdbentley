@@ -82,17 +82,17 @@ const GAP_SCENERY: SceneryProp[][] = [
   // stables → yale: pines bracketing the path for depth
   [prop("pine", 22, 36, 2, 0.3, 124), prop("pine-small", 16, 26, 1.6, 0.46, -150), prop("bush", 20, 12, 2, 0.72, 96), prop("rock", 15, 8, 2, 0.84, -92)],
   // yale → robot room: collegiate arch (cleared right) + aspen on the left
-  [prop("arch", 20, 22, 3, 0.34, 150), prop("aspen", 22, 32, 2, 0.6, -120), prop("flowers", 15, 6, 2, 0.8, 86)],
-  // robot room → yale med: the lab bench leavings
-  [prop("beaker", 12, 11, 2, 0.3, 95), prop("pine-small", 16, 26, 2, 0.64, -120), prop("bush", 20, 12, 2, 0.82, 100)],
-  // yale med → beijing: paper lanterns hung over the trail
-  [prop("lantern", 14, 14, 2.2, 0.28, -70, { lift: 150 }), prop("lantern", 14, 14, 2.4, 0.5, 70, { lift: 196 }), prop("lantern", 14, 14, 2.2, 0.72, -60, { lift: 140 }), prop("aspen", 22, 32, 2, 0.6, 140)],
+  [prop("arch", 20, 22, 2.4, 0.3, 140), prop("aspen", 22, 32, 2, 0.6, -120), prop("flowers", 15, 6, 2, 0.8, 86)],
+  // robot room → yale med: the lab bench leavings, both sides
+  [prop("beaker", 12, 11, 2.4, 0.26, -110), prop("beaker", 12, 11, 1.8, 0.46, 96), prop("pine-small", 16, 26, 2, 0.6, 132), prop("bush", 20, 12, 2, 0.8, -104), prop("rock", 15, 8, 2, 0.88, 92)],
+  // yale med → beijing: paper lanterns hung over the trail, clusters both sides
+  [prop("lantern", 14, 14, 2.2, 0.22, -78, { lift: 150 }), prop("lantern", 14, 14, 2.4, 0.42, 80, { lift: 200 }), prop("lantern", 14, 14, 2, 0.58, -132, { lift: 120 }), prop("lantern", 14, 14, 2.2, 0.74, 64, { lift: 150 }), prop("aspen", 22, 32, 2, 0.64, 138), prop("bush", 20, 12, 2, 0.86, -110)],
   // beijing → humana: the city rises on both sides
-  [prop("skyline", 110, 30, 3, 0.5, 0, { horizon: true }), prop("skyline", 110, 30, 1.7, 0.5, -150, { horizon: true }), prop("lantern", 14, 14, 2, 0.74, 96, { lift: 110 })],
-  // humana → healthyr: deeper into the city, lit windows both sides
-  [prop("skyline", 110, 30, 3, 0.5, 0, { horizon: true }), prop("skyline", 110, 30, 2, 0.5, 150, { horizon: true }), prop("cattails", 16, 10, 2, 0.8, -104)],
-  // healthyr → otseek: the long view opens, peaks raised into frame
-  [prop("ridge", 128, 34, 3, 0.5, 0, { horizon: true, lift: 90 }), prop("pine", 22, 36, 2, 0.74, -125), prop("flowers", 15, 6, 2, 0.84, 92)],
+  [prop("skyline", 110, 30, 3, 0.5, 0, { horizon: true }), prop("skyline", 110, 30, 1.7, 0.5, -150, { horizon: true }), prop("bush", 20, 12, 2, 0.8, 104)],
+  // humana → healthyr: a softer green stretch — warmth between the towers
+  [prop("skyline", 110, 30, 2.4, 0.32, 150, { horizon: true }), prop("cattails", 16, 10, 2.2, 0.3, -110), prop("bush", 20, 12, 2, 0.52, 116), prop("flowers", 15, 6, 2, 0.62, -96), prop("cattails", 16, 10, 2, 0.8, 104), prop("aspen", 22, 32, 1.8, 0.84, -126)],
+  // healthyr → otseek: the long view opens, peaks raised high into frame
+  [prop("ridge", 128, 34, 3, 0.45, 0, { horizon: true, lift: 200 }), prop("ridge", 128, 34, 2, 0.6, 0, { horizon: true, lift: 70 }), prop("pine", 22, 36, 2, 0.72, -125), prop("flowers", 15, 6, 2, 0.84, 96), prop("rock", 15, 8, 2, 0.5, 120)],
   // otseek → now: dusk in the mountains
   [prop("ridge", 128, 34, 3, 0.46, 0, { horizon: true, lift: 110 }), prop("aspen", 22, 32, 2, 0.66, 118), prop("rock", 15, 8, 2, 0.82, -90), prop("cattails", 16, 10, 2, 0.8, 150)],
 ];
@@ -295,14 +295,22 @@ function initJourney(ctx: Ctx): void {
     }
     const max = document.documentElement.scrollHeight - window.innerHeight;
     const p = max > 0 ? clamp(window.scrollY / max, 0, 1) : 0;
-    const x = window.innerWidth * (0.06 + 0.86 * p);
-    const y = 30 + (1 - Math.sin(p * Math.PI)) * 110;
-    const sunFade = clamp((0.72 - p) / 0.1, 0, 1);
-    sunEl.style.opacity = String(sunFade);
-    sunEl.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
-    const moonFade = clamp((p - 0.7) / 0.1, 0, 1);
-    moonEl.style.opacity = String(moonFade);
-    moonEl.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y - 6)}px, 0)`;
+    const w = window.innerWidth;
+
+    // Sun rides its daytime arc (rises left, sets right) over the first ~78%.
+    const sunP = clamp(p / 0.78, 0, 1);
+    const sunX = w * (0.07 + 0.82 * sunP);
+    const sunY = 36 + (1 - Math.sin(sunP * Math.PI)) * 120;
+    sunEl.style.opacity = String(clamp((0.74 - p) / 0.1, 0, 1));
+    sunEl.style.transform = `translate3d(${Math.round(sunX)}px, ${Math.round(sunY)}px, 0)`;
+
+    // Moon rises from the right and climbs to high-center over the finale,
+    // so it reads as a canopy over the gathering, not a corner ornament.
+    const moonP = clamp((p - 0.64) / 0.36, 0, 1);
+    const moonX = w * (0.78 - 0.28 * moonP);
+    const moonY = 150 - 96 * moonP;
+    moonEl.style.opacity = String(clamp((p - 0.66) / 0.1, 0, 1));
+    moonEl.style.transform = `translate3d(${Math.round(moonX)}px, ${Math.round(moonY)}px, 0)`;
   }
 
   // --- campfire (endcap payoff) ---------------------------------------------------
@@ -761,12 +769,14 @@ function initJourney(ctx: Ctx): void {
 
   // --- sky tint + stars -----------------------------------------------------------------
   // Wider arc so the dawn→day→golden→dusk progression actually reads (critique).
+  // A perceptible slope the whole way down: soft dawn → noon parchment →
+  // warm afternoon → golden → dusk rose, rather than a cliff at the end.
   const skyStops: Array<[number, [number, number, number]]> = [
-    [0, [0xf9, 0xee, 0xd6]],
-    [0.28, [0xf2, 0xe9, 0xcf]],
-    [0.55, [0xed, 0xe6, 0xcc]],
-    [0.78, [0xe7, 0xd6, 0xc2]],
-    [1, [0xdc, 0xc4, 0xba]],
+    [0, [0xf4, 0xea, 0xd2]],
+    [0.3, [0xed, 0xe6, 0xcc]],
+    [0.55, [0xeb, 0xdc, 0xbb]],
+    [0.78, [0xe7, 0xcd, 0xb0]],
+    [1, [0xde, 0xc1, 0xb2]],
   ];
 
   function tintSky(): void {

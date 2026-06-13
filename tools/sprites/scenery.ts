@@ -419,12 +419,16 @@ export function buildRidge(width = 128, height = 34, seed = 9): Image {
 
   const backLine = ridgeLine(10, 3, 14);
   const frontLine = ridgeLine(60, 4, 24);
+  const backEdge = hexToRgba("#7c7464");
   for (let x = 0; x < width; x += 1) {
-    for (let y = backLine[x] ?? 0; y < height; y += 1) {
+    const bTop = backLine[x] ?? 0;
+    for (let y = bTop; y < height; y += 1) {
       setPixel(image, x, y, back);
     }
-    if ((backLine[x] ?? 99) < 12) {
-      setPixel(image, x, backLine[x] ?? 0, snow);
+    // Hard 1px ridge edge (was a soft blend) keeps the silhouette crisp.
+    setPixel(image, x, bTop, backEdge);
+    if (bTop < 12) {
+      setPixel(image, x, bTop + 1, snow);
     }
   }
   for (let x = 0; x < width; x += 1) {

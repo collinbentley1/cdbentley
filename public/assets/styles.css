@@ -789,7 +789,7 @@ html.js .reveal.revealed {
 .endcap {
   position: relative;
   z-index: 5;
-  padding: 10vh 16px 6vh;
+  padding: 2vh 16px 6vh;
   text-align: center;
 }
 
@@ -800,7 +800,7 @@ html.js .reveal.revealed {
 
 /* The endcap's "to be continued…" is the closing margin note of the trail. */
 .endcap-tbc {
-  margin: 8px 0;
+  margin: 14px 0 4px;
   font-size: 30px;
   transform: none;
 }
@@ -1978,8 +1978,8 @@ input[type="range"]::-moz-range-thumb {
 
 .campfire {
   position: relative;
-  width: 64px;
-  height: 48px;
+  width: 104px;
+  height: 78px;
   margin: 0 auto;
   background-image: url("/assets/sprites/campfire.png");
   background-position: 0 0;
