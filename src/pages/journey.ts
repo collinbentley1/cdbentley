@@ -24,6 +24,13 @@ function renderJourney(): string {
   return `<div class="journey" id="journey">
   <div class="sky" id="sky" aria-hidden="true"></div>
   <div class="stars" id="stars" aria-hidden="true"></div>
+  <div class="celestial" aria-hidden="true">
+    <div class="sun" id="sun"></div>
+    <div class="moon" id="moon"></div>
+    <div class="cloud cloud-a"></div>
+    <div class="cloud cloud-b"></div>
+    <div class="cloud cloud-c"></div>
+  </div>
 
   <main id="main" tabindex="-1">
   <header class="trailhead scene" id="scene-trailhead" data-scene="trailhead">
@@ -32,6 +39,9 @@ function renderJourney(): string {
     <p class="subtitle">${escapeHtml(TRAILHEAD.subtitle)}</p>
     <p class="hud-hint" id="kbd-hint" aria-hidden="true">⌨ arrows walk</p>
     <div class="trailhead-stage">
+      <img class="stage-prop stage-signpost pixel-img" src="/assets/sprites/signpost.png" alt="" width="56" height="36">
+      <img class="stage-prop stage-bush pixel-img" src="/assets/sprites/bush.png" alt="" width="40" height="24">
+      <img class="stage-prop stage-flowers pixel-img" src="/assets/sprites/flowers.png" alt="" width="30" height="12">
       <div class="speech-bubble" id="hello-bubble" role="presentation">${escapeHtml(TRAILHEAD.bubble)}</div>
       <div class="hero-sprite" id="hero-sprite" aria-hidden="true"></div>
       <span class="cairn cairn-bg" style="background-image:url(/assets/sprites/cairn-1.png)" data-cairn="0"></span>
@@ -52,7 +62,8 @@ ${scenes}
   </ol>
 
   <section class="endcap" id="endcap" aria-label="The story continues">
-    <div class="endcap-star" aria-hidden="true">✦</div>
+    <div class="fire-glow" aria-hidden="true"></div>
+    <div class="campfire" id="campfire" aria-hidden="true"></div>
     <p class="endcap-tbc margin-note">${escapeHtml(ENDCAP.tbc)}</p>
     <p class="endcap-sub pixel-chip">${escapeHtml(ENDCAP.sub)}</p>
   </section>

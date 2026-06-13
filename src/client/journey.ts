@@ -46,6 +46,44 @@ function meta(frameWidth: number, frameHeight: number, scale: number, name: stri
   return { frameHeight, frameWidth, idleFrames: 2, idleSrc: `${SPRITES}/${name}-idle.png`, scale, walkFrames: 4, walkSrc: `${SPRITES}/${name}-walk.png` };
 }
 
+/**
+ * Trail scenery: themed props per gap between stations (10x visual pass).
+ * `at` is the fraction along the gap; `side` is lateral px from the trail;
+ * horizon strips sit far behind with a slow parallax factor.
+ */
+type SceneryProp = {
+  src: string;
+  width: number;
+  height: number;
+  scale: number;
+  at: number;
+  side: number;
+  horizon?: boolean;
+};
+
+const prop = (src: string, width: number, height: number, scale: number, at: number, side: number, horizon = false): SceneryProp => ({ at, height, horizon, scale, side, src, width });
+
+const GAP_SCENERY: SceneryProp[][] = [
+  // trailhead → stables: paddock fence, flowers
+  [prop("fence", 36, 18, 2, 0.45, -120), prop("flowers", 15, 6, 2, 0.6, 90), prop("bush", 20, 12, 2, 0.8, 130)],
+  // stables → yale: pines
+  [prop("pine", 22, 36, 2, 0.3, 110), prop("pine-small", 16, 26, 2, 0.42, 150), prop("rock", 15, 8, 2, 0.7, -95)],
+  // yale → robot room: collegiate arch + aspen (extra beat, give it presence)
+  [prop("arch", 20, 22, 3, 0.35, -130), prop("aspen", 22, 32, 2, 0.62, 120), prop("flowers", 15, 6, 2, 0.78, -85)],
+  // robot room → yale med: the lab bench leavings
+  [prop("beaker", 12, 11, 2, 0.3, 95), prop("pine-small", 16, 26, 2, 0.66, -120)],
+  // yale med → beijing: lanterns rising
+  [prop("lantern", 14, 14, 2, 0.32, -95), prop("aspen", 22, 32, 2, 0.55, 135), prop("lantern", 14, 14, 2, 0.74, 100)],
+  // beijing → humana: the city appears
+  [prop("skyline", 110, 30, 3, 0.45, 0, true), prop("bush", 20, 12, 2, 0.75, -110)],
+  // humana → healthyr: deeper into the city
+  [prop("skyline", 110, 30, 3, 0.5, 0, true), prop("cattails", 16, 10, 2, 0.78, 100)],
+  // healthyr → otseek: the long view opens
+  [prop("ridge", 128, 34, 3, 0.45, 0, true), prop("pine", 22, 36, 2, 0.72, -125)],
+  // otseek → now: dusk in the mountains
+  [prop("ridge", 128, 34, 3, 0.4, 0, true), prop("aspen", 22, 32, 2, 0.65, 115), prop("rock", 15, 8, 2, 0.8, -90)],
+];
+
 const journey = document.getElementById("journey");
 const trailLayer = document.getElementById("trail-layer");
 const trailSvg = document.getElementById("trail-svg");
@@ -134,6 +172,96 @@ function initJourney(ctx: Ctx): void {
 
   preloadSheets(followers);
 
+  // --- scenery ---------------------------------------------------------------
+  type PlacedProp = { element: HTMLDivElement; config: SceneryProp; gapIndex: number; baseX: number; baseY: number };
+  const sceneryRoot = document.createElement("div");
+  sceneryRoot.className = "scenery";
+  ctx.trailLayer.prepend(sceneryRoot);
+  const placedProps: PlacedProp[] = [];
+  GAP_SCENERY.forEach((gap, gapIndex) => {
+    for (const config of gap) {
+      const element = document.createElement("div");
+      element.className = config.horizon ? "scenery-prop scenery-horizon" : "scenery-prop";
+      element.style.width = `${config.width * config.scale}px`;
+      element.style.height = `${config.height * config.scale}px`;
+      element.style.backgroundImage = `url(${SPRITES}/${config.src}.png)`;
+      sceneryRoot.append(element);
+      placedProps.push({ baseX: 0, baseY: 0, config, element, gapIndex });
+    }
+  });
+
+  function placeScenery(): void {
+    const width = ctx.journey.clientWidth;
+    const mobile = width < 760;
+    for (const placed of placedProps) {
+      const fromDistance = placed.gapIndex === 0 ? 0 : (stations[placed.gapIndex - 1]?.distance ?? 0);
+      const toDistance = stations[placed.gapIndex]?.distance ?? totalLength;
+      const along = fromDistance + (toDistance - fromDistance) * placed.config.at;
+      const point = pointAt(along);
+      const w = placed.config.width * placed.config.scale;
+      const h = placed.config.height * placed.config.scale;
+      const side = mobile ? Math.sign(placed.config.side) * Math.min(Math.abs(placed.config.side), 70) : placed.config.side;
+      let x = placed.config.horizon ? width / 2 - w / 2 : point.x + side - w / 2;
+      x = clamp(x, 4, Math.max(4, width - w - 4));
+      const y = point.y - h;
+      placed.baseX = Math.round(x);
+      placed.baseY = Math.round(y);
+      placed.element.style.transform = `translate3d(${placed.baseX}px, ${placed.baseY}px, 0)`;
+    }
+  }
+
+  /** Horizon strips drift slower than the page — cheap pixel parallax. */
+  function parallaxScenery(): void {
+    for (const placed of placedProps) {
+      if (!placed.config.horizon) {
+        continue;
+      }
+      const drift = Math.round(window.scrollY * 0.07);
+      placed.element.style.transform = `translate3d(${placed.baseX}px, ${placed.baseY + drift}px, 0)`;
+    }
+  }
+
+  // --- sun + moon arc ----------------------------------------------------------
+  const sunEl = document.getElementById("sun");
+  const moonEl = document.getElementById("moon");
+
+  function celestial(): void {
+    if (!(sunEl instanceof HTMLElement) || !(moonEl instanceof HTMLElement)) {
+      return;
+    }
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const p = max > 0 ? clamp(window.scrollY / max, 0, 1) : 0;
+    const x = window.innerWidth * (0.06 + 0.86 * p);
+    const y = 30 + (1 - Math.sin(p * Math.PI)) * 110;
+    const sunFade = clamp((0.72 - p) / 0.1, 0, 1);
+    sunEl.style.opacity = String(sunFade);
+    sunEl.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+    const moonFade = clamp((p - 0.7) / 0.1, 0, 1);
+    moonEl.style.opacity = String(moonFade);
+    moonEl.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y - 6)}px, 0)`;
+  }
+
+  // --- campfire (endcap payoff) ---------------------------------------------------
+  const campfire = document.getElementById("campfire");
+  if (campfire instanceof HTMLElement && !reducedMotion.matches) {
+    let fireFrame = 0;
+    const fireObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          if (!campfire.dataset.lit) {
+            campfire.dataset.lit = "1";
+            window.setInterval(() => {
+              fireFrame = (fireFrame + 1) % 4;
+              campfire.style.backgroundPosition = `${(fireFrame * 100) / 3}% 0`;
+            }, 170);
+          }
+          fireObserver.disconnect();
+        }
+      }
+    });
+    fireObserver.observe(campfire);
+  }
+
   // --- path ----------------------------------------------------------------
   let totalLength = 0;
   let anchors: Array<{ scroll: number; distance: number }> = [];
@@ -176,10 +304,11 @@ function initJourney(ctx: Ctx): void {
       station.point = { x, y };
     }
 
-    const endcap = document.getElementById("endcap");
-    if (endcap) {
-      const rect = endcap.getBoundingClientRect();
-      points.push({ x: rect.left + rect.width / 2 - journeyRect.left, y: rect.top + window.scrollY - journeyTop + 30 });
+    const endAnchor = document.getElementById("campfire") ?? document.getElementById("endcap");
+    if (endAnchor) {
+      const rect = endAnchor.getBoundingClientRect();
+      // Land beside the fire, not on it.
+      points.push({ x: rect.left + rect.width / 2 - journeyRect.left - 64, y: rect.top + rect.height + window.scrollY - journeyTop - 2 });
     }
 
     const d = catmullRom(points);
@@ -203,6 +332,8 @@ function initJourney(ctx: Ctx): void {
       ...stations.map((station) => ({ distance: station.distance, scroll: station.scrollAnchor })),
       { distance: totalLength, scroll: document.documentElement.scrollHeight - window.innerHeight },
     ].sort((a, b) => a.scroll - b.scroll);
+
+    placeScenery();
   }
 
   // --- scroll → distance mapping --------------------------------------------
@@ -364,6 +495,8 @@ function initJourney(ctx: Ctx): void {
       placeAt(follower.element, { x: followPoint.x + normalX * side, y: followPoint.y + normalY * side });
     }
 
+    parallaxScenery();
+    celestial();
     if (now - lastHousekeeping > 180) {
       lastHousekeeping = now;
       tintSky();
@@ -380,6 +513,8 @@ function initJourney(ctx: Ctx): void {
       crossFadeTo(nearest);
     }
     tintSky();
+    parallaxScenery();
+    celestial();
   }
 
   function nearestStationIndex(): number {

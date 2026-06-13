@@ -238,3 +238,30 @@ function buildFaviconCairn(): Image {
   }
   return image;
 }
+
+// --- Trail scenery + celestial + dojo dressing (10x visual pass) -------------
+{
+  const { buildArch, buildAspen, buildBeaker, buildBush, buildCampfire, buildCattails, buildCloud, buildCushion, buildFence, buildFlowers, buildLantern, buildMoon, buildPine, buildRidge, buildRock, buildShojiWindow, buildSkyline, buildSun } = await import("./scenery.ts");
+  await write(join(SPRITES, "pine.png"), buildPine(36, 1));
+  await write(join(SPRITES, "pine-small.png"), buildPine(26, 5));
+  await write(join(SPRITES, "aspen.png"), buildAspen(32, 2));
+  await write(join(SPRITES, "bush.png"), buildBush());
+  await write(join(SPRITES, "rock.png"), buildRock());
+  await write(join(SPRITES, "flowers.png"), buildFlowers());
+  await write(join(SPRITES, "cattails.png"), buildCattails());
+  await write(join(SPRITES, "fence.png"), buildFence());
+  await write(join(SPRITES, "arch.png"), buildArch());
+  await write(join(SPRITES, "lantern.png"), buildLantern());
+  await write(join(SPRITES, "beaker.png"), buildBeaker());
+  await write(join(SPRITES, "skyline.png"), buildSkyline());
+  await write(join(SPRITES, "ridge.png"), buildRidge());
+  await write(join(SPRITES, "sun.png"), buildSun());
+  await write(join(SPRITES, "moon.png"), buildMoon());
+  await write(join(SPRITES, "cloud-0.png"), buildCloud(28, 1));
+  await write(join(SPRITES, "cloud-1.png"), buildCloud(38, 2));
+  await write(join(SPRITES, "cloud-2.png"), buildCloud(48, 3));
+  await write(join(SPRITES, "campfire.png"), sheet(buildCampfire()));
+  await write(join(SPRITES, "cushion-red.png"), buildCushion(true));
+  await write(join(SPRITES, "cushion-green.png"), buildCushion(false));
+  await write(join(SPRITES, "shoji-window.png"), buildShojiWindow());
+}

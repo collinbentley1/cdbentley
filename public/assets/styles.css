@@ -243,13 +243,24 @@ main:focus-visible {
 
 .card::before {
   position: absolute;
+  z-index: 1;
   top: -10px;
   left: 50%;
   width: 64px;
   height: 18px;
-  background: rgb(217 164 65 / 55%);
+  background:
+    repeating-linear-gradient(115deg, transparent 0 5px, rgb(255 255 255 / 14%) 5px 7px),
+    rgb(217 164 65 / 58%);
   content: "";
   transform: translateX(-50%) rotate(-2deg);
+}
+
+.card::after {
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgb(43 43 51 / 13%);
+  content: "";
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------- footer --- */
@@ -1796,6 +1807,238 @@ input[type="range"]::-moz-range-thumb {
 
 .end-delta {
   margin-bottom: 14px;
+}
+
+
+/* ----------------------------------------------- scenery + celestial --- */
+
+.scenery {
+  position: absolute;
+  inset: 0;
+}
+
+.scenery-prop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  will-change: transform;
+}
+
+.scenery-horizon {
+  opacity: 0.45;
+  z-index: 0;
+}
+
+.scenery-prop:not(.scenery-horizon) {
+  z-index: 1;
+}
+
+.celestial {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sun,
+.moon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  will-change: transform, opacity;
+}
+
+.sun {
+  width: 54px;
+  height: 54px;
+  background-image: url("/assets/sprites/sun.png");
+}
+
+.moon {
+  width: 48px;
+  height: 48px;
+  background-image: url("/assets/sprites/moon.png");
+}
+
+.cloud {
+  position: absolute;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+  opacity: 0.7;
+}
+
+.cloud-a {
+  top: 6%;
+  width: 84px;
+  height: 39px;
+  background-image: url("/assets/sprites/cloud-0.png");
+  animation: cloud-drift 130s linear infinite;
+}
+
+.cloud-b {
+  top: 13%;
+  width: 114px;
+  height: 51px;
+  background-image: url("/assets/sprites/cloud-1.png");
+  animation: cloud-drift 170s linear infinite;
+  animation-delay: -60s;
+}
+
+.cloud-c {
+  top: 21%;
+  width: 144px;
+  height: 66px;
+  background-image: url("/assets/sprites/cloud-2.png");
+  animation: cloud-drift 210s linear infinite;
+  animation-delay: -130s;
+}
+
+@keyframes cloud-drift {
+  from {
+    transform: translateX(-160px);
+  }
+
+  to {
+    transform: translateX(110vw);
+  }
+}
+
+/* --------------------------------------------------------- campfire --- */
+
+.campfire {
+  position: relative;
+  width: 64px;
+  height: 48px;
+  margin: 0 auto;
+  background-image: url("/assets/sprites/campfire.png");
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: 400% 100%;
+  image-rendering: pixelated;
+}
+
+.fire-glow {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 220px;
+  height: 130px;
+  background: radial-gradient(50% 50% at 50% 55%, rgb(217 118 46 / 22%), transparent 70%);
+  transform: translateX(-50%);
+  animation: glow-pulse 1.3s steps(3) infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes glow-pulse {
+  from {
+    opacity: 0.7;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.endcap {
+  position: relative;
+}
+
+/* ---------------------------------------------------- stage dressing --- */
+
+.stage-prop {
+  position: absolute;
+  bottom: 4px;
+  image-rendering: pixelated;
+}
+
+.stage-signpost {
+  bottom: 10px;
+  left: 2%;
+}
+
+.stage-bush {
+  right: -6%;
+  bottom: 0;
+}
+
+.stage-flowers {
+  bottom: 0;
+  left: 20%;
+}
+
+.walker-sprite::after {
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  width: 58%;
+  height: 7px;
+  background: radial-gradient(50% 50% at 50% 50%, rgb(43 43 51 / 24%), transparent 72%);
+  content: "";
+  transform: translateX(-50%);
+}
+
+/* ------------------------------------------------------ dojo dressing --- */
+
+.dojo-window {
+  position: absolute;
+  top: 26px;
+  right: 30px;
+}
+
+.dojo-lantern {
+  position: absolute;
+  top: 0;
+  left: 150px;
+}
+
+.dojo-cushion {
+  position: absolute;
+  bottom: -8px;
+}
+
+.dojo-cushion-left {
+  left: 130px;
+}
+
+.dojo-cushion-right {
+  right: 140px;
+}
+
+@media (max-width: 700px) {
+  .dojo-window,
+  .dojo-lantern,
+  .dojo-cushion {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------- page header --- */
+
+.work-index .page-header::before,
+.work-detail .page-header::before,
+.notes-index .page-header::before,
+.essay .page-header::before,
+.dojo .dojo-header::before {
+  display: block;
+  width: 56px;
+  height: 60px;
+  margin-bottom: 14px;
+  background: url("/assets/sprites/cairn-2.png") no-repeat;
+  background-size: 100% 100%;
+  content: "";
+  image-rendering: pixelated;
+}
+
+.dojo .dojo-header::before {
+  margin-inline: auto;
 }
 
 /* ------------------------------------------------------------ notfound --- */

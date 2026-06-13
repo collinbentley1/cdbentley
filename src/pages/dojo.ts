@@ -25,6 +25,10 @@ function renderDojo(): string {
   <div class="dojo-room">
     <div class="dojo-wall" aria-hidden="true">
       <img class="dojo-scroll pixel-img" src="/assets/sprites/dojo-scroll.png" alt="" width="88" height="200">
+      <img class="dojo-window pixel-img" src="/assets/sprites/shoji-window.png" alt="" width="90" height="78">
+      <img class="dojo-lantern pixel-img" src="/assets/sprites/lantern.png" alt="" width="42" height="42">
+      <img class="dojo-cushion dojo-cushion-left pixel-img" src="/assets/sprites/cushion-red.png" alt="" width="54" height="18">
+      <img class="dojo-cushion dojo-cushion-right pixel-img" src="/assets/sprites/cushion-green.png" alt="" width="54" height="18">
       <div class="sensei" id="sensei">
         <img class="pixel-img" src="/assets/sprites/sensei.png" alt="" width="128" height="128">
       </div>
