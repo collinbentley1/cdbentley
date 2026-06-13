@@ -144,42 +144,52 @@ const BULLDOG_PALETTE: Palette = {
   p: "#c98a7a",
 };
 
+// Taller side-view (was a 1.87:1 squashed disc) — head up-right, ear, snout,
+// brown saddle, short tail; legs animate beneath.
 const BULLDOG_BODY = `
-.................oo....oo...
-................oDpo..oDpo..
-................oWWWWWWWWo..
-..oooooooooooooWWWWWWWWWWo..
-.oBBBBBBBBWWWWWWWWeWWWeWWo..
-.oBBBBBBBBWWWWWWWWWWWWWWWo..
-.oBBBBBBWWWWWWWWWWWWNNWWWo..
-.oWWWWWWWWWWWWWWWWWooooWWo..
-.oWWWWWWWWWWWWWWWWWoTToWWo..
-.oWSSSSWWWWWWSSWWWWoTToWo...
-..ooooooooooooooooooooooo...
+.................ooo...
+................oWWWo..
+.........oooooooWWWWo..
+........oBBBBBBoWeWWo..
+.......oBBBBBBBWWWWNo..
+ooooooooBBBBBBWWWWWoo..
+oWWWWWWWWWWWWWWWWWWWo..
+oWWWWWWWWWWWWWWWoTTWWo.
+oWWWWWWWWWWWWWWWoTToWo.
+.oWWSSWWWWWSSWWWWooooo.
+..oooooooooooooooooo..
+`;
+
+const BULLDOG_TAIL = `
+oo.
+WWo
+oo.
 `;
 
 const BULLDOG_LEGS_A = `
-..oWWWo..oWWWo..oWWWo..oWWWo
-..oWWWo..oWWWo..oWWWo..oWWWo
-...oooo...oooo...oooo...oooo
+.oWWo...oWWo...oWWo..oWWo.
+.oWWo...oWWo...oWWo..oWWo.
+.oooo...oooo...oooo..oooo.
 `;
 
 const BULLDOG_LEGS_B = `
-.oWWWo..oWWWo...oWWWo..oWWWo
-..oWWWo..oWWWo.oWWWo..oWWWo.
-...oooo...oooo..oooo...oooo.
+oWWo....oWWo..oWWo...oWWo.
+.oWWo..oWWo...oWWo..oWWo..
+.oooo..oooo...oooo..oooo..
 `;
 
 export const BULLDOG: CompanionArt = {
-  height: 15,
+  height: 22,
   idle: [
     [
       { grid: BULLDOG_BODY, x: 0, y: 1 },
-      { grid: BULLDOG_LEGS_A, x: 0, y: 12 },
+      { grid: BULLDOG_TAIL, x: 0, y: 7 },
+      { grid: BULLDOG_LEGS_A, x: 1, y: 12 },
     ],
     [
       { grid: BULLDOG_BODY, x: 0, y: 2 },
-      { grid: BULLDOG_LEGS_A, x: 0, y: 12 },
+      { grid: BULLDOG_TAIL, x: 0, y: 8 },
+      { grid: BULLDOG_LEGS_A, x: 1, y: 13 },
     ],
   ],
   name: "bulldog",
@@ -187,22 +197,26 @@ export const BULLDOG: CompanionArt = {
   walk: [
     [
       { grid: BULLDOG_BODY, x: 0, y: 1 },
-      { grid: BULLDOG_LEGS_B, x: 0, y: 12 },
-    ],
-    [
-      { grid: BULLDOG_BODY, x: 0, y: 2 },
-      { grid: BULLDOG_LEGS_A, x: 0, y: 12 },
-    ],
-    [
-      { grid: BULLDOG_BODY, x: 0, y: 1 },
+      { grid: BULLDOG_TAIL, x: 0, y: 6 },
       { grid: BULLDOG_LEGS_B, x: 1, y: 12 },
     ],
     [
       { grid: BULLDOG_BODY, x: 0, y: 2 },
-      { grid: BULLDOG_LEGS_A, x: 0, y: 12 },
+      { grid: BULLDOG_TAIL, x: 0, y: 7 },
+      { grid: BULLDOG_LEGS_A, x: 1, y: 13 },
+    ],
+    [
+      { grid: BULLDOG_BODY, x: 0, y: 1 },
+      { grid: BULLDOG_TAIL, x: 0, y: 6 },
+      { grid: BULLDOG_LEGS_B, x: 2, y: 12 },
+    ],
+    [
+      { grid: BULLDOG_BODY, x: 0, y: 2 },
+      { grid: BULLDOG_TAIL, x: 0, y: 7 },
+      { grid: BULLDOG_LEGS_A, x: 1, y: 13 },
     ],
   ],
-  width: 28,
+  width: 24,
 };
 
 // ---------------------------------------------------------------------------
@@ -214,7 +228,7 @@ const ROBOT_PALETTE: Palette = {
   E: "#f7f2e4",
   H: RED,
   K: "#3d3640",
-  L: "#e8a39a",
+  L: "#9a3a32",
   S: "#c9c0a4",
   o: INK,
 };
@@ -249,6 +263,7 @@ const ROBOT_BASE_B = `
 ....ooooooooo...
 `;
 
+// Dim blink uses a darker red (heart powering down) — not an off-palette pink.
 const ROBOT_HEART_DIM = `
 .LL.LL.
 LLLLLLL

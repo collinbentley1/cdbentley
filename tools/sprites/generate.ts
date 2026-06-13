@@ -241,7 +241,7 @@ function buildFaviconCairn(): Image {
 
 // --- Trail scenery + celestial + dojo dressing (10x visual pass) -------------
 {
-  const { buildArch, buildAspen, buildBeaker, buildBush, buildCampfire, buildCattails, buildCloud, buildCushion, buildFence, buildFlowers, buildLantern, buildMoon, buildPine, buildRidge, buildRock, buildShojiWindow, buildSkyline, buildSun } = await import("./scenery.ts");
+  const { buildArch, buildAspen, buildBeaker, buildBush, buildCampfire, buildCattails, buildCloud, buildCushion, buildFarTree, buildFence, buildFlowers, buildGrassTuft, buildLantern, buildMoon, buildPebble, buildPine, buildRidge, buildRock, buildShojiWindow, buildSkyline, buildSun } = await import("./scenery.ts");
   await write(join(SPRITES, "pine.png"), buildPine(36, 1));
   await write(join(SPRITES, "pine-small.png"), buildPine(26, 5));
   await write(join(SPRITES, "aspen.png"), buildAspen(32, 2));
@@ -264,4 +264,13 @@ function buildFaviconCairn(): Image {
   await write(join(SPRITES, "cushion-red.png"), buildCushion(true));
   await write(join(SPRITES, "cushion-green.png"), buildCushion(false));
   await write(join(SPRITES, "shoji-window.png"), buildShojiWindow());
+  for (let i = 0; i < 3; i += 1) {
+    await write(join(SPRITES, `grass-tuft-${i}.png`), buildGrassTuft(i));
+  }
+  for (let i = 0; i < 2; i += 1) {
+    await write(join(SPRITES, `pebble-${i}.png`), buildPebble(i));
+  }
+  for (let i = 0; i < 3; i += 1) {
+    await write(join(SPRITES, `far-tree-${i}.png`), buildFarTree(i));
+  }
 }

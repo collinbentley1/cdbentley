@@ -534,6 +534,29 @@ html.js #hello-bubble {
   inset: 0;
 }
 
+.trail-bed-edge,
+.trail-bed,
+.trail-bed-light {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trail-bed-edge {
+  stroke: rgb(122 90 54 / 28%);
+  stroke-width: 30px;
+}
+
+.trail-bed {
+  stroke: #d9cdab;
+  stroke-width: 24px;
+}
+
+.trail-bed-light {
+  stroke: #e6dcc0;
+  stroke-width: 13px;
+}
+
 .trail-path,
 .trail-path-shadow {
   fill: none;
@@ -1500,6 +1523,17 @@ input[type="range"]::-moz-range-thumb {
   image-rendering: pixelated;
 }
 
+/* Wooden baseboard grounds the sensei where the wall meets the tatami floor. */
+.dojo-wall::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 7px;
+  background: linear-gradient(var(--ink) 0 2px, #8a6e4c 2px 6px, var(--ink) 6px 7px);
+  content: "";
+}
+
 .dojo-scroll {
   position: absolute;
   top: 12px;
@@ -1836,6 +1870,33 @@ input[type="range"]::-moz-range-thumb {
   z-index: 1;
 }
 
+/* Ground shadow ties each prop to the trail bed. */
+.scenery-prop:not(.scenery-horizon)::after {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 80%;
+  height: 6px;
+  background: radial-gradient(50% 50% at 50% 50%, rgb(43 43 51 / 20%), transparent 72%);
+  content: "";
+  transform: translateX(-50%);
+}
+
+.verge {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.verge-piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+}
+
 .celestial {
   position: fixed;
   z-index: -1;
@@ -1856,15 +1917,17 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .sun {
-  width: 54px;
-  height: 54px;
+  width: 74px;
+  height: 74px;
   background-image: url("/assets/sprites/sun.png");
+  filter: drop-shadow(0 0 18px rgb(217 164 65 / 45%));
 }
 
 .moon {
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   background-image: url("/assets/sprites/moon.png");
+  filter: drop-shadow(0 0 16px rgb(244 239 224 / 40%));
 }
 
 .cloud {
@@ -1923,6 +1986,17 @@ input[type="range"]::-moz-range-thumb {
   background-repeat: no-repeat;
   background-size: 400% 100%;
   image-rendering: pixelated;
+}
+
+.campfire::after {
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  width: 70%;
+  height: 7px;
+  background: radial-gradient(50% 50% at 50% 50%, rgb(43 43 51 / 26%), transparent 72%);
+  content: "";
+  transform: translateX(-50%);
 }
 
 .fire-glow {

@@ -33,13 +33,15 @@ const TRAINER = {
   waveSrc: `${SPRITES}/trainer-wave.png`,
 };
 
+// Companion scale dropped 2.6 -> 1.85 and horse 0.62 -> 0.82 to close the
+// pixel-density gap with the painted 128px trainer (visual-critique finding).
 const COMPANIONS: Record<CompanionName, SpriteMeta> = {
-  bulldog: meta(28, 15, 2.6, "bulldog"),
-  crane: meta(24, 20, 2.6, "crane"),
-  horse: { frameHeight: 128, frameWidth: 128, idleFrames: 2, idleSrc: `${SPRITES}/horse-idle.png`, scale: 0.62, walkFrames: 4, walkSrc: `${SPRITES}/horse-walk.png` },
-  pear: meta(19, 19, 2.6, "pear"),
-  pigeon: meta(23, 18, 2.6, "pigeon"),
-  robot: meta(21, 20, 2.6, "robot"),
+  bulldog: meta(27, 18, 1.85, "bulldog"),
+  crane: meta(24, 20, 1.85, "crane"),
+  horse: { frameHeight: 128, frameWidth: 128, idleFrames: 2, idleSrc: `${SPRITES}/horse-idle.png`, scale: 0.82, walkFrames: 4, walkSrc: `${SPRITES}/horse-walk.png` },
+  pear: meta(19, 19, 1.85, "pear"),
+  pigeon: meta(23, 18, 1.85, "pigeon"),
+  robot: meta(21, 20, 1.85, "robot"),
 };
 
 function meta(frameWidth: number, frameHeight: number, scale: number, name: string): SpriteMeta {
@@ -59,29 +61,40 @@ type SceneryProp = {
   at: number;
   side: number;
   horizon?: boolean;
+  /** Px lifted above the trail point (hanging lanterns, raised horizons). */
+  lift?: number;
 };
 
-const prop = (src: string, width: number, height: number, scale: number, at: number, side: number, horizon = false): SceneryProp => ({ at, height, horizon, scale, side, src, width });
+const prop = (src: string, width: number, height: number, scale: number, at: number, side: number, opts: { horizon?: boolean; lift?: number } = {}): SceneryProp => {
+  const base: SceneryProp = { at, height, scale, side, src, width };
+  if (opts.horizon) {
+    base.horizon = true;
+  }
+  if (opts.lift) {
+    base.lift = opts.lift;
+  }
+  return base;
+};
 
 const GAP_SCENERY: SceneryProp[][] = [
-  // trailhead → stables: paddock fence, flowers
-  [prop("fence", 36, 18, 2, 0.45, -120), prop("flowers", 15, 6, 2, 0.6, 90), prop("bush", 20, 12, 2, 0.8, 130)],
-  // stables → yale: pines
-  [prop("pine", 22, 36, 2, 0.3, 110), prop("pine-small", 16, 26, 2, 0.42, 150), prop("rock", 15, 8, 2, 0.7, -95)],
-  // yale → robot room: collegiate arch + aspen (extra beat, give it presence)
-  [prop("arch", 20, 22, 3, 0.35, -130), prop("aspen", 22, 32, 2, 0.62, 120), prop("flowers", 15, 6, 2, 0.78, -85)],
+  // trailhead → stables: paddock fence + ground cover, both sides
+  [prop("fence", 36, 18, 2, 0.42, -120), prop("flowers", 15, 6, 2, 0.58, 96), prop("bush", 20, 12, 2, 0.8, 130), prop("rock", 15, 8, 2, 0.7, -88)],
+  // stables → yale: pines bracketing the path for depth
+  [prop("pine", 22, 36, 2, 0.3, 124), prop("pine-small", 16, 26, 1.6, 0.46, -150), prop("bush", 20, 12, 2, 0.72, 96), prop("rock", 15, 8, 2, 0.84, -92)],
+  // yale → robot room: collegiate arch (cleared right) + aspen on the left
+  [prop("arch", 20, 22, 3, 0.34, 150), prop("aspen", 22, 32, 2, 0.6, -120), prop("flowers", 15, 6, 2, 0.8, 86)],
   // robot room → yale med: the lab bench leavings
-  [prop("beaker", 12, 11, 2, 0.3, 95), prop("pine-small", 16, 26, 2, 0.66, -120)],
-  // yale med → beijing: lanterns rising
-  [prop("lantern", 14, 14, 2, 0.32, -95), prop("aspen", 22, 32, 2, 0.55, 135), prop("lantern", 14, 14, 2, 0.74, 100)],
-  // beijing → humana: the city appears
-  [prop("skyline", 110, 30, 3, 0.45, 0, true), prop("bush", 20, 12, 2, 0.75, -110)],
-  // humana → healthyr: deeper into the city
-  [prop("skyline", 110, 30, 3, 0.5, 0, true), prop("cattails", 16, 10, 2, 0.78, 100)],
-  // healthyr → otseek: the long view opens
-  [prop("ridge", 128, 34, 3, 0.45, 0, true), prop("pine", 22, 36, 2, 0.72, -125)],
+  [prop("beaker", 12, 11, 2, 0.3, 95), prop("pine-small", 16, 26, 2, 0.64, -120), prop("bush", 20, 12, 2, 0.82, 100)],
+  // yale med → beijing: paper lanterns hung over the trail
+  [prop("lantern", 14, 14, 2.2, 0.28, -70, { lift: 150 }), prop("lantern", 14, 14, 2.4, 0.5, 70, { lift: 196 }), prop("lantern", 14, 14, 2.2, 0.72, -60, { lift: 140 }), prop("aspen", 22, 32, 2, 0.6, 140)],
+  // beijing → humana: the city rises on both sides
+  [prop("skyline", 110, 30, 3, 0.5, 0, { horizon: true }), prop("skyline", 110, 30, 1.7, 0.5, -150, { horizon: true }), prop("lantern", 14, 14, 2, 0.74, 96, { lift: 110 })],
+  // humana → healthyr: deeper into the city, lit windows both sides
+  [prop("skyline", 110, 30, 3, 0.5, 0, { horizon: true }), prop("skyline", 110, 30, 2, 0.5, 150, { horizon: true }), prop("cattails", 16, 10, 2, 0.8, -104)],
+  // healthyr → otseek: the long view opens, peaks raised into frame
+  [prop("ridge", 128, 34, 3, 0.5, 0, { horizon: true, lift: 90 }), prop("pine", 22, 36, 2, 0.74, -125), prop("flowers", 15, 6, 2, 0.84, 92)],
   // otseek → now: dusk in the mountains
-  [prop("ridge", 128, 34, 3, 0.4, 0, true), prop("aspen", 22, 32, 2, 0.65, 115), prop("rock", 15, 8, 2, 0.8, -90)],
+  [prop("ridge", 128, 34, 3, 0.46, 0, { horizon: true, lift: 110 }), prop("aspen", 22, 32, 2, 0.66, 118), prop("rock", 15, 8, 2, 0.82, -90), prop("cattails", 16, 10, 2, 0.8, 150)],
 ];
 
 const journey = document.getElementById("journey");
@@ -201,13 +214,64 @@ function initJourney(ctx: Ctx): void {
       const w = placed.config.width * placed.config.scale;
       const h = placed.config.height * placed.config.scale;
       const side = mobile ? Math.sign(placed.config.side) * Math.min(Math.abs(placed.config.side), 70) : placed.config.side;
-      let x = placed.config.horizon ? width / 2 - w / 2 : point.x + side - w / 2;
+      let x = placed.config.horizon && side === 0 ? width / 2 - w / 2 : point.x + side - w / 2;
       x = clamp(x, 4, Math.max(4, width - w - 4));
-      const y = point.y - h;
+      const y = point.y - h - (placed.config.lift ?? 0);
       placed.baseX = Math.round(x);
       placed.baseY = Math.round(y);
       placed.element.style.transform = `translate3d(${placed.baseX}px, ${placed.baseY}px, 0)`;
     }
+  }
+
+  // --- verge cover: dense grass tufts + pebbles hugging the trail edges -------
+  const vergeRoot = document.getElementById("verge");
+  const vergePieces: HTMLDivElement[] = [];
+
+  function placeVerge(): void {
+    if (!(vergeRoot instanceof HTMLElement) || totalLength <= 0) {
+      return;
+    }
+    vergeRoot.replaceChildren();
+    vergePieces.length = 0;
+    const width = ctx.journey.clientWidth;
+    const step = 34;
+    let index = 0;
+    for (let along = 24; along < totalLength - 24; along += step) {
+      const seed = Math.floor(along);
+      // Two tufts per step, one each side, with jitter; an occasional pebble.
+      for (const dir of [-1, 1] as const) {
+        if (rand(seed * 3 + dir) > 0.82) {
+          continue;
+        }
+        const point = pointAt(along + (rand(seed + dir) - 0.5) * step);
+        const offset = 16 + rand(seed * 7 + dir) * 26;
+        const tangent = pointAt(along + 6);
+        const back = pointAt(along - 6);
+        const len = Math.hypot(tangent.x - back.x, tangent.y - back.y) || 1;
+        const nx = (-(tangent.y - back.y) / len) * dir;
+        const ny = ((tangent.x - back.x) / len) * dir;
+        const pebble = rand(seed * 11 + dir) > 0.8;
+        const variant = Math.floor(rand(seed * 5 + dir) * (pebble ? 2 : 3));
+        const scale = 2;
+        const sw = (pebble ? 4 : 11) * scale;
+        const sh = (pebble ? 4 : 3) * scale;
+        const x = point.x + nx * offset - sw / 2;
+        const y = point.y + ny * offset - sh;
+        if (x < 2 || x > width - sw - 2) {
+          continue;
+        }
+        const piece = document.createElement("div");
+        piece.className = "verge-piece";
+        piece.style.width = `${sw}px`;
+        piece.style.height = `${sh}px`;
+        piece.style.backgroundImage = `url(${SPRITES}/${pebble ? `pebble-${variant}` : `grass-tuft-${variant}`}.png)`;
+        piece.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+        vergeRoot.append(piece);
+        vergePieces.push(piece);
+        index += 1;
+      }
+    }
+    void index;
   }
 
   /** Horizon strips drift slower than the page — cheap pixel parallax. */
@@ -314,6 +378,10 @@ function initJourney(ctx: Ctx): void {
     const d = catmullRom(points);
     ctx.trailPath.setAttribute("d", d);
     ctx.trailShadow.setAttribute("d", d);
+    // The worn dirt bed (wide soft strokes under the dashed ink) grounds the trail.
+    for (const id of ["trail-bed-edge", "trail-bed", "trail-bed-light"]) {
+      document.getElementById(id)?.setAttribute("d", d);
+    }
     const height = ctx.journey.scrollHeight;
     ctx.trailSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
     ctx.trailSvg.setAttribute("width", String(width));
@@ -334,6 +402,7 @@ function initJourney(ctx: Ctx): void {
     ].sort((a, b) => a.scroll - b.scroll);
 
     placeScenery();
+    placeVerge();
   }
 
   // --- scroll → distance mapping --------------------------------------------
@@ -691,10 +760,13 @@ function initJourney(ctx: Ctx): void {
   }
 
   // --- sky tint + stars -----------------------------------------------------------------
+  // Wider arc so the dawn→day→golden→dusk progression actually reads (critique).
   const skyStops: Array<[number, [number, number, number]]> = [
-    [0, [0xf5, 0xe9, 0xd4]],
-    [0.5, [0xed, 0xe6, 0xcc]],
-    [1, [0xe3, 0xd2, 0xc2]],
+    [0, [0xf9, 0xee, 0xd6]],
+    [0.28, [0xf2, 0xe9, 0xcf]],
+    [0.55, [0xed, 0xe6, 0xcc]],
+    [0.78, [0xe7, 0xd6, 0xc2]],
+    [1, [0xdc, 0xc4, 0xba]],
   ];
 
   function tintSky(): void {
@@ -708,7 +780,7 @@ function initJourney(ctx: Ctx): void {
       lastSkyColor = color;
       sky.style.backgroundColor = color;
       if (starsRoot instanceof HTMLElement) {
-        starsRoot.style.opacity = String(clamp((progress - 0.7) / 0.3, 0, 1) * 0.85);
+        starsRoot.style.opacity = String(clamp((progress - 0.62) / 0.28, 0, 1) * 0.9);
       }
     }
   }
@@ -901,6 +973,17 @@ function initJourney(ctx: Ctx): void {
     window.addEventListener("scroll", () => forceReveal(), { passive: true });
   } else {
     requestAnimationFrame(frameLoop);
+    // Celestial + parallax also update on scroll, so the sky arc keeps pace
+    // even if rAF is throttled (e.g. a backgrounded tab).
+    window.addEventListener(
+      "scroll",
+      () => {
+        celestial();
+        parallaxScenery();
+      },
+      { passive: true },
+    );
+    celestial();
   }
 }
 
@@ -988,4 +1071,10 @@ function lerpStops(stops: Array<[number, [number, number, number]]>, t: number):
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** Deterministic [0,1) hash — stable scatter that survives reloads/resizes. */
+function rand(seed: number): number {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
 }

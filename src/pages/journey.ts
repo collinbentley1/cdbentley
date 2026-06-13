@@ -51,9 +51,13 @@ function renderJourney(): string {
 
   <div class="trail-layer" id="trail-layer" aria-hidden="true">
     <svg class="trail-svg" id="trail-svg" xmlns="http://www.w3.org/2000/svg">
+      <path class="trail-bed-edge" id="trail-bed-edge" d=""></path>
+      <path class="trail-bed" id="trail-bed" d=""></path>
+      <path class="trail-bed-light" id="trail-bed-light" d=""></path>
       <path class="trail-path-shadow" id="trail-path-shadow" d=""></path>
       <path class="trail-path" id="trail-path" d=""></path>
     </svg>
+    <div class="verge" id="verge"></div>
     <div class="walker" id="walker"></div>
   </div>
 

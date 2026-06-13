@@ -180,6 +180,69 @@ export function buildFlowers(): Image {
   );
 }
 
+/** Tiny grass tuft for trail verges — three variants keep scatter from tiling. */
+export function buildGrassTuft(seed = 0): Image {
+  const grids = [
+    `
+.s...s..s.
+s.s.s.ss.s
+sssssssssss
+`,
+    `
+..s..s....
+s.sss.s.s.
+ssssssssss
+`,
+    `
+...s...s..
+.s.s.s.ss.
+.ssssssss.
+`,
+  ];
+  return fromGrid(grids[seed % grids.length] ?? grids[0]!, { s: FOLIAGE.mid });
+}
+
+export function buildPebble(seed = 0): Image {
+  const grids = [
+    `
+.oo.
+ollo
+omdo
+.oo.
+`,
+    `
+.ooo.
+olllo
+ommdo
+.ooo.
+`,
+  ];
+  return fromGrid(grids[seed % grids.length] ?? grids[0]!, { d: STONE.dark, l: STONE.light, m: STONE.mid, o: INK });
+}
+
+/** A faint distant tree silhouette for the far backdrop band (depth). */
+export function buildFarTree(seed = 0): Image {
+  const width = 10;
+  const height = 16;
+  const image = createImage(width, height);
+  const tone = hexToRgba("#8c9472");
+  const cx = Math.floor(width / 2);
+  for (let y = 0; y < height - 3; y += 1) {
+    const t = y / (height - 3);
+    const half = Math.max(0, Math.round(t * (width / 2 - 1)));
+    for (let dx = -half; dx <= half; dx += 1) {
+      if (half > 0 && Math.abs(dx) === half && hash(dx, y, seed) % 3 === 0) {
+        continue;
+      }
+      setPixel(image, cx + dx, y, tone);
+    }
+  }
+  for (let y = height - 3; y < height; y += 1) {
+    setPixel(image, cx, y, tone);
+  }
+  return image;
+}
+
 export function buildCattails(): Image {
   return fromGrid(
     `
