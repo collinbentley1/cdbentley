@@ -66,14 +66,15 @@ const trainer = await buildTrainerDerived();
 await write(join(SPRITES, "trainer-idle.png"), sheet([trainer.idle[0]!, trainer.idle[1]!, trainer.idle[3]!, trainer.idle[4]!]));
 await write(join(SPRITES, "trainer-wave.png"), sheet(trainer.wave));
 
-// --- Cairns -------------------------------------------------------------------
+// --- Cairns (shaded) ----------------------------------------------------------
+const { buildCairnHi, buildCairnDropHi } = await import("./cairn.ts");
 for (let stones = 1; stones <= 4; stones += 1) {
-  await write(join(SPRITES, `cairn-${stones}.png`), buildCairn(stones));
+  await write(join(SPRITES, `cairn-${stones}.png`), buildCairnHi(stones));
 }
 for (let stones = 1; stones <= 3; stones += 1) {
-  const drop = buildCairnDrop(stones);
-  await write(join(SPRITES, `cairn-drop-${stones}.png`), sheet(drop));
+  await write(join(SPRITES, `cairn-drop-${stones}.png`), sheet(buildCairnDropHi(stones)));
 }
+void buildCairnDrop;
 
 // --- Props ---------------------------------------------------------------------
 const dust = buildDust();
@@ -248,9 +249,13 @@ function buildFaviconCairn(): Image {
   const { buildArch, buildAspen, buildBeaker, buildBush, buildCampfire, buildCattails, buildCloud, buildCushion, buildFarTree, buildFence, buildFlowers, buildGrassTuft, buildLantern, buildMoon, buildPebble, buildPine, buildRidge, buildRock, buildShojiWindow, buildSkyline, buildSun } = await import("./scenery.ts");
   await write(join(SPRITES, "pine.png"), buildPine(36, 1));
   await write(join(SPRITES, "pine-small.png"), buildPine(26, 5));
-  await write(join(SPRITES, "aspen.png"), buildAspen(32, 2));
-  await write(join(SPRITES, "bush.png"), buildBush());
-  await write(join(SPRITES, "rock.png"), buildRock());
+  const { buildAspenHi, buildBushHi, buildRockHi } = await import("./scenery-hi.ts");
+  await write(join(SPRITES, "aspen.png"), buildAspenHi());
+  await write(join(SPRITES, "bush.png"), buildBushHi());
+  await write(join(SPRITES, "rock.png"), buildRockHi());
+  void buildAspen;
+  void buildBush;
+  void buildRock;
   await write(join(SPRITES, "flowers.png"), buildFlowers());
   await write(join(SPRITES, "cattails.png"), buildCattails());
   await write(join(SPRITES, "fence.png"), buildFence());
