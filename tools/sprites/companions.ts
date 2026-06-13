@@ -435,6 +435,7 @@ const PEAR_LEGS_B = `
 ...oo..oo.
 `;
 
+// Idle sways: body leans 1px while bobbing so the stem reads as a wobble.
 export const PEAR_PAL: CompanionArt = {
   height: 19,
   idle: [
@@ -443,7 +444,7 @@ export const PEAR_PAL: CompanionArt = {
       { grid: PEAR_LEGS_A, x: 4, y: 17 },
     ],
     [
-      { grid: PEAR_BODY, x: 0, y: 2 },
+      { grid: PEAR_BODY, x: 1, y: 2 },
       { grid: PEAR_LEGS_A, x: 4, y: 17 },
     ],
   ],
