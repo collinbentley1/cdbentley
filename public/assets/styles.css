@@ -1138,6 +1138,42 @@ svg.mroute {
   }
 }
 
+.contact {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+#contactTop {
+  padding: 22px 12px 16px;
+}
+
+#contactFoot {
+  padding: 6px 12px 30px;
+}
+
+.contact a {
+  color: #7a6a52;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.contact a:hover,
+.contact a:focus-visible {
+  color: var(--ink);
+}
+
+.contact .sep {
+  color: #9a8a6c;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

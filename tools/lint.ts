@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
 const failures: string[] = [];
-const allowedIndexOrigins = new Set(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]);
+const allowedIndexOrigins = new Set(["https://cdbentley.com", "https://fonts.googleapis.com", "https://fonts.gstatic.com", "https://github.com", "https://www.linkedin.com"]);
 
 await requireContains("Dockerfile", "dhi.io/bun", "Dockerfile must use Docker Hardened Bun images.");
 await requireContains("Dockerfile", "bun upgrade --canary", "Dockerfile must upgrade Bun to the latest canary.");
