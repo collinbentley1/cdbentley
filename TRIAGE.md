@@ -122,3 +122,14 @@ Appended verbatim by the WS-C fixer (overnight judge pass, 2026-07-09). Not acte
 
 6. **[quality-note / MINOR]** Airport-gate receipt-slot code comment describes its reveal as 'scanline resolve'; the effect itself is a row-progressive cell-flip (same move as the split-flap board), not a CRT scanline overlay, and page-level tests pin the absence of scanline/chromatic CSS — but the term in the comment will trip future grep audits of the no-CRT rule.
    *Where:* src/ocean/scenes/airport-gate/scene.ts (~line 370, receipt-slot resolve)
+
+## Copy-sweep pass 2 notes
+
+Appended verbatim by the copy fixer (copy-sweep pass 2, 2026-07-09). RECOMMEND-ONLY — no site copy edited on this branch; morning decision.
+
+1. **[RECOMMEND-ONLY]**
+   *File:* /Users/collin/cdbentley-worktrees/ws-c-redesign/public/ocean/index.html
+   *Location:* lines 22, 25, 33 (meta description, og:description, twitter:description)
+   *Quote:* content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview."
+   *Tell:* Launch-copy drift risk (2.5-adjacent, ship-checklist gap): PR #20's ship plan covers only the robots tag ("noindex staging guard marked for removal at ship"; "launch config (same page, tag removed)"), but the sentence "Staging preview." also lives in all three description strings. After the root-route flip, search snippets and social cards would still announce "Staging preview."
+   *Suggestion:* Recommend, do not edit (in-repo site copy on a CI-verified branch): add to the launch flip checklist — when the noindex tag is removed, also strip the trailing "Staging preview." sentence from meta description, og:description, and twitter:description (three occurrences).
