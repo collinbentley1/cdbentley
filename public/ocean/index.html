@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+  <!--
+    "The Ocean Remembers" — WS-C Phase C staging preview (armature v1).
+    Served at /ocean/ on this branch so the current site stays untouched
+    until morning triage; flipping the root route is a one-line change.
+
+    The document below IS the plain view: a linear, static, searchable DOM.
+    descent.js progressively enhances it into the canvas ocean unless
+    prefers-reduced-motion or /?reduced ask otherwise.
+
+    Claim markup between ink markers is GENERATED from the private FACTS.md
+    by tools/facts-claims.ts (verbatim-checked, C-section excluded). Do not
+    hand-edit between the markers.
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <!-- staging preview: noindex until launch; remove at ship -->
+    <title>Collin Bentley — The Ocean Remembers</title>
+    <meta name="description" content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview." />
+    <meta name="theme-color" content="#000000" />
+    <meta property="og:title" content="Collin Bentley — The Ocean Remembers" />
+    <meta property="og:description" content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://cdbentley.com/ocean/" />
+    <meta property="og:image" content="https://cdbentley.com/assets/og/ocean-og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Collin Bentley — The Ocean Remembers" />
+    <meta name="twitter:description" content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview." />
+    <meta name="twitter:image" content="https://cdbentley.com/assets/og/ocean-og.png" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --ink: #e8e3d3;
+        --accent: #ffb454;
+        --bg: #000000;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--bg);
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+        font-size: 15px;
+        line-height: 1.65;
+      }
+
+      a {
+        color: var(--ink);
+      }
+
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        z-index: 20;
+        background: var(--bg);
+        padding: 0.5em 1em;
+        border: 1px solid var(--ink);
+      }
+
+      .skip-link:focus {
+        left: 0.5em;
+        top: 0.5em;
+      }
+
+      header.site {
+        max-width: 68ch;
+        margin: 0 auto;
+        padding: 4rem 1.25rem 2rem;
+        position: relative;
+        z-index: 2;
+      }
+
+      header.site h1 {
+        font-size: 1.1rem;
+        letter-spacing: 0.12em;
+        margin: 0 0 0.75rem;
+        font-weight: 700;
+      }
+
+      .contact-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.25em;
+        align-items: baseline;
+      }
+
+      .contact-row a {
+        font-weight: 700;
+        text-decoration-thickness: 2px;
+      }
+
+      #plain-toggle {
+        margin-top: 1rem;
+        background: var(--bg);
+        color: var(--ink);
+        border: 1px solid var(--ink);
+        font-family: inherit;
+        font-size: 0.85em;
+        padding: 0.3em 0.9em;
+        cursor: pointer;
+      }
+
+      #plain-toggle[aria-pressed="true"] {
+        background: var(--ink);
+        color: var(--bg);
+      }
+
+      main {
+        position: relative;
+        z-index: 1;
+      }
+
+      .prose {
+        max-width: 68ch;
+        margin: 0 auto;
+        padding: 1.5rem 1.25rem 2.5rem;
+        position: relative;
+        z-index: 2;
+      }
+
+      .prose h2 {
+        font-size: 0.95rem;
+        letter-spacing: 0.14em;
+        text-transform: lowercase;
+        opacity: 0.85;
+        margin: 0 0 1rem;
+      }
+
+      .todo {
+        opacity: 0.58;
+        border-left: 2px dashed rgba(232, 227, 211, 0.35);
+        padding-left: 0.8em;
+      }
+
+      .scene-summary {
+        opacity: 0.62;
+        font-size: 0.9em;
+      }
+
+      /* Epistemic ink: the grading system is the type system. */
+      .claim {
+        margin: 1.25rem 0;
+      }
+
+      .claim-text {
+        margin: 0;
+      }
+
+      .claim--bulletproof .claim-text {
+        font-weight: 700;
+        opacity: 1;
+      }
+
+      .claim--defensible .claim-text {
+        opacity: 0.85;
+      }
+
+      .claim--needs-caveat .claim-text {
+        opacity: 0.7;
+      }
+
+      .claim--ungraded .claim-text {
+        opacity: 0.66;
+      }
+
+      .claim-caveat {
+        margin: 0.15rem 0 0;
+        opacity: 0.58;
+        font-size: 0.85em;
+      }
+
+      .claim-grade {
+        display: inline-block;
+        margin-top: 0.15rem;
+        opacity: 0.58;
+        font-size: 0.7em;
+        letter-spacing: 0.1em;
+      }
+
+      .receipt-chip {
+        display: inline-block;
+        margin-top: 0.25rem;
+        margin-right: 0.6em;
+        padding: 0 0.5em;
+        border: 1px solid rgba(232, 227, 211, 0.4);
+        font-size: 0.8em;
+        opacity: 0.75;
+        transition:
+          color 0.6s,
+          border-color 0.6s,
+          opacity 0.3s;
+      }
+
+      body.ocean .claim--defensible .receipt-chip {
+        opacity: 0;
+      }
+
+      body.ocean .claim--defensible:hover .receipt-chip,
+      body.ocean .claim--defensible:focus-within .receipt-chip {
+        opacity: 0.9;
+      }
+
+      /* Shelf: static nav list by default (no-JS / plain), fixed strip in ocean mode. */
+      #shelf ul,
+      #shelf ol {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75em;
+        margin: 0;
+        padding: 0.5rem 1.25rem;
+        max-width: 68ch;
+        margin-inline: auto;
+      }
+
+      #shelf a {
+        font-size: 0.85em;
+        opacity: 0.8;
+      }
+
+      .shelf-slot {
+        background: transparent;
+        color: var(--ink);
+        border: 1px solid rgba(232, 227, 211, 0.18);
+        font-family: inherit;
+        padding: 2px;
+        cursor: pointer;
+        position: relative;
+        display: block;
+      }
+
+      .shelf-slot:focus-visible {
+        outline: 1px solid var(--ink);
+      }
+
+      .shelf-glyph {
+        margin: 0;
+        font-size: 6px;
+        line-height: 1.05;
+        letter-spacing: 0;
+        opacity: 0.25;
+        white-space: pre;
+      }
+
+      .shelf-glyph.is-docked {
+        opacity: 0.95;
+      }
+
+      .shelf-chip {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        z-index: 11;
+        background: var(--bg);
+        border: 1px solid rgba(232, 227, 211, 0.45);
+        padding: 0.3em 0.7em;
+        font-size: 11px;
+        white-space: nowrap;
+        max-width: 60vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .shelf-slot:hover .shelf-chip,
+      .shelf-slot:focus-visible .shelf-chip {
+        display: block;
+      }
+
+      .shelf-restore-all {
+        background: transparent;
+        color: var(--ink);
+        border: 1px solid rgba(232, 227, 211, 0.45);
+        font-family: inherit;
+        font-size: 0.8em;
+        padding: 0.35em 0.9em;
+        cursor: pointer;
+        align-self: center;
+      }
+
+      body.ocean #shelf {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        display: flex;
+        align-items: stretch;
+        gap: 0.5em;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.88);
+        border-bottom: 1px solid rgba(232, 227, 211, 0.2);
+        overflow-x: auto;
+      }
+
+      body.ocean #shelf ol {
+        padding: 0;
+        margin: 0;
+        gap: 0.4em;
+        flex-wrap: nowrap;
+      }
+
+      body.ocean #shelf > ul {
+        display: none;
+      }
+
+      body:not(.ocean) #shelf .shelf-slots,
+      body:not(.ocean) .dock-traveler {
+        display: none !important;
+      }
+
+      body.ocean header.site {
+        padding-top: 7rem;
+      }
+
+      /* Ocean mode: the field behind everything, sticky scene stages. */
+      #ocean-field {
+        display: none;
+      }
+
+      body.ocean #ocean-field {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+      }
+
+      .scene-stage {
+        display: none;
+      }
+
+      body.ocean section[data-scene] {
+        min-height: var(--section-h, auto);
+      }
+
+      body.ocean .scene-stage {
+        display: flex;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+      }
+
+      body.ocean .prose {
+        margin-top: -62vh;
+        padding-bottom: 24vh;
+      }
+
+      /* The name in the sand owns the first fold — beach prose waits below it. */
+      body.ocean section[data-scene="beach"] .prose {
+        margin-top: -12vh;
+      }
+
+      body.ocean .prose > * {
+        background: rgba(0, 0, 0, 0.78);
+      }
+
+      .canvas-box {
+        position: relative;
+      }
+
+      .scene-canvas {
+        display: block;
+      }
+
+      .beach-contacts {
+        position: absolute;
+        left: 5%;
+        top: 6%;
+        width: 42%;
+        height: 12%;
+        display: flex;
+        gap: 1.4em;
+        align-items: center;
+        z-index: 3;
+        font-size: clamp(10px, 1.4vw, 15px);
+      }
+
+      .floor-links {
+        position: absolute;
+        left: 0;
+        top: 88%;
+        width: 30%;
+        height: 8%;
+        display: flex;
+        gap: 8%;
+        justify-content: flex-start;
+        padding-left: 5%;
+        z-index: 3;
+        font-size: clamp(9px, 1.2vw, 14px);
+      }
+
+      .floor-restore {
+        position: absolute;
+        left: 25%;
+        top: 44%;
+        width: 50%;
+        height: 10%;
+        z-index: 3;
+        background: transparent;
+        color: transparent;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      .floor-restore:focus-visible {
+        outline: 1px dashed var(--ink);
+        color: var(--ink);
+      }
+
+      .dock-traveler {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9;
+        margin: 0;
+        font-size: 8px;
+        line-height: 1.05;
+        white-space: pre;
+        color: var(--ink);
+        transform-origin: top left;
+        pointer-events: none;
+        will-change: transform, opacity;
+      }
+
+      .provenance-packet {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 8;
+        white-space: pre;
+        font-size: 11px;
+        opacity: 0.8;
+        pointer-events: none;
+        will-change: transform, opacity;
+      }
+
+      footer.site {
+        max-width: 68ch;
+        margin: 0 auto;
+        padding: 3rem 1.25rem 6rem;
+        position: relative;
+        z-index: 2;
+      }
+
+      @media (max-width: 720px) {
+        body {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      // Mode class before first paint (no plain->ocean layout jump on slow
+      // devices). Same decision descent.js makes; this only pre-applies it.
+      (function () {
+        try {
+          var reduced = new URLSearchParams(location.search).has("reduced");
+          var stored = sessionStorage.getItem("ocean.plain");
+          var prefers = matchMedia("(prefers-reduced-motion: reduce)").matches;
+          var plain = reduced || (stored === null ? prefers : stored === "1");
+          if (!plain) {
+            document.body.classList.add("ocean");
+          }
+        } catch (e) {
+          /* plain stays the default */
+        }
+      })();
+    </script>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <nav id="shelf" aria-label="Memory shelf — scene navigation">
+      <ul>
+        <li><a href="#scene-beach">Beach</a></li>
+        <li><a href="#scene-stage">Stage</a></li>
+        <li><a href="#scene-classroom">Classroom</a></li>
+        <li><a href="#scene-corridor">Corridor</a></li>
+        <li><a href="#scene-trading-floor">Trading floor</a></li>
+        <li><a href="#scene-airport-gate">Airport gate</a></li>
+        <li><a href="#scene-subway-platform">Subway platform</a></li>
+        <li><a href="#scene-ocean-floor">Ocean floor</a></li>
+      </ul>
+    </nav>
+
+    <canvas id="ocean-field" aria-hidden="true"></canvas>
+
+    <header class="site">
+      <h1>COLLIN BENTLEY</h1>
+      <div class="contact-row">
+        <a href="mailto:collin.bentley@me.com">Email</a>
+        <a href="https://github.com/collinbentley1" rel="me">GitHub</a>
+        <a href="https://www.linkedin.com/in/collinbentley" rel="me">LinkedIn</a>
+        <span class="todo">TODO(collin): resume link</span>
+      </div>
+      <button id="plain-toggle" type="button" aria-pressed="false">expand full context</button>
+      <p class="todo">TODO(collin): one-line site introduction (the ocean explains itself only at the colophon).</p>
+    </header>
+
+    <main id="main">
+      <section data-scene="beach" id="scene-beach" aria-labelledby="h-beach">
+        <div class="scene-stage">
+          <div class="canvas-box">
+            <nav class="beach-contacts" aria-label="Contact — above the tide line">
+              <a href="mailto:collin.bentley@me.com">Email</a>
+              <a href="https://github.com/collinbentley1" rel="me">GitHub</a>
+              <a href="https://www.linkedin.com/in/collinbentley" rel="me">LinkedIn</a>
+            </nav>
+          </div>
+        </div>
+        <div class="prose">
+          <h2 id="h-beach">beach</h2>
+          <p class="scene-summary">TODO(collin): one-line beach summary</p>
+          <p class="todo">TODO(collin): beach copy — the name in the sand says it wordlessly; anything written here is your pen.</p>
+        </div>
+      </section>
+
+      <section data-scene="stage" id="scene-stage" aria-labelledby="h-stage">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+        <div class="prose">
+          <h2 id="h-stage">stage</h2>
+          <p class="scene-summary">TODO(collin): stage summary — Yale material per FACTS R9 + C4 (President 2017 per C3)</p>
+          <!-- ink:stage:begin -->
+<div class="claim claim--ungraded" data-claim="R9" data-slot="R9-president" data-edge="left">
+  <p class="claim-text">President (2017) of a ~$200k/yr 501(c)(3) theater</p>
+  <a class="receipt-chip" href="https://collegearts.yale.edu/events/shows-screenings/reverie" rel="noopener">receipt: collegearts.yale.edu (Reverie, Apr 2017)</a>
+  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
+</div>
+<div class="claim claim--ungraded" data-claim="R9" data-slot="R9-credits" data-edge="left">
+  <p class="claim-text">Yale College Arts biography page (yale.edu) lists 9 production credits 2016–19</p>
+  <p class="claim-caveat">ungraded in source; receipts are public and re-runnable: yale.edu, Yale Daily News, IRS 990s</p>
+  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
+</div>
+<!-- ink:stage:end -->
+          <p class="todo">TODO(collin): rigging line — use the FACTS C4 approved phrasing verbatim (Reverie flight team; Head Rigger credits); your pen picks how much of it to set here.</p>
+        </div>
+      </section>
+
+      <section data-scene="classroom" id="scene-classroom" aria-labelledby="h-classroom">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+        <div class="prose">
+          <h2 id="h-classroom">classroom</h2>
+          <p class="scene-summary">TODO(collin): classroom summary line</p>
+          <p class="todo">
+            TODO(collin): classroom copy — the education thread (international bilingual school, Beijing) is listed ungraded in FACTS L3, so
+            nothing renders as fact tonight; needs your pen and a receipt.
+          </p>
+        </div>
+      </section>
+
+      <section data-scene="corridor" id="scene-corridor" aria-labelledby="h-corridor">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+        <div class="prose">
+          <h2 id="h-corridor">corridor</h2>
+          <p class="scene-summary">TODO(collin): corridor scene summary line</p>
+          <!-- ink:corridor:begin -->
+<div class="claim claim--defensible" data-claim="S1" data-slot="S1" data-edge="right">
+  <p class="claim-text">Enterprise LLM products inside a Fortune-50 payer, 2022–24.</p>
+  <span class="receipt-chip" tabindex="0">receipt: Humana Studio H press · Fierce Healthcare</span>
+  <span class="claim-grade" aria-label="claim grade">DEFENSIBLE</span>
+</div>
+<!-- ink:corridor:end -->
+          <p class="todo">TODO(collin): the brief's "2M-member refill model" is not in FACTS.md at any grade — it never renders as fact; needs a receipt first.</p>
+        </div>
+      </section>
+
+      <section data-scene="trading-floor" id="scene-trading-floor" aria-labelledby="h-trading-floor">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+        <div class="prose">
+          <h2 id="h-trading-floor">trading floor</h2>
+          <p class="scene-summary">TODO(collin): trading-floor summary line (FACTS L1 at grade; C11/C12: demo-stage, never daily-trader use)</p>
+          <!-- ink:trading-floor:begin -->
+<div class="claim claim--ungraded" data-claim="L1" data-slot="L1-framing" data-edge="below">
+  <p class="claim-text">Built Agency MBS workflow products with institutional traders (co-founder was an ex-SquarePoint MBS quant); I know the blotter, BWIC, and TRACE workflows first-hand — and I ship at 14 PRs/week.</p>
+  <p class="claim-caveat">do not claim production traders used it daily; it was demo-stage with production-grade plumbing</p>
+  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
+</div>
+<div class="claim claim--ungraded" data-claim="L1" data-slot="L1-receipts" data-edge="below">
+  <p class="claim-text">11 domain routers (bwic, collateralsourcing, prepay, secmasterviewer…), a layered ELT data platform with ETF retrievers and SharePoint ingestion, SIFMA calendar/settlement utils, OAS/cheapness scoring, guarded prepay query building with server-rendered plots</p>
+  <span class="receipt-chip" tabindex="0">receipt: v1 repo (private; routers/utilities enumerable on request)</span>
+  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
+</div>
+<!-- ink:trading-floor:end -->
+        </div>
+      </section>
+
+      <section data-scene="airport-gate" id="scene-airport-gate" aria-labelledby="h-airport-gate">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+        <div class="prose">
+          <h2 id="h-airport-gate">airport gate</h2>
+          <p class="scene-summary">TODO(collin): airport-gate summary chip (one line; ground in FACTS S3/F4)</p>
+          <!-- ink:airport-gate:begin -->
+<div class="claim claim--bulletproof" data-claim="S3" data-slot="S3" data-edge="below">
+  <p class="claim-text">Production MCP server (medlock.ai) live July 2025, eight months after Anthropic shipped MCP and ~4 months after the Streamable HTTP transport entered the spec. Then the Visit Emery ChatGPT app approved by OpenAI and published to the app directory within ~5 months of the directory opening (Dec 17, 2025)</p>
+  <p class="claim-caveat">Withdrawn at dissolution; receipts = Collin's screenshots and demo videos</p>
+  <a class="receipt-chip" href="https://medlock.ai/" rel="noopener">live: medlock.ai (MCP endpoint at /api/mcp)</a>
+  <span class="claim-grade" aria-label="claim grade">BULLETPROOF</span>
+</div>
+<div class="claim claim--bulletproof" data-claim="F4" data-slot="F4" data-edge="below">
+  <p class="claim-text">Pivot merged Mar 7, 2026 → first ChatGPT app merged in 27 days → first live destination tenant in 31 days → live booking-vendor integration (Ventrata/OCTO) in 48 days → app-store submission packet in 66 days. 132 PRs in 9.5 weeks (14/week; 10 merged on May 12 alone).</p>
+  <span class="receipt-chip" tabindex="0">receipt: commit dates (git history)</span>
+  <span class="claim-grade" aria-label="claim grade">BULLETPROOF</span>
+</div>
+<!-- ink:airport-gate:end -->
+          <p class="todo">TODO(collin): the kiosk's directory-listing receipt is a clearly-fake placeholder tonight — swap in the real screenshot per FACTS C14 (your asset, backed up twice).</p>
+        </div>
+      </section>
+
+      <section data-scene="subway-platform" id="scene-subway-platform" aria-labelledby="h-subway-platform">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+        <div class="prose">
+          <h2 id="h-subway-platform">subway platform</h2>
+          <p class="scene-summary">TODO(collin): subway-platform summary line</p>
+          <p class="todo">TODO(collin): scene 7 sign line — threshold, not stuck</p>
+          <p class="todo">TODO(collin): scene 7 body copy — between trains, present tense</p>
+        </div>
+      </section>
+
+      <section data-scene="anglerfish" id="scene-anglerfish">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+      </section>
+
+      <section data-scene="deep-shape" id="scene-deep-shape">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+      </section>
+
+      <section data-scene="ocean-floor" id="scene-ocean-floor" aria-labelledby="h-ocean-floor">
+        <div class="scene-stage">
+          <div class="canvas-box">
+            <nav class="floor-links" aria-label="Contact — never compacted">
+              <a href="mailto:collin.bentley@me.com">Email</a>
+              <a href="https://github.com/collinbentley1" rel="me">GitHub</a>
+              <a href="https://www.linkedin.com/in/collinbentley" rel="me">LinkedIn</a>
+            </nav>
+            <button class="floor-restore" type="button">restore full context</button>
+          </div>
+        </div>
+        <div class="prose">
+          <h2 id="h-ocean-floor">ocean floor</h2>
+          <p class="scene-summary">TODO(collin): ocean-floor summary line</p>
+          <p class="todo">TODO(collin): shelf/floor copy — what the compressed story should say when it is all that is left.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site" aria-label="Colophon">
+      <h2>colophon</h2>
+      <!-- ink:colophon:begin -->
+<div class="claim claim--ungraded" data-claim="S4" data-slot="S4" data-edge="below">
+  <p class="claim-text">I've been early three times in a row — enterprise LLMs in 2022, voice-LLM health in 2024, MCP apps in 2025 — and I have the commit dates to prove it.</p>
+  <span class="receipt-chip" tabindex="0">receipt: commit dates (git history)</span>
+  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
+</div>
+<!-- ink:colophon:end -->
+      <p class="todo">
+        TODO(collin): the colophon is the one place the site says what it is (density degradation = context compaction; the ramp = epistemic
+        ink). Your pen.
+      </p>
+      <div class="contact-row">
+        <a href="mailto:collin.bentley@me.com">Email</a>
+        <a href="https://github.com/collinbentley1" rel="me">GitHub</a>
+        <a href="https://www.linkedin.com/in/collinbentley" rel="me">LinkedIn</a>
+      </div>
+    </footer>
+
+    <script type="module" src="/assets/ocean/descent.js"></script>
+  </body>
+</html>

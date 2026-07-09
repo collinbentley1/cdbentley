@@ -60,6 +60,18 @@ for (const { id, path } of harnessEntries) {
   assertBuild(harnessBuild, `ocean harness ${id}`);
 }
 
+// Ocean (WS-C Phase C): the integrated descent page bundle.
+const descentBuild = await Bun.build({
+  entrypoints: [join(srcDir, "ocean", "descent", "descent.ts")],
+  minify: true,
+  naming: "assets/ocean/descent.js",
+  outdir: distPublicDir,
+  sourcemap: "external",
+  target: "browser",
+});
+
+assertBuild(descentBuild, "ocean descent");
+
 const serverBuild = await Bun.build({
   entrypoints: [join(import.meta.dir, "..", "src", "server.ts")],
   external: ["*.html", "*.css"],

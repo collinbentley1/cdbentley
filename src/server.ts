@@ -49,7 +49,9 @@ function json(body: unknown, headers: HeadersInit = {}, status = 200): Response 
 async function serveStatic(pathname: string): Promise<Response> {
   let pathnameWithoutSlash: string;
   try {
-    pathnameWithoutSlash = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+    const decoded = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+    // Directory index (e.g. /ocean/ -> ocean/index.html).
+    pathnameWithoutSlash = decoded.endsWith("/") ? `${decoded}index.html` : decoded;
   } catch {
     return new Response("not found", { status: 404 });
   }
