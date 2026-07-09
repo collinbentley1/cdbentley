@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <!--
+    Scene harness page pattern (FROZEN, scene-sdk-v1).
+
+    Scene agent steps:
+      1. Copy this file to public/ocean/harness/<sceneId>.html.
+      2. Change ONLY the <title> and the script src below to
+         /assets/ocean/harness/<sceneId>.js.
+      3. Create src/ocean/scenes/<sceneId>/harness.ts:
+           import { runHarness } from "../../sdk/index.ts";
+           import { scene } from "./scene.ts";
+           runHarness(scene);
+      4. bun run build && bun run dev, open /ocean/harness/<sceneId>.html.
+
+    tools/build.ts discovers src/ocean/scenes/<sceneId>/harness.ts
+    automatically; no build config edits.
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>scene harness: classroom</title>
+  </head>
+  <body>
+    <script type="module" src="/assets/ocean/harness/classroom.js"></script>
+  </body>
+</html>
