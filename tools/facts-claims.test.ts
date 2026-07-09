@@ -139,6 +139,14 @@ describe("normalizeProse", () => {
   test("strips emphasis and collapses whitespace", () => {
     expect(normalizeProse("**27 days** →  first\napp")).toBe("27 days → first app");
   });
+
+  test("intra-word underscores are literal text, not emphasis — displayed claims keep them", () => {
+    expect(normalizeProse("routers (bwic, collateral_sourcing, sec_master_viewer…)")).toBe("routers (bwic, collateral_sourcing, sec_master_viewer…)");
+  });
+
+  test("word-edge underscores still strip as markdown emphasis", () => {
+    expect(normalizeProse("an _emphasized_ word and `code`")).toBe("an emphasized word and code");
+  });
 });
 
 describe("rendered specs", () => {

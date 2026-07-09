@@ -122,6 +122,13 @@ describe("epistemic ink (generated claims)", () => {
     }
   });
 
+  test("displayed claim text keeps intra-word underscores verbatim (FACTS L1 names)", () => {
+    expect(pageHtml).toContain("collateral_sourcing");
+    expect(pageHtml).toContain("sec_master_viewer");
+    expect(pageHtml).not.toContain("collateralsourcing");
+    expect(pageHtml).not.toContain("secmasterviewer");
+  });
+
   test("ungrounded brief items stay visible TODO(collin) placeholders", () => {
     expect(pageHtml).toContain("2M-member refill model");
     expect(pageHtml.includes("2M-member refill model") && pageHtml.includes("never renders as fact")).toBe(true);
@@ -141,6 +148,14 @@ describe("epistemic ink (generated claims)", () => {
 });
 
 describe("plain view / a11y invariants in the static page", () => {
+  test("the ocean-floor overlay restore CTA exists and descent.ts wires it", async () => {
+    expect(pageHtml).toContain('class="floor-restore"');
+    // Regression: the button shipped once with no handler (a dead control for
+    // anyone who reached the floor). The bundle must reference the selector.
+    const descentSource = await Bun.file(join(import.meta.dir, "descent.ts")).text();
+    expect(descentSource).toContain('".floor-restore"');
+  });
+
   test("landmarks, skip link, toggle, aria-hidden canvas, noindex staging meta", () => {
     expect(pageHtml).toContain('class="skip-link"');
     expect(pageHtml).toContain('id="plain-toggle"');

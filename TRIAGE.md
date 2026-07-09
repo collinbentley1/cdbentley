@@ -100,3 +100,25 @@ Integrator (new tonight — review these):
 5. Prose/scene overlap art direction; undocked-slot look; slot-8 policy.
 6. Mobile grid strategy (re-grid vs CSS scale).
 7. Root route flip (`/` vs `/ocean/`) and `noindex` removal — launch decisions, not tonight's.
+
+## Judge notes for morning triage
+
+Appended verbatim by the WS-C fixer (overnight judge pass, 2026-07-09). Not acted on — morning decisions.
+
+1. **[quality-note / MINOR]** Report page-weight table is slightly stale vs the current dist output: descent.js is now 67,397B raw / 27,136B gz (report says 67,277/27,143) and ocean/index.html is 23,739B raw / 6,234B gz (report says 23,055/5,980). Drift is ~250B gz from a later rebuild; total interactive payload is ~33.6KB gz, still ~11% of the 300KB budget. Worth refreshing the table before merge so the evidence matches dist exactly.
+   *Where:* reports/descent-benchmark.md (Page weight table) vs dist/public/assets/ocean/descent.js and dist/public/ocean/index.html
+
+2. **[quality-note / MINOR]** The verdict sentence '>2x CPU headroom' is computed against the average scene+field CPU (3.61-3.80ms vs the 8ms budget); p95 CPU (5.40-5.70ms) has ~1.4x headroom. The full table is published alongside, so nothing is concealed, but the summary line leans on the friendlier statistic. Consider phrasing as 'avg >2x, p95 ~1.4x, both under budget'.
+   *Where:* reports/descent-benchmark.md line 20 (Verdict)
+
+3. **[quality-note / MINOR]** The plain-view guarantee lives at /ocean/?reduced on this branch; the root / still serves the prior journey page, so a literal '/?reduced' does not reach the ocean plain view yet. This is the documented staging arrangement (HTML comment + TRIAGE.md: root-route flip is a deliberate one-line launch decision), so not counted as a violation — flagged so the ship checklist includes the flip.
+   *Where:* dist/public/index.html vs dist/public/ocean/index.html
+
+4. **[quality-note / MINOR]** R9-president claim's receipt chip links collegearts.yale.edu/…/reverie (FACTS C4's receipt for the rigging credit); FACTS says the presidency/$200k figure is 'citable to the IRS' (990s + YDN). Claim id/grade/caveat are correct and UNGRADED-dim, and the pairing is self-flagged in TRIAGE.md §FACTS-flags item 3 for Collin to confirm — but as paired, the receipt does not support that specific fragment.
+   *Where:* tools/facts-claims.ts RENDERED_SPECS slot R9-president; public/ocean/index.html line 545
+
+5. **[quality-note / MINOR]** src/ocean/sdk/renderer-canvas2d.ts contains raw NUL bytes (used as atlas-key separators in template literals), so git treats a TypeScript source file as binary — invisible to text diffs and grep-based sweeps (audited via strings: clean of IP terms; consider replacing the NUL separator with a printable one).
+   *Where:* src/ocean/sdk/renderer-canvas2d.ts (git diff shows 'Bin 0 -> 4399 bytes')
+
+6. **[quality-note / MINOR]** Airport-gate receipt-slot code comment describes its reveal as 'scanline resolve'; the effect itself is a row-progressive cell-flip (same move as the split-flap board), not a CRT scanline overlay, and page-level tests pin the absence of scanline/chromatic CSS — but the term in the comment will trip future grep audits of the no-CRT rule.
+   *Where:* src/ocean/scenes/airport-gate/scene.ts (~line 370, receipt-slot resolve)

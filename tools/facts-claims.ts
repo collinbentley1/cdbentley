@@ -151,10 +151,17 @@ export const RENDERED_SPECS: readonly RenderedClaimSpec[] = [
   },
 ];
 
-/** Collapse whitespace and strip markdown emphasis/quotes so verbatim checks compare prose, not markup. */
+/**
+ * Collapse whitespace and strip markdown emphasis/quotes so verbatim checks
+ * compare prose, not markup. Underscores are stripped only at word edges
+ * (emphasis delimiters like `_word_`); intra-word underscores are literal
+ * text (identifiers like `collateral_sourcing`) and must survive — the same
+ * function feeds the DISPLAYED claim text, which must stay verbatim.
+ */
 export function normalizeProse(value: string): string {
   return value
-    .replace(/[*_`]/g, "")
+    .replace(/[*`]/g, "")
+    .replace(/(?<![A-Za-z0-9])_+|_+(?![A-Za-z0-9])/g, "")
     .replace(/[""]/g, '"')
     .replace(/\s+/g, " ")
     .trim();

@@ -183,6 +183,11 @@ document.addEventListener("keydown", (event) => {
 
 const shelfSections = SECTIONS.filter((section) => section.shelfSlot !== null).sort((a, b) => (a.shelfSlot ?? 0) - (b.shelfSlot ?? 0));
 
+function restoreFullContext(): void {
+  // Surface: every scene re-blooms along the same pure path on the way up.
+  window.scrollTo({ behavior: plain ? "auto" : "smooth", top: 0 });
+}
+
 const shelf = shelfNav
   ? createShelf(shelfNav, shelfSections, {
       onRestore(slot) {
@@ -190,12 +195,13 @@ const shelf = shelfNav
         const target = entry ? mounted.find((m) => m.runner.scene.id === entry.scene.id) : undefined;
         target?.section.scrollIntoView({ behavior: plain ? "auto" : "smooth", block: "start" });
       },
-      onRestoreAll() {
-        // Surface: every scene re-blooms along the same pure path on the way up.
-        window.scrollTo({ behavior: plain ? "auto" : "smooth", top: 0 });
-      },
+      onRestoreAll: restoreFullContext,
     })
   : null;
+
+// The ocean-floor overlay CTA (the pixel line at the descent's destination)
+// is the same restore action as the shelf's "restore full context".
+document.querySelector<HTMLButtonElement>(".floor-restore")?.addEventListener("click", restoreFullContext);
 
 // --- Ocean field (the only always-on sim) ---------------------------------
 
