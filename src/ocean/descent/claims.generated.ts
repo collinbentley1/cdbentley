@@ -6,7 +6,7 @@
  * claims are excluded by construction; UNGRADED entries render dimmer
  * than DEFENSIBLE, never heavier.
  *
- * source: FACTS.md sha256 d8d1cfc8af89869cf74a33dca280a423b9b6320c56593f32c0030b7422f55d46
+ * source: FACTS.md sha256 e5ad4dd537c29d26f0b0f624f54a23535a69e7ba7add4dfbe2944e871ff96d22
  */
 
 import type { RenderedClaim } from "../../../tools/facts-claims.ts";
@@ -97,4 +97,4 @@ export const RENDERED_CLAIMS: readonly RenderedClaim[] = [
   }
 ] as const;
 
-export const FACTS_SOURCE_SHA256 = "d8d1cfc8af89869cf74a33dca280a423b9b6320c56593f32c0030b7422f55d46";
+export const FACTS_SOURCE_SHA256 = "e5ad4dd537c29d26f0b0f624f54a23535a69e7ba7add4dfbe2944e871ff96d22";
