@@ -19,6 +19,7 @@ const CHAPTER_OPENERS: Record<string, string> = {
   beach: "The water takes the name and the sand writes it back.",
   classroom: "After Yale I moved to Beijing and taught STEM at AndKids",
   corridor: "From 2020 to 2024 I was a senior product manager in Humana's incubation lab",
+  "kitchen-table": "From 2024 to 2025 I was the principal product engineer at Healthyr",
   "ocean-floor": "I don't remember most of what I've learned, especially facts",
   stage: "I studied computer science at Yale and produced mainstage musicals there from 2016 to 2019",
   "subway-platform": "It's July 2026 and I'm between things, building.",
@@ -41,12 +42,13 @@ const BANNED_USER_FACING = [
 ] as const;
 
 describe("scene order", () => {
-  test("descent order per the brief: 1-8 with the deep register before the floor", () => {
+  test("resume-chronological descent with the deep register before the floor", () => {
     expect(SECTIONS.map((section) => section.scene.id)).toEqual([
       "beach",
       "stage",
       "classroom",
       "corridor",
+      "kitchen-table",
       "trading-floor",
       "airport-gate",
       "subway-platform",
@@ -56,9 +58,15 @@ describe("scene order", () => {
     ]);
   });
 
-  test("exactly eight shelf slots, 0..7, deep register excluded", () => {
-    expect(SHELF_SECTIONS.map((section) => section.shelfSlot)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  test("exactly nine shelf slots, 0..8, deep register excluded", () => {
+    expect(SHELF_SECTIONS.map((section) => section.shelfSlot)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     expect(SHELF_SECTIONS.some((section) => section.scene.id === "anglerfish" || section.scene.id === "deep-shape")).toBe(false);
+  });
+
+  test("the static shelf list follows the same chronology", () => {
+    const staticList = /<nav id="shelf"[^>]*>[\s\S]*?<ul>([\s\S]*?)<\/ul>/.exec(pageHtml)?.[1] ?? "missing";
+    const hrefs = [...staticList.matchAll(/href="#scene-([a-z-]+)"/g)].map((m) => m[1]);
+    expect(hrefs).toEqual(SHELF_SECTIONS.map((section) => section.scene.id));
   });
 
   test("every scene ships a 12x6 dock glyph and a final summary chip", () => {

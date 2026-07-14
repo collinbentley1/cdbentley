@@ -10,6 +10,7 @@ import { scene as beachScene } from "../scenes/beach/scene.ts";
 import { scene as classroomScene } from "../scenes/classroom/scene.ts";
 import { scene as corridorScene } from "../scenes/corridor/scene.ts";
 import { deepShapeScene } from "../scenes/deep-shape/scene.ts";
+import { scene as kitchenTableScene } from "../scenes/kitchen-table/scene.ts";
 import { scene as oceanFloorScene } from "../scenes/ocean-floor/scene.ts";
 import { stageScene } from "../scenes/stage/scene.ts";
 import { subwayPlatformScene } from "../scenes/subway-platform/scene.ts";
@@ -34,26 +35,29 @@ export interface DescentSection {
 export const MEMORY_LINE_VH = 0.5;
 
 /**
- * Scene order per the brief: descent 1 -> 8, the deep register (anglerfish,
- * then the unnamed deep shape) between the subway and the ocean floor.
- * Beach at 150vh puts bin-2 (depth 0.35) ~0.85 viewports past the fold and
- * the dock collapse before two full scrolls — first compaction inside two
- * scrolls, checked in descent.test.ts.
+ * Scene order, strictly resume-chronological: beach (opening), Yale stage,
+ * Beijing classroom, Humana corridor, Healthyr kitchen table, OTseek trading
+ * floor, OTseek airport gate, subway platform (now), then the deep register
+ * (anglerfish, the unnamed deep shape) between the subway and the ocean
+ * floor. Beach at 150vh puts bin-2 (depth 0.35) ~0.85 viewports past the
+ * fold and the dock collapse before two full scrolls — first compaction
+ * inside two scrolls, checked in descent.test.ts.
  */
 export const SECTIONS: readonly DescentSection[] = [
   { heightVh: 150, label: "Collin Bentley", scene: beachScene, shelfSlot: 0 },
   { heightVh: 180, label: "Stage", scene: stageScene, shelfSlot: 1 },
   { heightVh: 180, label: "Classroom", scene: classroomScene, shelfSlot: 2 },
   { heightVh: 180, label: "Corridor", scene: corridorScene, shelfSlot: 3 },
-  { heightVh: 180, label: "Trading floor", scene: tradingFloorScene, shelfSlot: 4 },
-  { heightVh: 190, label: "Airport gate", scene: airportGateScene, shelfSlot: 5 },
-  { heightVh: 190, label: "Subway platform", scene: subwayPlatformScene, shelfSlot: 6 },
+  { heightVh: 180, label: "Kitchen table", scene: kitchenTableScene, shelfSlot: 4 },
+  { heightVh: 180, label: "Trading floor", scene: tradingFloorScene, shelfSlot: 5 },
+  { heightVh: 190, label: "Airport gate", scene: airportGateScene, shelfSlot: 6 },
+  { heightVh: 190, label: "Subway platform", scene: subwayPlatformScene, shelfSlot: 7 },
   { heightVh: 150, label: "The deep", scene: anglerfishScene, shelfSlot: null },
   { heightVh: 170, label: "Deeper", scene: deepShapeScene, shelfSlot: null },
-  { heightVh: 102, label: "Ocean floor", scene: oceanFloorScene, shelfSlot: 7 },
+  { heightVh: 102, label: "Ocean floor", scene: oceanFloorScene, shelfSlot: 8 },
 ];
 
-/** The eight shelf-docking sections, in slot order. */
+/** The nine shelf-docking sections, in slot order. */
 export const SHELF_SECTIONS: readonly DescentSection[] = [...SECTIONS]
   .filter((section) => section.shelfSlot !== null)
   .sort((a, b) => (a.shelfSlot ?? 0) - (b.shelfSlot ?? 0));
