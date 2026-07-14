@@ -63,7 +63,7 @@ export const anglerfishScene: SceneModule = {
   init(context: SceneContext): void {
     context.lights.length = 0;
     context.lights.push({
-      intensity: 0.45,
+      intensity: 0.8,
       radius: 15,
       x: context.buffer.width / 2,
       y: context.buffer.height / 2,
@@ -76,7 +76,7 @@ export const anglerfishScene: SceneModule = {
     cols: 168,
     minimalGlyph: "·",
     motion: {
-      ambientAmount: 0.05,
+      ambientAmount: 0.04,
       ambientFloor: 0.05,
       ambientScale: 0.07,
       ambientSpeed: 0.05,
@@ -86,11 +86,11 @@ export const anglerfishScene: SceneModule = {
       driftSpeed: 0.1,
       lureBob: 0.9,
       lureBobSpeed: 0.6,
-      lureIntensity: 0.45,
-      lurePulse: 0.2,
-      lurePulseSpeed: 0.5,
+      lureIntensity: 0.8,
+      lurePulse: 0.12,
+      lurePulseSpeed: 1.2,
       lureRadius: 15,
-      lureReach: 3,
+      lureReach: 4.5,
       snowBrightness: 0.13,
       snowCount: 70,
       snowSpeed: 0.8,
