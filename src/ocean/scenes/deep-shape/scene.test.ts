@@ -77,6 +77,23 @@ describe("deep-shape scene", () => {
     expect(deepShapeProbe().passes).toBe(0);
   });
 
+  test("gesture summon fires immediately, before the 1.5s idle mark", () => {
+    const context = freshContext();
+    const motion = deepShapeScene.tuning.motion;
+    const previousSummon = motion.summon ?? 0;
+    motion.summon = 1;
+
+    try {
+      deepShapeScene.init(context);
+      // Half a second — well under the old 1.5s gate that silently dropped
+      // an early gesture. The pass must already be running.
+      run(context, 0.5);
+      expect(deepShapeProbe().active).toBe(true);
+    } finally {
+      motion.summon = previousSummon;
+    }
+  });
+
   test("summoned pass: silhouette occludes, buffer stays valid, then it is gone", () => {
     const context = freshContext();
     const motion = deepShapeScene.tuning.motion;

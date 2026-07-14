@@ -351,7 +351,13 @@ export const deepShapeScene: SceneModule = {
       }
 
       const due = idleTime >= Math.max(1, idleDelay);
-      const summoned = summon >= 1 && idleTime >= 1.5;
+      // A gesture summon is an explicit request: fire it as soon as the flag is
+      // set, without waiting out the idle clock (which dropped any gesture in
+      // the first ~1.5s after wake). It is still gated to the same shallow
+      // window as the natural appearance, so a gesture never spawns a pass
+      // while the scene is already compacting; the `pass` guard above means one
+      // summon starts exactly one pass.
+      const summoned = summon >= 1 && context.depth < IDLE_MAX_DEPTH;
 
       if (due || summoned) {
         pass = startPass(width, height, this.tuning.motion);
