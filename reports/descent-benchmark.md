@@ -1,6 +1,6 @@
 # Descent full-run benchmark + page weight (WS-C Phase C)
 
-July 9, 2026 (overnight of July 7 work order); updated July 14 after the live-review interaction pass. Integrated page at `/ocean/` on branch `redesign/armature-v1`.
+July 9, 2026 (overnight of July 7 work order); updated July 14 after the live-review interaction pass; refreshed July 15 after the root flip + readability/integration pass. Integrated page now served at `/` (root) on branch `redesign/armature-v1`; the bench navigates `/?bench=1`.
 
 ## Method (the Phase A method, full-run edition)
 
@@ -14,8 +14,8 @@ July 9, 2026 (overnight of July 7 work order); updated July 14 after the live-re
 
 | profile | avg fps | avg frame ms | p95 frame ms | avg scene+field+bridge cpu ms | p95 cpu ms | frames >17ms | frames |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| desktop 1680x820 | 119.9 | 8.34 | 9.20 | 3.63 | 5.40 | 0.0% | 2878 |
-| mobile 390x844 | 120.0 | 8.34 | 9.10 | 2.40 | 4.10 | 0.0% | 2880 |
+| desktop 1680x820 | 120.0 | 8.33 | 10.10 | 3.10 | 5.00 | 0.0% | 2881 |
+| mobile 390x844 | 120.0 | 8.34 | 10.00 | 1.94 | 3.80 | 0.0% | 2880 |
 
 Verdict: 60fps holds with >2x frame-time headroom and CPU headroom at 4x throttle, during the worst window this page has (continuous scroll churn + compaction threshold crossings + 2-3 scenes awake at once + the always-on field + the bridge when visible). The renderer is the Phase A WebGL2 winner; its cost is dirty-independent, which is why compaction frames do not spike (see reports/renderer-spike.md).
 
@@ -23,12 +23,12 @@ Verdict: 60fps holds with >2x frame-time headroom and CPU headroom at 4x throttl
 
 | asset | raw | gz |
 | --- | --- | --- |
-| /assets/ocean/descent.js (all 10 scenes + bridge + SDK + integration) | 67,988 B | 27,395 B |
-| /ocean/index.html (inline CSS + single-layout static DOM) | 26,161 B | 7,420 B |
+| /assets/ocean/descent.js (all 11 scenes incl. kitchen-table + bridge + SDK + integration) | 75,342 B | 30,258 B |
+| /index.html (inline CSS + single-layout static DOM) | 24,730 B | 7,589 B |
 | glyph atlas | 0 B downloaded | rasterized at runtime from the system monospace stack (no font download, no font flash) |
 | favicon.svg | 284 B | 217 B |
 
-Total interactive payload = **34,815 B gz** (`gzip -9 -n`) — about 265KB under budget. (The OG image, 76.7KB PNG, is metadata-fetched by crawlers only, not part of the page load.)
+Total interactive payload = **38,064 B gz** (`gzip -c`) — about 262KB under the 300KB budget. `resume.pdf` (99,303 B) is reported separately: it is a direct download from the header / contact rail, not part of the page load. (The OG image, 76.7KB PNG, is metadata-fetched by crawlers only, not part of the page load.)
 
 ## Caveats (same shape as Phase A, honestly)
 
@@ -36,14 +36,15 @@ Total interactive payload = **34,815 B gz** (`gzip -9 -n`) — about 265KB under
 - Headless rAF paced 120Hz; a 60Hz device has strictly more per-frame budget.
 - Mobile profile runs the desktop scene grids CSS-scaled down (see TRIAGE.md — per-scene mobile grid sizing is a morning decision, not improvised tonight).
 
-## Lighthouse baseline (July 9; not rerun after the live-review interaction pass)
+## Lighthouse (July 15, post-flip — root build, `noindex` removed)
+
+Lighthouse 12, headless Chrome, against the built server (`bun dist/server.js`) at `http://localhost:PORT/` (root, the flipped ocean page). All four categories:
 
 | config | performance | accessibility | best-practices | seo |
 | --- | --- | --- | --- | --- |
-| staging as committed (`noindex` staging meta present) | 100 | 100 | 100 | 60 |
-| launch config (same page, `noindex` removed) | 100 | 100 | 100 | 100 |
+| root, post-flip (July 15) | 100 | 100 | 100 | 100 |
 
-These are retained as the July 9 baseline rather than asserted for the July 14 interaction tree. The only SEO deduction in that run was `is-crawlable` — the deliberate `<meta name="robots" content="noindex">` staging guard, marked in the HTML for removal at ship. Three findings were fixed en route to 100: initial TBT 1,610ms (all 10 renderer+atlas+scene inits in one task → staggered one-per-frame, now 0-10ms), CLS 1.0 (mode class landing after first paint → tiny pre-paint inline script), and dim-ink contrast (epistemic dim weights lifted to >= 4.5:1: todo 0.45→0.58, grade tag 0.38→0.58, caveat 0.5→0.58).
+SEO is now 100 because the `noindex` staging guard is removed — the first indexable state is the finished page. (July 9 baseline for reference: same 100/100/100 with SEO 60 while `noindex` was present; the sole SEO deduction was `is-crawlable`, the deliberate staging guard.) Three findings were fixed en route to 100 back in the July 9 pass: initial TBT 1,610ms (all renderer+atlas+scene inits in one task → staggered one-per-frame, now 0-10ms), CLS 1.0 (mode class landing after first paint → tiny pre-paint inline script), and dim-ink contrast lifted to >= 4.5:1.
 
 ## Reproduce
 

@@ -43,7 +43,10 @@ interface MountedScene {
 }
 
 const params = new URLSearchParams(location.search);
-const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Reduced motion comes from the OS preference or an explicit ?reduced opt-in
+// (the latter lets the quiet, non-animating presentation be reached without
+// changing system settings — same static layout, no motion).
+const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || params.has("reduced");
 const shelfNav = document.getElementById("shelf");
 const fieldCanvas = document.getElementById("ocean-field");
 const bridgeCue = document.querySelector<HTMLElement>(".bridge-cue");

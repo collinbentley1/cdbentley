@@ -105,7 +105,9 @@
         align-items: center;
         gap: 2px;
         height: 44px;
-        background: rgba(0, 0, 0, 0.9);
+        /* Opaque so the horizontally-scrolling shelf chips are cleanly masked
+           where they pass under this fixed rail (no glyph bleed at 390px). */
+        background: #000000;
       }
 
       .social-link {
@@ -362,6 +364,13 @@
          illuminated end sign stays clear as the corridor's destination. */
       body.ocean section[data-scene="corridor"] .prose {
         margin-top: -46vh;
+      }
+
+      /* The classroom board is the focal feature and carries faint writing;
+         start the chapter just below the board so the heading and summary
+         don't land on it (the desks below are a repeating field). */
+      body.ocean section[data-scene="classroom"] .prose {
+        margin-top: -52vh;
       }
 
       .bridge-cue {

@@ -40,7 +40,7 @@ try {
     const cdp = await context.newCDPSession(page);
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: THROTTLE });
 
-    await page.goto(`http://localhost:${server.port}/ocean/?bench=1`, { waitUntil: "load" });
+    await page.goto(`http://localhost:${server.port}/?bench=1`, { waitUntil: "load" });
     await page.waitForFunction(() => window.__oceanBench?.ready === true);
     await page.waitForTimeout(1000);
 
