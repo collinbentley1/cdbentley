@@ -234,7 +234,9 @@ describe("single-layout / a11y invariants in the static page", () => {
     expect(bridgeMarkup).toContain('<canvas class="bridge-canvas" aria-hidden="true"></canvas>');
     expect(bridgeMarkup).not.toContain("<svg");
     expect(pageHtml).toContain('<canvas id="ocean-field" aria-hidden="true">');
-    expect(pageHtml).toContain('<meta name="robots" content="noindex" />');
+    // The site is live at the root: it must be indexable.
+    expect(pageHtml).not.toContain("noindex");
+    expect(pageHtml).toContain('<meta property="og:url" content="https://cdbentley.com/" />');
     expect(pageHtml).toContain('property="og:image"');
     expect(pageHtml).toContain('name="twitter:card"');
   });

@@ -10,7 +10,6 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex" />
     <title>Collin Bentley — The Ocean Remembers</title>
     <meta name="description" content="Collin Bentley, builder in New York. An ASCII ocean that remembers the story so far — Yale, Beijing, Humana, Healthyr, OTseek — and forgets it as you scroll." />
     <meta name="theme-color" content="#000000" />
@@ -343,6 +342,13 @@
       /* The name in the sand owns the first fold — beach prose waits below it. */
       body.ocean section[data-scene="beach"] .prose {
         margin-top: -12vh;
+      }
+
+      /* The airport chapter is short: pull it up only as far as the floor
+         band, so the departure board and the glass stay in view while it
+         reads. */
+      body.ocean section[data-scene="airport-gate"] .prose {
+        margin-top: -40vh;
       }
 
       .bridge-cue {
