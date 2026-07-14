@@ -179,13 +179,14 @@ function drawRoom(pen: Pen, w: number, h: number): Rect {
   // light height — the "chair edge" that resolves as the glow swells.
   const seatY = Y(0.68);
   const stileL = X(0.775);
-  const stileR = X(0.84);
+  const stileR = X(0.825);
   pen.h(stileL, stileR, Y(0.39), 0.13);
   pen.h(stileL + 1, stileR - 1, Y(0.44), 0.12);
+  pen.h(stileL + 1, stileR - 1, Y(0.52), 0.115);
   pen.v(stileL, Y(0.39), seatY, 0.13);
   pen.v(stileR, Y(0.39), seatY, 0.12);
-  pen.h(stileL - 3, stileR + 1, seatY, 0.135);
-  pen.v(stileL - 1, seatY + 1, Y(0.9), 0.12);
+  pen.h(stileL - 4, stileR, seatY, 0.135);
+  pen.v(stileL - 2, seatY + 1, Y(0.9), 0.12);
   pen.v(stileR - 1, seatY + 1, Y(0.9), 0.11);
 
   // The mug, close by the phone where its rim catches the glow: a dark
