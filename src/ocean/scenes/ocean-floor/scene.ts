@@ -33,6 +33,73 @@ const SLOT_X0 = 14;
 
 const MAX_SNOW = 160;
 
+/**
+ * The seven settled memory-objects, in resting order along the floor. Each is a
+ * verbatim copy of that scene's own shelf compaction-glyph (the dock glyph), so
+ * the mounds are the docked memories themselves — half-buried, not generic
+ * domes. The present (subway-platform) and the floor itself are not on the
+ * floor: only what has already settled is here. Rows are top→bottom, 12 wide.
+ * These drive the per-column silhouette height and the lit "@" beacon, not
+ * literal text — at 8px the top profile is what reads.
+ */
+const SETTLED_GLYPHS: readonly (readonly string[])[] = [
+  // beach — the name in the sand, waves settling
+  ["·  ·   ·  · ", " C·LL·N ··  ", "·~·~·~·~·~·~", "~≈~≈≈~≈~≈≈~≈", "≈≈~≈≈≈~≈≈≈~≈", "≈≈≈≈≈≈≈≈≈≈≈≈"],
+  // stage — twin rig towers
+  [" |  |  |  | ", " |--|  |--| ", " |==|  |==| ", "    @   ++  ", "    +  ++++ ", "============"],
+  // classroom — chalkboard block over desks
+  ["#==========#", "| --- -- · |", "| -- ----  |", "#==========#", "  |·|  |·|  ", " -========- "],
+  // corridor — a doorway
+  ["=#==#==#==#=", "|·        ·|", "| :  ##  : |", "| :  ==  : |", "|·  ····  ·|", "-·--·--·--·-"],
+  // kitchen-table — one phone face-up, glowing
+  ["            ", "     ·:·    ", "    :·@·:   ", "  ========  ", "  |      |  ", "  |      |  "],
+  // trading-floor — monitors and tickers
+  [" 1739·317·9 ", "            ", " #9#·--·#7# ", "============", "·#79#··#31#·", "============"],
+  // airport-gate — a departures board over linked seats
+  [" ========== ", " =%%·---·:= ", " =%%·--··:= ", " ========== ", "  =·=·=·=·  ", "  | | | |   "],
+];
+
+const GLYPH_ROWS = 6;
+
+interface Silhouette {
+  /** Exposed height (cells above the sediment) per column, 0..GLYPH_ROWS-1. */
+  readonly h: Float32Array;
+  /** Column of the lit beacon (a settled "@"), or -1 if the memory has none. */
+  readonly beaconCol: number;
+  /** Height the beacon sits at, in cells above the sediment. */
+  readonly beaconH: number;
+}
+
+/** Top profile + beacon of a settled glyph: the topmost ink in each column. */
+function readSilhouette(glyph: readonly string[]): Silhouette {
+  const h = new Float32Array(SLOT_W);
+  let beaconCol = -1;
+  let beaconH = 0;
+
+  for (let c = 0; c < SLOT_W; c++) {
+    for (let r = 0; r < GLYPH_ROWS; r++) {
+      const ch = glyph[r]?.[c] ?? " ";
+
+      if (ch !== " ") {
+        h[c] = GLYPH_ROWS - 1 - r;
+        break;
+      }
+    }
+
+    for (let r = 0; r < GLYPH_ROWS; r++) {
+      if ((glyph[r]?.[c] ?? " ") === "@") {
+        beaconCol = c;
+        beaconH = GLYPH_ROWS - 1 - r;
+        break;
+      }
+    }
+  }
+
+  return { beaconCol, beaconH, h };
+}
+
+const SILHOUETTES: readonly Silhouette[] = SETTLED_GLYPHS.map(readSilhouette);
+
 export interface CellRect {
   readonly h: number;
   readonly w: number;
@@ -146,10 +213,17 @@ export const scene: SceneModule = {
       lightDrift: 0.06,
       lightIntensity: 0.1,
       lightRadius: 15,
+      moundBeacon: 0.26,
       moundBreath: 0.04,
       moundBreathRate: 0.09,
+      moundExpose: 0.58,
       moundGlow: 0.66,
+      moundSettle: 0.92,
       sedimentGrain: 0.12,
+      shaftCount: 2,
+      shaftDrift: 0.05,
+      shaftIntensity: 0.07,
+      shaftWidth: 8,
       snowCount: 70,
       snowFall: 2.4,
       snowSway: 0.5,
@@ -167,10 +241,17 @@ export const scene: SceneModule = {
       lightDrift = 0.06,
       lightIntensity = 0.1,
       lightRadius = 15,
+      moundBeacon = 0.26,
       moundBreath = 0.04,
       moundBreathRate = 0.09,
+      moundExpose = 0.72,
       moundGlow = 0.66,
+      moundSettle = 1.15,
       sedimentGrain = 0.12,
+      shaftCount = 2,
+      shaftDrift = 0.05,
+      shaftIntensity = 0.05,
+      shaftWidth = 5,
       snowCount = 70,
       snowFall = 2.4,
       snowSway = 0.5,
@@ -184,6 +265,13 @@ export const scene: SceneModule = {
     // 1) Water column (breathes on the sparse end), seabed rim, sediment.
     const tx = time * driftSpeed;
 
+    // One or two faint light shafts drift down from above. They fade in over the
+    // first several rows (open water stays sparse) and dim toward the floor.
+    const shafts = Math.max(0, Math.min(2, Math.round(shaftCount)));
+    const shaftX0 = w * 0.34 + Math.sin(time * shaftDrift * TWO_PI) * w * 0.11;
+    const shaftX1 = w * 0.66 + Math.sin(time * shaftDrift * TWO_PI * 0.73 + 2.2) * w * 0.1;
+    const invShaftW2 = 1 / (shaftWidth * shaftWidth);
+
     for (let y = 0; y < h; y++) {
       const row = y * w;
       const depthGain = 0.75 + (0.35 * y) / h;
@@ -194,6 +282,20 @@ export const scene: SceneModule = {
 
         if (y < fy) {
           v = fbm2(noise, x * 0.045 + tx, y * 0.075 + tx * 0.35, 2) * waterGlow * depthGain;
+
+          if (shafts > 0) {
+            const topFade = y < 10 ? y / 10 : 1;
+            const floorFade = 1 - (0.5 * y) / (fy > 1 ? fy : 1);
+            const d0 = x - shaftX0;
+            let shaft = Math.exp(-d0 * d0 * invShaftW2);
+
+            if (shafts > 1) {
+              const d1 = x - shaftX1;
+              shaft += Math.exp(-d1 * d1 * invShaftW2);
+            }
+
+            v += shaftIntensity * shaft * topFade * floorFade;
+          }
         } else if (y === fy) {
           v = 0.3 + 0.14 * noise(x * 0.3, 5.3 + time * 0.05);
         } else {
@@ -206,12 +308,22 @@ export const scene: SceneModule = {
       }
     }
 
-    // 2) The shelf: seven resting mounds, each breathing on its own phase.
+    // 2) The shelf: seven settled memory-objects, half-buried in the sediment.
+    //    Each mound wears its scene's own dock glyph: the per-column silhouette
+    //    gives it a distinct top (rig towers, a doorway arch, a phone glow, a
+    //    departures board) so the row reads as docked memories, not domes. A
+    //    gentle sediment base under every column keeps the whole object above
+    //    the level-2 quantize threshold (0.5), so the shelf row still survives
+    //    bin-4 compaction as a line of residue dots — the story at low res.
     for (let s = 0; s < SHELF_SLOTS; s++) {
       const left = SLOT_X0 + s * SLOT_PITCH;
       const baseY = floor.moundBase[s] ?? FLOOR_BASE;
-      const height = floor.moundHeight[s] ?? 5;
+      const sil = SILHOUETTES[s % SILHOUETTES.length];
       const breath = moundBreath * Math.sin(TWO_PI * moundBreathRate * time + s * 1.7);
+
+      if (!sil) {
+        continue;
+      }
 
       for (let i = 0; i < SLOT_W; i++) {
         const x = left + i;
@@ -220,32 +332,51 @@ export const scene: SceneModule = {
           continue;
         }
 
-        const u = (i - 5.5) / 6.4;
-        const silhouette = Math.sqrt(1 - u * u > 0 ? 1 - u * u : 0);
-        const hCol = height * silhouette * (floor.moundWob[s * SLOT_W + i] ?? 1);
-
-        if (hCol < 0.8) {
-          continue;
-        }
-
-        const rise = Math.round(hCol);
+        const wob = floor.moundWob[s * SLOT_W + i] ?? 1;
+        const exposed = ((sil.h[i] ?? 0) * moundExpose + moundSettle) * wob;
+        const rise = Math.round(exposed);
         const topY = baseY - (rise > 1 ? rise : 1);
 
         for (let y = topY < 0 ? 0 : topY; y <= baseY && y < h; y++) {
-          // Shallow shading slope: keeps the whole mound above the level-2
-          // quantize threshold (0.5) so the shelf row survives bin-4 compaction
-          // as a line of residue dots — the story at low resolution.
           const t01 = (y - topY) / (baseY - topY > 1 ? baseY - topY : 1);
           let v = moundGlow * (1 - 0.22 * t01) + breath;
 
           if (y === topY) {
-            v += 0.1;
+            v += 0.08;
           }
 
           const idx = y * w + x;
 
           if (v > (data[idx] ?? 0)) {
             data[idx] = v;
+          }
+        }
+      }
+
+      // The lit memory: a single settled "@" beacon (only a couple of scenes
+      // carry one — a phone face-up, a spot on the rig). One bright core, a
+      // one-cell halo, in the register of the deep's lure.
+      if (sil.beaconCol >= 0) {
+        const bx = left + sil.beaconCol;
+        const brise = Math.round(sil.beaconH * moundExpose + moundSettle);
+        const by = baseY - (brise > 1 ? brise : 1);
+
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const px = bx + dx;
+            const py = by + dy;
+
+            if (px < 0 || px >= w || py < 0 || py >= h) {
+              continue;
+            }
+
+            const core = dx === 0 && dy === 0;
+            const v = moundGlow + moundBeacon * (core ? 1 : 0.32) + breath;
+            const idx = py * w + px;
+
+            if (v > (data[idx] ?? 0)) {
+              data[idx] = v;
+            }
           }
         }
       }
