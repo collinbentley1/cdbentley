@@ -1,23 +1,32 @@
 /**
- * Scene 5 — "trading-floor": a trading floor at 4 a.m. Dark rows of desks
- * recede toward a pre-dawn window band; six lit monitors scroll silent
- * numbers, each pooling a little light onto its desk (one LightSource per
- * screen). The one idiomatic motion is the scroll; beneath it the dark air
- * breathes barely on the sparse end of the ramp, the glow flickers slightly,
- * and single cells blink as quotes update. A diorama, not a screensaver.
+ * Scene 5 — "trading-floor": a trading floor at 4 a.m. Silhouette first:
+ * three rows of desks as solid horizontal masses receding toward a back wall, a
+ * ticker of drifting digits anchored under the wall line, and monitor
+ * rectangles standing ON the desks — bright single-cell borders, interiors
+ * three to four cells tall. Six monitors are lit and scroll silent figures,
+ * each pooling a little light onto its desk (one LightSource per screen); the
+ * rest are dark rectangles. One chair, empty, at a lit desk. Every digit in
+ * the scene lives INSIDE a monitor interior or ON the ticker row — the dark
+ * air and the architecture never enter the ramp's digit band.
  *
- * Copy note (binding): this scene renders NO text and NO claims — the
- * scrolling figures are luminance noise quantized through the ramp, never
- * characters chosen by code. The claim slots beside this scene (FACTS.md L1:
- * 11 domain routers, BWIC/prepay — C11/C12 binding: ~4 months of demos, then
- * pivot; never "production traders used it daily") are typeset by the Phase C
- * integrator from FACTS.md at grade. summaryChip stays TODO(collin).
+ * The one idiomatic motion is the scroll (screens step up one discrete row at
+ * a time; the ticker steps sideways). Beneath it the dark air breathes barely
+ * on the sparse end of the ramp, the glow flickers slightly, and single cells
+ * blink as quotes update. A diorama, not a screensaver.
+ *
+ * Copy note (binding): this scene renders NO text — the scrolling figures
+ * are luminance noise quantized through the ramp, never characters chosen
+ * by code. The chapter prose beside this scene is DOM.
  *
  * Ramp intent (hand-tunable, Collin's brush), dark -> bright:
- * " ·:-=1739#@" — architecture sits in ·:-=; screen data lands in the digit
- * band 1739 plus #, so monitors literally read as columns of figures; @ is
- * reserved for quote blinks and glow cores. simplifyRamp level 1 samples this
- * to " :=79@" (still numeric); level 2 residue is " ·".
+ * " ·:-=1739#@" — architecture sits in ·:-= (air dust '·', lower desk faces
+ * ':', upper faces '-', desk tops '='), lit-screen backgrounds land on '=',
+ * figures land in the digit band 1739, '#' is the lit-monitor border, and @
+ * is reserved for quote blinks and glow cores. Structural luminance is capped
+ * at 0.37 and glow peaks near 0.08, so architecture + glow stays below the
+ * 0.4545 digit threshold — digits cannot leak out of the screens.
+ * simplifyRamp level 1 samples this to " :=79@" (still numeric); level 2
+ * residue is " ·".
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
@@ -32,182 +41,223 @@ function hash(seed: number, a: number, b: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-interface DeskRow {
-  deskY: number;
-  inset: number;
-  monH: number;
-  monW: number;
-  /** 0..1 nearness scale; near rows glow brighter. */
-  scale: number;
-  thickness: number;
-}
+/**
+ * Luminance plan against the 11-glyph ramp (bin width 1/11 ≈ 0.0909):
+ * digits '1739' own [0.4545, 0.8182). Architecture tops out at deskTop 0.37;
+ * the strongest glow adds ~0.08 at its core, so structure + glow < 0.4545.
+ */
+const LUM = {
+  air: 0.05,
+  blink: 0.95,
+  ceiling: 0.02,
+  chair: 0.19,
+  chairBase: 0.14,
+  chairTop: 0.26,
+  deskFace: 0.3,
+  deskFaceLow: 0.21,
+  deskTop: 0.37,
+  figureMax: 0.8,
+  figureMin: 0.47,
+  floor: 0.05,
+  litBorder: 0.83,
+  screenBg: 0.38,
+  tickerMax: 0.78,
+  tickerMin: 0.5,
+  unlitBorder: 0.13,
+  unlitScreen: 0.05,
+  wallLine: 0.3,
+} as const;
 
 interface LitMonitor {
   cx: number;
-  h: number;
+  deskY: number;
+  /** Interior box (inside the 1-cell border). */
+  ih: number;
+  iw: number;
+  ix0: number;
+  iy0: number;
   phase: number;
+  /** 0..1 nearness scale; near rows glow brighter. */
   scale: number;
   seed: number;
   speedMul: number;
-  standY: number;
-  w: number;
-  x0: number;
-  y0: number;
 }
 
-/** The six lit screens: (desk row, horizontal position as a width fraction). */
-const LIT_MONITORS: ReadonlyArray<{ cxFrac: number; row: number }> = [
-  { cxFrac: 0.29, row: 0 },
-  { cxFrac: 0.74, row: 0 },
-  { cxFrac: 0.125, row: 1 },
-  { cxFrac: 0.61, row: 1 },
-  { cxFrac: 0.36, row: 2 },
-  { cxFrac: 0.83, row: 2 },
-];
+interface DeskRowSpec {
+  deskY: number;
+  /** Central aisle half-width at this depth (converges toward the back). */
+  gapHalf: number;
+  insetX: number;
+  litSlots: ReadonlySet<number>;
+  /** Desk-mass height in rows, top edge included. */
+  massH: number;
+  /** Monitor outer height/width, 1-cell borders included. */
+  monH: number;
+  monW: number;
+  pitch: number;
+  scale: number;
+}
 
 /** Static architecture layer, rebuilt by init (and if buffer dims change). */
 let base = new Float32Array(0);
 let monitors: LitMonitor[] = [];
+let tickerY = 0;
+let tickerX0 = 0;
+let tickerX1 = 0;
+
+function drawRect(width: number, height: number, x0: number, y0: number, x1: number, y1: number, v: number): void {
+  for (let y = Math.max(0, y0); y <= y1 && y < height; y++) {
+    const row = y * width;
+
+    for (let x = Math.max(0, x0); x <= x1 && x < width; x++) {
+      base[row + x] = v;
+    }
+  }
+}
+
+/** Monitor rectangle: 1-cell border at `borderV`, interior at `screenV`. */
+function drawMonitor(
+  width: number,
+  height: number,
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+  borderV: number,
+  screenV: number,
+): void {
+  drawRect(width, height, x0, y0, x0 + w - 1, y0 + h - 1, borderV);
+  drawRect(width, height, x0 + 1, y0 + 1, x0 + w - 2, y0 + h - 2, screenV);
+}
 
 function buildScene(width: number, height: number): void {
   base = new Float32Array(width * height);
-  base.fill(0.05);
   monitors = [];
 
-  // Pre-dawn window band: mullions, a sill line, a few city lights.
-  const windowTop = Math.round(height * 0.06);
-  const windowBottom = Math.round(height * 0.17);
-  const sillY = windowBottom + 1;
+  // Back wall line near the ceiling; the ticker hangs two rows under it.
+  const wallY = Math.max(2, Math.round(height * 0.055));
+  tickerY = wallY + 2;
+  tickerX0 = Math.round(width * 0.025);
+  tickerX1 = width - 1 - tickerX0;
 
-  if (sillY < height) {
-    for (let x = 0; x < width; x++) {
-      base[sillY * width + x] = 0.1;
-    }
+  base.fill(LUM.air);
+  drawRect(width, height, 0, 0, width - 1, wallY - 1, LUM.ceiling);
+
+  for (let x = 0; x < width; x++) {
+    base[wallY * width + x] = LUM.wallLine;
   }
 
-  const mullionStep = Math.max(8, Math.round(width / 8));
-
-  for (let y = windowTop; y <= windowBottom && y < height; y++) {
-    for (let x = mullionStep >> 1; x < width; x += mullionStep) {
-      base[y * width + x] = 0.12;
-    }
-  }
-
-  for (let k = 0; k < 13; k++) {
-    if (hash(3, k, 4) < 0.5) {
-      continue;
-    }
-
-    const x = 4 + Math.floor(hash(3, k, 1) * (width - 8));
-    const y = windowTop + Math.floor(hash(3, k, 2) * (windowBottom - windowTop + 1));
-    base[y * width + x] = 0.14 + 0.1 * hash(3, k, 3);
-  }
-
-  // Three desk rows in perspective: far rows inset more, near row thicker.
-  const rows: DeskRow[] = [
-    { deskY: Math.round(height * 0.47), inset: Math.round(width * 0.11), monH: 4, monW: 7, scale: 0.7, thickness: 1 },
-    { deskY: Math.round(height * 0.67), inset: Math.round(width * 0.075), monH: 5, monW: 9, scale: 0.85, thickness: 1 },
-    { deskY: Math.round(height * 0.89), inset: Math.round(width * 0.04), monH: 6, monW: 11, scale: 1, thickness: 2 },
+  // Three desk rows in perspective: each nearer row is lower, wider, thicker
+  // and carries bigger monitors. A central aisle converges toward the back.
+  const centerX = width / 2;
+  const rows: DeskRowSpec[] = [
+    {
+      deskY: Math.round(height * 0.4),
+      gapHalf: Math.round(width * 0.045),
+      insetX: Math.round(width * 0.15),
+      litSlots: new Set([1]),
+      massH: 3,
+      monH: 5,
+      monW: 12,
+      pitch: 16,
+      scale: 0.7,
+    },
+    {
+      deskY: Math.round(height * 0.6),
+      gapHalf: Math.round(width * 0.06),
+      insetX: Math.round(width * 0.09),
+      litSlots: new Set([0, 4]),
+      massH: 4,
+      monH: 5,
+      monW: 14,
+      pitch: 19,
+      scale: 0.85,
+    },
+    {
+      deskY: Math.round(height * 0.81),
+      gapHalf: Math.round(width * 0.085),
+      insetX: Math.round(width * 0.02),
+      litSlots: new Set([1, 3, 5]),
+      massH: 5,
+      monH: 6,
+      monW: 16,
+      pitch: 22,
+      scale: 1,
+    },
   ];
-  const aisleLeft = Math.round(width * 0.465);
-  const aisleRight = Math.round(width * 0.535);
-  const litByRow: number[][] = rows.map(() => []);
 
-  for (const lit of LIT_MONITORS) {
-    litByRow[lit.row]?.push(Math.round(lit.cxFrac * width));
-  }
+  // Floor catches a hair more light than the air behind the far desks.
+  drawRect(width, height, 0, (rows[0]?.deskY ?? 0) + (rows[0]?.massH ?? 0), width - 1, height - 1, LUM.floor);
 
-  rows.forEach((row, rowIndex) => {
+  let litIndex = 0;
+
+  for (const row of rows) {
     const segments: ReadonlyArray<readonly [number, number]> = [
-      [row.inset, aisleLeft - 1],
-      [aisleRight, width - 1 - row.inset],
+      [row.insetX, Math.floor(centerX - row.gapHalf)],
+      [Math.ceil(centerX + row.gapHalf), width - 1 - row.insetX],
     ];
 
-    // Desk surfaces (top edge catches more light than the front face).
+    // Desk mass: bright top edge, solid dark face — a horizontal slab.
     for (const [x0, x1] of segments) {
-      for (let t = 0; t < row.thickness; t++) {
-        const y = row.deskY + t;
+      drawRect(width, height, x0, row.deskY, x1, row.deskY, LUM.deskTop);
+      drawRect(width, height, x0, row.deskY + 1, x1, row.deskY + Math.ceil(row.massH / 2), LUM.deskFace);
+      drawRect(width, height, x0, row.deskY + Math.ceil(row.massH / 2) + 1, x1, row.deskY + row.massH - 1, LUM.deskFaceLow);
+    }
 
-        if (y >= height) {
-          continue;
+    // Monitors stand on the desk top, evenly slotted along each segment.
+    let slot = 0;
+
+    for (const [x0, x1] of segments) {
+      for (let mx = x0 + 2; mx + row.monW - 1 <= x1; mx += row.pitch) {
+        const my = row.deskY - row.monH;
+
+        if (row.litSlots.has(slot)) {
+          drawMonitor(width, height, mx, my, row.monW, row.monH, LUM.litBorder, LUM.screenBg);
+          monitors.push({
+            cx: mx + (row.monW - 1) / 2,
+            deskY: row.deskY,
+            ih: row.monH - 2,
+            iw: row.monW - 2,
+            ix0: mx + 1,
+            iy0: my + 1,
+            phase: hash(litIndex + 1, 3, 17) * 40,
+            scale: row.scale,
+            seed: 100 + litIndex * 37,
+            speedMul: 0.7 + 0.6 * hash(litIndex + 1, 5, 23),
+          });
+          litIndex++;
+        } else {
+          drawMonitor(width, height, mx, my, row.monW, row.monH, LUM.unlitBorder, LUM.unlitScreen);
         }
 
-        for (let x = x0; x <= x1 && x < width; x++) {
-          base[y * width + x] = t === 0 ? 0.22 : 0.16;
-        }
+        slot++;
       }
     }
+  }
 
-    const lit = litByRow[rowIndex] ?? [];
-    const slabW = row.monW - 2;
-    const slabH = row.monH - 1;
+  // One empty chair at a lit desk on the near row, pushed back and a little
+  // off-center — somebody just left. It reads as a silhouette in the pool.
+  const near = rows[2];
+  const nearLit = monitors.filter((m) => near && m.deskY === near.deskY);
+  const chairMonitor = nearLit[1] ?? nearLit[0];
 
-    // Unlit monitors as faint slabs along each desk segment, plus a chair
-    // silhouette here and there, slightly off-center — nobody pushed them in.
-    for (const [x0, x1] of segments) {
-      for (let cx = x0 + Math.ceil(slabW / 2) + 1; cx + Math.ceil(slabW / 2) <= x1; cx += row.monW + 5) {
-        if (lit.some((litCx) => Math.abs(litCx - cx) < row.monW + 3)) {
-          continue;
-        }
-
-        const sx0 = cx - (slabW >> 1);
-        const sy1 = row.deskY - 2;
-        const sy0 = sy1 - slabH + 1;
-
-        for (let y = sy0; y <= sy1; y++) {
-          if (y < 0 || y >= height) {
-            continue;
-          }
-
-          for (let x = sx0; x < sx0 + slabW; x++) {
-            if (x >= 0 && x < width) {
-              base[y * width + x] = y === sy0 ? 0.11 : 0.07;
-            }
-          }
-        }
-
-        if (hash(11, rowIndex * 53 + cx, 7) < 0.4) {
-          const chairX = cx + (hash(11, cx, 13) < 0.5 ? -2 : 1);
-
-          for (let y = row.deskY + row.thickness; y < row.deskY + row.thickness + 2 && y < height; y++) {
-            for (let x = chairX; x < chairX + 2; x++) {
-              if (x >= 0 && x < width) {
-                base[y * width + x] = 0.1;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // The lit monitors on this row (screens are drawn per-frame in update).
-    for (const litCx of lit) {
-      const index = monitors.length;
-      const y1 = row.deskY - 2;
-      monitors.push({
-        cx: litCx,
-        h: row.monH,
-        phase: hash(index + 1, 3, 17) * 40,
-        scale: row.scale,
-        seed: 100 + index * 37,
-        speedMul: 0.7 + 0.6 * hash(index + 1, 5, 23),
-        standY: row.deskY - 1,
-        w: row.monW,
-        x0: litCx - (row.monW >> 1),
-        y0: y1 - row.monH + 1,
-      });
-    }
-  });
+  if (near && chairMonitor) {
+    const cx = Math.round(chairMonitor.cx) - 4;
+    const cy = near.deskY + near.massH + 1;
+    drawRect(width, height, cx - 2, cy, cx + 1, cy, LUM.chairTop);
+    drawRect(width, height, cx - 3, cy + 1, cx + 2, cy + 3, LUM.chair);
+    drawRect(width, height, cx - 2, cy + 4, cx + 1, cy + 4, LUM.chairBase);
+  }
 }
 
 export const tradingFloorScene: SceneModule = {
   dockGlyph: [
+    " 1739·317·9 ",
     "            ",
-    " @· @·  @·  ",
-    " :::::::::: ",
-    "  @· @·  @· ",
-    " :::::::::: ",
-    "            ",
+    " #9#·--·#7# ",
+    "============",
+    "·#79#··#31#·",
+    "============",
   ],
   id: "trading-floor",
   init(context: SceneContext): void {
@@ -216,30 +266,31 @@ export const tradingFloorScene: SceneModule = {
 
     for (const monitor of monitors) {
       context.lights.push({
-        intensity: 0.11 * monitor.scale,
-        radius: 10 * (monitor.w / 9),
+        intensity: 0.075 * monitor.scale,
+        radius: (monitor.iw + 2) * 0.7,
         x: monitor.cx,
-        y: monitor.standY,
+        y: monitor.deskY + 1,
       });
     }
   },
-  summaryChip: "TODO(collin): trading-floor summary line (FACTS L1 at grade; C11/C12: demo-stage, never daily-trader use)",
+  summaryChip: "OTseek, 2025 — zero to one with bond traders.",
   tuning: {
     cellH: 8,
     cellW: 8,
     cols: 160,
     minimalGlyph: "·",
     motion: {
-      ambientAmount: 0.05,
+      ambientAmount: 0.04,
       ambientScale: 0.09,
       ambientSpeed: 0.05,
       blinkRate: 0.7,
-      flickerAmount: 0.2,
+      flickerAmount: 0.12,
       flickerSpeed: 1.6,
-      glowIntensity: 0.1,
-      glowRadius: 10,
+      glowIntensity: 0.075,
+      glowRadius: 0.7,
       screenBrightness: 1,
       scrollSpeed: 1.8,
+      tickerSpeed: 4,
     },
     ramp: " ·:-=1739#@",
     rows: 72,
@@ -247,16 +298,17 @@ export const tradingFloorScene: SceneModule = {
   update(dt: number, context: SceneContext): void {
     const { buffer, lights, time } = context;
     const {
-      ambientAmount = 0.05,
+      ambientAmount = 0.04,
       ambientScale = 0.09,
       ambientSpeed = 0.05,
       blinkRate = 0.7,
-      flickerAmount = 0.2,
+      flickerAmount = 0.12,
       flickerSpeed = 1.6,
-      glowIntensity = 0.1,
-      glowRadius = 10,
+      glowIntensity = 0.075,
+      glowRadius = 0.7,
       screenBrightness = 1,
       scrollSpeed = 1.8,
+      tickerSpeed = 4,
     } = this.tuning.motion;
     const width = buffer.width;
     const data = buffer.data;
@@ -266,7 +318,7 @@ export const tradingFloorScene: SceneModule = {
     }
 
     // 1) Architecture + breathing dark air (only cells darker than 0.1
-    //    shimmer, so desks and screens stay still).
+    //    shimmer, so desks, monitors and the wall line stay still).
     const drift = time * ambientSpeed;
 
     for (let y = 0; y < buffer.height; y++) {
@@ -286,29 +338,46 @@ export const tradingFloorScene: SceneModule = {
       }
     }
 
-    // 2) Six screens: silent figures scrolling up one discrete row at a time,
-    //    per-monitor speed and phase, gap columns like a quote table.
+    // 2) The ticker: one row of digits drifting sideways under the wall
+    //    line, grouped like quotes with dark gaps between the groups.
+    const tickerShift = Math.floor(time * tickerSpeed);
+    const tickerRow = tickerY * width;
+
+    for (let x = tickerX0; x <= tickerX1; x++) {
+      const tape = x + tickerShift;
+      const group = Math.floor(tape / 9);
+      const offset = tape - group * 9;
+      const groupLen = 4 + Math.floor(hash(7, group, 1) * 3);
+
+      if (offset < groupLen) {
+        data[tickerRow + x] = LUM.tickerMin + (LUM.tickerMax - LUM.tickerMin) * hash(7, tape, 2);
+      }
+    }
+
+    // 3) Six screens: silent figures scrolling up one discrete row at a time,
+    //    per-monitor speed and phase, gap columns like a quote table. Digits
+    //    exist ONLY here and on the ticker row.
     for (const [index, monitor] of monitors.entries()) {
       const scrolled = Math.floor(time * scrollSpeed * monitor.speedMul + monitor.phase);
 
-      for (let cy = 0; cy < monitor.h; cy++) {
+      for (let cy = 0; cy < monitor.ih; cy++) {
         const line = scrolled + cy;
-        const lineKind = hash(monitor.seed, line, 997);
-        const rowBase = (monitor.y0 + cy) * width;
+        const dimRow = hash(monitor.seed, line, 997) < 0.22;
+        const rowBase = (monitor.iy0 + cy) * width;
 
-        for (let cx = 0; cx < monitor.w; cx++) {
-          let v = 0.3;
+        for (let cx = 0; cx < monitor.iw; cx++) {
+          let v: number = LUM.screenBg;
 
-          if (cx % 4 !== 3 && hash(monitor.seed, line * 131 + cx, 61) > 0.25) {
-            v = lineKind < 0.25 ? 0.48 : 0.5 + 0.4 * hash(monitor.seed, line * 977 + cx * 7, 199);
+          if (cx % 5 !== 4 && hash(monitor.seed, line * 131 + cx, 61) > 0.25) {
+            v = dimRow
+              ? LUM.figureMin
+              : LUM.figureMin + (LUM.figureMax - LUM.figureMin) * hash(monitor.seed, line * 977 + cx * 7, 199);
           }
 
           v *= screenBrightness;
-          data[rowBase + monitor.x0 + cx] = v < 0 ? 0 : v > 0.92 ? 0.92 : v;
+          data[rowBase + monitor.ix0 + cx] = v < 0 ? 0 : v > 0.92 ? 0.92 : v;
         }
       }
-
-      data[monitor.standY * width + monitor.cx] = 0.14;
 
       // A quote updates: one cell blinks to full ink, briefly, rarely.
       if (blinkRate > 0) {
@@ -316,21 +385,21 @@ export const tradingFloorScene: SceneModule = {
         const tick = Math.floor(beat);
 
         if (beat - tick < 0.35) {
-          const bx = Math.floor(hash(monitor.seed, tick, 5) * monitor.w);
-          const by = Math.floor(hash(monitor.seed, tick, 11) * monitor.h);
-          data[(monitor.y0 + by) * width + monitor.x0 + bx] = 0.96;
+          const bx = Math.floor(hash(monitor.seed, tick, 5) * monitor.iw);
+          const by = Math.floor(hash(monitor.seed, tick, 11) * monitor.ih);
+          data[(monitor.iy0 + by) * width + monitor.ix0 + bx] = LUM.blink;
         }
       }
 
-      // 3) Glow pooling on the desk, flickering slightly (runner stamps it).
+      // 4) Glow pooling on the desk, flickering slightly (runner stamps it).
       const light = lights[index];
 
       if (light) {
         const flick = 1 + flickerAmount * (flickerNoise(time * flickerSpeed, 50 + index * 7.7) - 0.5);
         light.intensity = Math.max(0, glowIntensity * monitor.scale * flick);
-        light.radius = Math.max(1, glowRadius * (monitor.w / 9));
+        light.radius = Math.max(1, (monitor.iw + 2) * glowRadius);
         light.x = monitor.cx;
-        light.y = monitor.standY;
+        light.y = monitor.deskY;
       }
     }
   },

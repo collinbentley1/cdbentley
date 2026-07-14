@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  applyLights,
   assertBufferInRange,
   assertBufferShape,
   assertResolutionMonotone,
@@ -80,6 +81,49 @@ describe("trading-floor scene", () => {
 
     for (let i = 0; i < depths.length; i++) {
       expect(up[i]).toEqual(down[i]);
+    }
+  });
+
+  test("digits never leak out of the screens: with screens dark, only the ticker row enters the digit band", () => {
+    // The 11-glyph ramp " ·:-=1739#@" renders digits for luminance in
+    // [5/11, 9/11). The brief's hard rule is zero free-floating digit noise:
+    // with the screens turned off (screenBrightness/blinkRate are live
+    // tunables) the lit borders sit above the band and everything else must
+    // sit below it, so across a long run — glow stamped at every flicker —
+    // digit-band cells may appear on exactly one row: the ticker.
+    const rampLength = Array.from(tradingFloorScene.tuning.ramp).length;
+    const digitLow = 5 / rampLength;
+    const digitHigh = 9 / rampLength;
+    const savedBrightness = tradingFloorScene.tuning.motion["screenBrightness"];
+    const savedBlink = tradingFloorScene.tuning.motion["blinkRate"];
+    tradingFloorScene.tuning.motion["screenBrightness"] = 0;
+    tradingFloorScene.tuning.motion["blinkRate"] = 0;
+
+    try {
+      const context = freshContext();
+      tradingFloorScene.init(context);
+      const digitRows = new Set<number>();
+
+      for (let i = 0; i < 180; i++) {
+        context.time += 1 / 30;
+        tradingFloorScene.update(1 / 30, context);
+        applyLights(context.buffer, context.lights);
+
+        for (let y = 0; y < context.buffer.height; y++) {
+          for (let x = 0; x < context.buffer.width; x++) {
+            const v = context.buffer.data[y * context.buffer.width + x] ?? 0;
+
+            if (v >= digitLow && v < digitHigh) {
+              digitRows.add(y);
+            }
+          }
+        }
+      }
+
+      expect([...digitRows]).toHaveLength(1);
+    } finally {
+      tradingFloorScene.tuning.motion["screenBrightness"] = savedBrightness ?? 1;
+      tradingFloorScene.tuning.motion["blinkRate"] = savedBlink ?? 0.7;
     }
   });
 
