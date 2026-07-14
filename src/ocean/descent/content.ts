@@ -41,7 +41,7 @@ export const MEMORY_LINE_VH = 0.5;
  * scrolls, checked in descent.test.ts.
  */
 export const SECTIONS: readonly DescentSection[] = [
-  { heightVh: 150, label: "Beach", scene: beachScene, shelfSlot: 0 },
+  { heightVh: 150, label: "Collin Bentley", scene: beachScene, shelfSlot: 0 },
   { heightVh: 180, label: "Stage", scene: stageScene, shelfSlot: 1 },
   { heightVh: 180, label: "Classroom", scene: classroomScene, shelfSlot: 2 },
   { heightVh: 180, label: "Corridor", scene: corridorScene, shelfSlot: 3 },
@@ -50,7 +50,7 @@ export const SECTIONS: readonly DescentSection[] = [
   { heightVh: 190, label: "Subway platform", scene: subwayPlatformScene, shelfSlot: 6 },
   { heightVh: 150, label: "The deep", scene: anglerfishScene, shelfSlot: null },
   { heightVh: 170, label: "Deeper", scene: deepShapeScene, shelfSlot: null },
-  { heightVh: 160, label: "Ocean floor", scene: oceanFloorScene, shelfSlot: 7 },
+  { heightVh: 102, label: "Ocean floor", scene: oceanFloorScene, shelfSlot: 7 },
 ];
 
 /** The eight shelf-docking sections, in slot order. */

@@ -133,3 +133,23 @@ Appended verbatim by the copy fixer (copy-sweep pass 2, 2026-07-09). RECOMMEND-O
    *Quote:* content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview."
    *Tell:* Launch-copy drift risk (2.5-adjacent, ship-checklist gap): PR #20's ship plan covers only the robots tag ("noindex staging guard marked for removal at ship"; "launch config (same page, tag removed)"), but the sentence "Staging preview." also lives in all three description strings. After the root-route flip, search snippets and social cards would still announce "Staging preview."
    *Suggestion:* Recommend, do not edit (in-repo site copy on a CI-verified branch): add to the launch flip checklist — when the noindex tag is removed, also strip the trailing "Staging preview." sentence from meta description, og:description, and twitter:description (three occurrences).
+
+## Collin live-review decisions — 2026-07-13
+
+These direct product decisions supersede the earlier alternate-layout and restore-control notes above. They apply to the current staging preview only; the root-route flip and publication remain separate launch decisions.
+
+1. The ocean now has one document layout. The `expand full context` state, all `restore full context` controls, their session state, and their layout-switching behavior are removed. Reduced motion keeps the same DOM and scroll route while quieting animation.
+2. The visible masthead name is removed. The existing beach scene owns the first-load identity moment by writing `Collin Bentley` in the sand.
+3. A decorative Golden Gate Bridge cue enters at the bottom of the first fold and becomes the visual handoff into the beach/San Francisco chapter. No OTseek or Pear copy is added in this pass.
+4. The memory shelf begins with only the Collin tile visible. Remaining unfilled tiles reveal once, left to right, after the first tile reaches its dock point.
+5. GitHub and LinkedIn move to an icon-only top-right rail using their official white mark geometry. Email remains a text contact; the exact `TODO(collin)` resume marker remains untouched.
+6. The ocean-floor scene is shortened and its following prose is pulled upward to reduce the empty interval before the colophon.
+
+### Browser-comment follow-up — 2026-07-13
+
+These direct comments supersede the corresponding details immediately above without rewriting the earlier decision record.
+
+1. The memory-shelf background and rule span the full viewport beneath the higher social-icon rail; internal right padding keeps shelf controls out from under those hit targets.
+2. A collected shelf frame stays collected until reload, using in-memory state only. The terminal ocean-floor frame collects when its sticky frame is reached because it cannot naturally accrue a full dock collapse before document end. No storage API is used.
+3. The beach Email and footer Email surfaces are removed. The separately placed ocean-floor Email was not selected and remains unchanged.
+4. The static vector bridge cue is replaced by a deterministic animated ASCII canvas using the ocean luminance-buffer and glyph-renderer system. It remains decorative, outside the frozen scene/shelf order, static under reduced motion, and introduces no copy or claim.

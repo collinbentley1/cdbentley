@@ -12,7 +12,7 @@ import {
   simplifyRamp,
   type SceneContext,
 } from "../../sdk/index.ts";
-import { CONTACT_BARS, restoreLineCells, scene } from "./scene.ts";
+import { CONTACT_BARS, scene } from "./scene.ts";
 
 function makeContext(): SceneContext {
   return {
@@ -111,19 +111,6 @@ describe("ocean-floor scene", () => {
 
     const level1 = Array.from(simplifyRamp(scene.tuning.ramp, 1, scene.tuning.minimalGlyph ?? "·"));
     expect(level1[level1.length - 1]).toBe("@");
-  });
-
-  test("the restore line is stamped bright over the water", () => {
-    const cells = restoreLineCells();
-    expect(cells.length).toBeGreaterThan(120);
-
-    const context = makeContext();
-    scene.init(context);
-    runFrames(context, 30);
-
-    for (const cell of cells) {
-      expect(context.buffer.data[cell.y * context.buffer.width + cell.x] ?? 0).toBeGreaterThanOrEqual(0.7);
-    }
   });
 
   test("open water stays on the sparse end of the ramp", () => {

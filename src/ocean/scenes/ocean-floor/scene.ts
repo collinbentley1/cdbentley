@@ -6,13 +6,11 @@
  * seabed, and seven resting memory mounds arranged in a row along the floor —
  * the compacted story at low resolution. Contact-link placeholder bars are
  * carved into the sediment at full luminance (solid @-weight ink; values are
- * integrator-filled). The line "restore full context" — fixed copy from
- * design-brief-ocean.md — hangs in the water above the shelf as a 3x5
- * pixel-font stamp in the luminance buffer.
+ * integrator-filled).
  *
  * This module owns only the shelf's RESTING presentation. Runtime docking
  * mechanics are SDK-provided (dock.ts) and the integrator wires live state,
- * including the real never-compacted contact links and the restore action.
+ * including the real never-compacted contact links.
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
@@ -35,10 +33,6 @@ const SLOT_X0 = 14;
 
 const MAX_SNOW = 160;
 
-/** Fixed copy from the brief: `A final line offers "restore full context."` */
-const RESTORE_LINE = "restore full context";
-const RESTORE_TOP = 34;
-
 export interface CellRect {
   readonly h: number;
   readonly w: number;
@@ -56,49 +50,6 @@ export const CONTACT_BARS: readonly CellRect[] = [
   { h: 2, w: 8, x: 20, y: 66 },
   { h: 2, w: 8, x: 32, y: 66 },
 ];
-
-/** 3x5 pixel font covering exactly the letters of RESTORE_LINE. */
-const FONT_3X5: Readonly<Record<string, readonly [string, string, string, string, string]>> = {
-  " ": ["...", "...", "...", "...", "..."],
-  c: [".##", "#..", "#..", "#..", ".##"],
-  e: ["###", "#..", "##.", "#..", "###"],
-  f: ["###", "#..", "##.", "#..", "#.."],
-  l: ["#..", "#..", "#..", "#..", "###"],
-  n: ["##.", "#.#", "#.#", "#.#", "#.#"],
-  o: [".#.", "#.#", "#.#", "#.#", ".#."],
-  r: ["##.", "#.#", "##.", "#.#", "#.#"],
-  s: [".##", "#..", ".#.", "..#", "##."],
-  t: ["###", ".#.", ".#.", ".#.", ".#."],
-  u: ["#.#", "#.#", "#.#", "#.#", "###"],
-  x: ["#.#", "#.#", ".#.", "#.#", "#.#"],
-};
-
-/** Buffer cells lit by the restore line; exported for tests and the integrator. */
-export function restoreLineCells(): ReadonlyArray<{ x: number; y: number }> {
-  const cells: Array<{ x: number; y: number }> = [];
-  const width = RESTORE_LINE.length * 4 - 1;
-  let penX = Math.floor((COLS - width) / 2);
-
-  for (const char of RESTORE_LINE) {
-    const glyph = FONT_3X5[char];
-
-    if (glyph) {
-      for (let row = 0; row < glyph.length; row++) {
-        const bits = glyph[row] ?? "...";
-
-        for (let col = 0; col < 3; col++) {
-          if (bits[col] === "#") {
-            cells.push({ x: penX + col, y: RESTORE_TOP + row });
-          }
-        }
-      }
-    }
-
-    penX += 4;
-  }
-
-  return cells;
-}
 
 /** Small deterministic PRNG for seeding the marine snow (no Math.random). */
 function mulberry32(seed: number): () => number {
@@ -124,7 +75,6 @@ interface FloorState {
   readonly snowSpeed: Float32Array;
   readonly snowX: Float32Array;
   readonly snowY: Float32Array;
-  readonly textCells: ReadonlyArray<{ x: number; y: number }>;
 }
 
 let state: FloorState | null = null;
@@ -167,7 +117,7 @@ function buildState(): FloorState {
     snowBright[i] = 0.24 + rand() * 0.14;
   }
 
-  return { floorY, moundBase, moundHeight, moundWob, snowBright, snowPhase, snowSpeed, snowX, snowY, textCells: restoreLineCells() };
+  return { floorY, moundBase, moundHeight, moundWob, snowBright, snowPhase, snowSpeed, snowX, snowY };
 }
 
 export const scene: SceneModule = {
@@ -203,8 +153,6 @@ export const scene: SceneModule = {
       snowCount: 70,
       snowFall: 2.4,
       snowSway: 0.5,
-      textGlow: 0.82,
-      textPulse: 0.04,
       waterGlow: 0.14,
     },
     ramp: " ·:~≈=+*#@",
@@ -226,8 +174,6 @@ export const scene: SceneModule = {
       snowCount = 70,
       snowFall = 2.4,
       snowSway = 0.5,
-      textGlow = 0.82,
-      textPulse = 0.04,
       waterGlow = 0.14,
     } = this.tuning.motion;
     const w = buffer.width;
@@ -341,20 +287,7 @@ export const scene: SceneModule = {
       }
     }
 
-    // 4) "restore full context" — steady, with a faint invitation pulse.
-    const textV = textGlow + textPulse * Math.sin(TWO_PI * 0.07 * time);
-
-    for (const cell of floor.textCells) {
-      if (cell.x < w && cell.y < h) {
-        const idx = cell.y * w + cell.x;
-
-        if (textV > (data[idx] ?? 0)) {
-          data[idx] = textV;
-        }
-      }
-    }
-
-    // 5) Contact bars: never modulated, always full ink.
+    // 4) Contact bars: never modulated, always full ink.
     for (const bar of CONTACT_BARS) {
       for (let y = bar.y; y < bar.y + bar.h && y < h; y++) {
         const row = y * w;
@@ -365,13 +298,13 @@ export const scene: SceneModule = {
       }
     }
 
-    // 6) Contract guarantee: finite luminance in [0, 1] whatever the tunables.
+    // 5) Contract guarantee: finite luminance in [0, 1] whatever the tunables.
     for (let i = 0; i < data.length; i++) {
       const v = data[i] ?? 0;
       data[i] = Number.isFinite(v) ? (v < 0 ? 0 : v > 1 ? 1 : v) : 0;
     }
 
-    // 7) A faint beam wanders the shelf; the runner stamps it after update.
+    // 6) A faint beam wanders the shelf; the runner stamps it after update.
     const light = lights[0];
 
     if (light) {

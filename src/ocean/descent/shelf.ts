@@ -1,72 +1,75 @@
 /**
  * The shelf (WS-C Phase C) — persistent compressed memory of the descent,
  * doubling as nav. Eight slots; each scene's ~12x6 dock glyph drifts here
- * along the SDK's spring-on-bezier path as its section collapses, and
- * re-blooms back along the SAME path on scroll-up/restore (the dock path is
- * sampled purely from collapse, so it is bidirectional by construction).
+ * along the SDK's spring-on-bezier path as its section collapses. Once a
+ * frame reaches the shelf it stays collected for the lifetime of this page
+ * load, even when the visitor scrolls back up.
  *
  * Hover/focus a slot = one-line summary chip (TODO(collin) placeholders
- * tonight). Click = restore (scroll returns; re-bloom is the pure depth
- * function). "restore full context" surfaces to the top, re-blooming every
- * scene on the way. Docked state persists in sessionStorage.
+ * tonight). Click = navigate. Collected state is deliberately runtime memory
+ * only: reload starts fresh; no browser storage, cookie, or session is used.
+ * The first slot is the only slot visible at load; once it docks, the
+ * remaining empty slots reveal left-to-right so the shelf reads as earned
+ * progress instead of chrome.
  */
 
 import { createDockAnimation, DOCK_GLYPH_COLS, type Rect } from "../sdk/index.ts";
 import type { DescentSection } from "./content.ts";
 
-const STORAGE_KEY = "ocean.shelf.docked";
-
 export interface Shelf {
   /**
    * Drive slot `slot` from the scene's collapse (0..1) and its canvas rect
-   * in viewport px. Handles the traveling glyph, slot fill, and storage.
+   * in viewport px. Handles the traveling glyph and one-load collection.
    */
-  update(slot: number, collapse: number, canvasRect: Rect): void;
-  /** Docked flags (for tests/state checks). */
+  update(slot: number, collapse: number, canvasRect: Rect, visited: boolean): void;
+  /** Collected flags (named docked for the frozen integration surface). */
   readonly docked: readonly boolean[];
 }
 
 export interface ShelfCallbacks {
-  onRestore(slot: number): void;
-  onRestoreAll(): void;
+  onNavigate(slot: number): void;
 }
 
-function loadDocked(count: number): boolean[] {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    const parsed: unknown = raw === null ? [] : JSON.parse(raw);
-    const flags = new Array<boolean>(count).fill(false);
+export interface CollectionState {
+  readonly flags: readonly boolean[];
+  update(slot: number, collapse: number, active: boolean, terminal: boolean): boolean;
+  readonly visited: readonly boolean[];
+}
 
-    if (Array.isArray(parsed)) {
-      for (const index of parsed) {
-        if (typeof index === "number" && index >= 0 && index < count) {
-          flags[index] = true;
-        }
+/** Page-load memory: one-way false -> true, with no persistence surface. */
+export function createCollectionState(count: number): CollectionState {
+  const flags = new Array<boolean>(count).fill(false);
+  const visited = new Array<boolean>(count).fill(false);
+
+  return {
+    flags,
+    update(slot: number, collapse: number, active: boolean, terminal: boolean): boolean {
+      if (slot < 0 || slot >= flags.length) {
+        return false;
       }
-    }
 
-    return flags;
-  } catch {
-    return new Array<boolean>(count).fill(false);
-  }
-}
+      if (active) {
+        visited[slot] = true;
+      }
 
-function saveDocked(flags: readonly boolean[]): void {
-  try {
-    const docked = flags.flatMap((flag, index) => (flag ? [index] : []));
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(docked));
-  } catch {
-    // sessionStorage unavailable (private mode etc.) — shelf still works.
-  }
+      if (visited[slot] && (collapse >= 1 || (terminal && active))) {
+        flags[slot] = true;
+      }
+
+      return flags[slot] ?? false;
+    },
+    visited,
+  };
 }
 
 export function createShelf(nav: HTMLElement, sections: readonly DescentSection[], callbacks: ShelfCallbacks): Shelf {
-  // The static <ul> stays for no-JS/plain nav; CSS swaps which list shows.
+  // The static <ul> stays for no-JS navigation; CSS swaps which list shows.
   const list = document.createElement("ol");
   list.className = "shelf-slots";
   nav.append(list);
 
-  const docked = loadDocked(sections.length);
+  const collection = createCollectionState(sections.length);
+  const docked = collection.flags;
   const slotPres: HTMLPreElement[] = [];
   const slotButtons: HTMLButtonElement[] = [];
   const travelers: HTMLPreElement[] = [];
@@ -76,11 +79,14 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
 
   sections.forEach((section, slot) => {
     const item = document.createElement("li");
+    item.className = "shelf-item";
+    item.dataset["slot"] = String(slot);
+    item.style.setProperty("--reveal-index", String(Math.max(0, slot - 1)));
     const button = document.createElement("button");
     button.type = "button";
     button.className = "shelf-slot";
     button.dataset["slot"] = String(slot);
-    button.setAttribute("aria-label", `${section.label} — restore full scene`);
+    button.setAttribute("aria-label", `Go to ${section.label}`);
 
     const pre = document.createElement("pre");
     pre.setAttribute("aria-hidden", "true");
@@ -97,7 +103,7 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
     button.append(chip);
 
     button.addEventListener("click", () => {
-      callbacks.onRestore(slot);
+      callbacks.onNavigate(slot);
     });
 
     item.append(button);
@@ -114,37 +120,37 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
     travelers.push(traveler);
   });
 
-  const restoreAll = document.createElement("button");
-  restoreAll.type = "button";
-  restoreAll.className = "shelf-restore-all";
-  restoreAll.textContent = "restore full context";
-  restoreAll.addEventListener("click", () => {
-    callbacks.onRestoreAll();
-  });
-  nav.append(restoreAll);
+  let expanded = false;
 
-  const setDocked = (slot: number, value: boolean): void => {
-    if (docked[slot] === value) {
+  const revealRemainingSlots = (): void => {
+    if (expanded) {
       return;
     }
 
-    docked[slot] = value;
+    expanded = true;
+    nav.classList.add("shelf-expanded");
+  };
+
+  const showCollected = (slot: number): void => {
     const pre = slotPres[slot];
+    const button = slotButtons[slot];
     const section = sections[slot];
 
     if (pre && section) {
-      pre.textContent = value ? section.scene.dockGlyph.join("\n") : emptyGlyph;
-      pre.className = value ? "shelf-glyph is-docked" : "shelf-glyph";
+      pre.textContent = section.scene.dockGlyph.join("\n");
+      pre.className = "shelf-glyph is-docked";
     }
 
-    saveDocked(docked);
+    if (button && section) {
+      button.setAttribute("aria-label", `Go to ${section.label} (collected)`);
+    }
   };
 
   return {
     get docked(): readonly boolean[] {
       return docked;
     },
-    update(slot: number, collapse: number, canvasRect: Rect): void {
+    update(slot: number, collapse: number, canvasRect: Rect, visited: boolean): void {
       const traveler = travelers[slot];
       const button = slotButtons[slot];
 
@@ -152,21 +158,44 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
         return;
       }
 
+      const wasCollected = docked[slot] ?? false;
+      const isTerminal = slot === sections.length - 1;
+      const isCollected = collection.update(slot, collapse, visited, isTerminal);
+
+      if (!wasCollected && isCollected) {
+        showCollected(slot);
+      }
+
+      if (slot === 0 && collapse >= 1) {
+        revealRemainingSlots();
+      }
+
+      // The final floor cannot accumulate enough depth to reach collapse=1
+      // before the document ends. Reaching its active sticky frame is its
+      // literal collection point, resolving all eight without fake scroll.
+      if (isTerminal && visited) {
+        traveler.style.display = "none";
+        return;
+      }
+
       if (collapse <= 0) {
         traveler.style.display = "none";
-        setDocked(slot, false);
         return;
       }
 
       if (collapse >= 1) {
         traveler.style.display = "none";
-        setDocked(slot, true);
         return;
       }
 
-      // Mid-flight: sample the SAME bezier path purely from collapse, both
-      // directions (dock on the way down, re-bloom on the way up).
-      setDocked(slot, false);
+      // A collected frame stays on the shelf for this page load. Suppress the
+      // duplicate traveler when the visitor scrolls back through its scene.
+      if (docked[slot]) {
+        traveler.style.display = "none";
+        return;
+      }
+
+      // First approach: sample the SDK's spring-on-bezier dock path.
       const slotRect = button.getBoundingClientRect();
       const to: Rect = { h: slotRect.height, w: slotRect.width, x: slotRect.x, y: slotRect.y };
       const frame = createDockAnimation(canvasRect, to).frameAt(collapse);

@@ -3,7 +3,7 @@
  * scenes 1-8 in order with the deep register between subway and floor, the
  * always-on ocean field, the memory-line depth mapping (pure, bidirectional),
  * scroll-velocity -> turbulence coupling, the shelf, provenance packets, and
- * the plain-view toggle.
+ * a reduced-motion path that keeps the same document and spatial context.
  *
  * Grammar: depth = viewport-heights past the memory line (FROZEN unit).
  * Everything resolution-related is a pure function of scroll position; the
@@ -11,6 +11,7 @@
  */
 
 import { bindSleepWake, createGlyphRenderer, createSceneRunner, resolutionForDepth, type Rect, type SceneRunner } from "../sdk/index.ts";
+import { createBridgeLayer } from "../scenes/beach/bridge-layer.ts";
 import { depthForSectionTop, SECTIONS, TURBULENCE } from "./content.ts";
 import { createOceanField } from "./field.ts";
 import { bindProvenancePackets } from "./provenance.ts";
@@ -35,6 +36,7 @@ declare global {
 
 interface MountedScene {
   canvas: HTMLCanvasElement;
+  lastReducedDepth: number;
   runner: SceneRunner;
   section: HTMLElement;
   slot: number | null;
@@ -43,38 +45,15 @@ interface MountedScene {
 
 const params = new URLSearchParams(location.search);
 const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const storedPlain = ((): string | null => {
-  try {
-    return sessionStorage.getItem("ocean.plain");
-  } catch {
-    return null;
-  }
-})();
-
-// prefers-reduced-motion AND /?reduced get the plain document by default;
-// the toggle can override (stored for the session).
-let plain = params.has("reduced") || (storedPlain === null ? prefersReduced : storedPlain === "1");
-
-const toggle = document.getElementById("plain-toggle");
 const shelfNav = document.getElementById("shelf");
 const fieldCanvas = document.getElementById("ocean-field");
+const bridgeCue = document.querySelector<HTMLElement>(".bridge-cue");
+const bridgeCanvas = bridgeCue?.querySelector<HTMLCanvasElement>(".bridge-canvas") ?? null;
+const bridgeLayer = bridgeCanvas ? createBridgeLayer(bridgeCanvas) : null;
 
-function setPlain(next: boolean): void {
-  plain = next;
-  // Default document (no JS / plain) is the linear plain view; .ocean opts in.
-  document.body.classList.toggle("ocean", !next);
-  toggle?.setAttribute("aria-pressed", next ? "true" : "false");
-
-  try {
-    sessionStorage.setItem("ocean.plain", next ? "1" : "0");
-  } catch {
-    // storage unavailable — the toggle still works for this page view.
-  }
-}
-
-toggle?.addEventListener("click", () => {
-  setPlain(!plain);
-});
+// Paint immediately so reduced-motion and a briefly paused first frame both
+// retain the bridge cue. Normal motion is driven by the shared frame below.
+bridgeLayer?.draw(0);
 
 // --- Mount every scene against its static section ------------------------
 // Staggered one-per-frame so page load never queues 10 renderer+atlas+init
@@ -85,7 +64,7 @@ const mounted: MountedScene[] = [];
 let deepShape: MountedScene | null = null;
 
 function summonDeepShape(): void {
-  if (!deepShape || plain) {
+  if (!deepShape || prefersReduced) {
     return;
   }
 
@@ -126,10 +105,15 @@ function mountSection(entry: (typeof SECTIONS)[number]): void {
     },
   });
 
-  // Scenes sleep offscreen; observing the stage wrapper also parks every
-  // runner in plain view (display:none => not intersecting).
-  bindSleepWake(runner, stage);
-  const mount: MountedScene = { canvas, runner, section, slot: entry.shelfSlot, stage };
+  // Animated scenes sleep offscreen. Reduced-motion visitors keep the same
+  // ocean layout, but each scene is rendered only when scroll changes depth.
+  if (prefersReduced) {
+    runner.step(0);
+  } else {
+    bindSleepWake(runner, stage);
+  }
+
+  const mount: MountedScene = { canvas, lastReducedDepth: Number.NaN, runner, section, slot: entry.shelfSlot, stage };
   mounted.push(mount);
 
   if (entry.scene.id === "beach") {
@@ -153,7 +137,8 @@ for (const entry of SECTIONS) {
   document.querySelector<HTMLElement>(`section[data-scene="${entry.scene.id}"]`)?.style.setProperty("--section-h", `${entry.heightVh}vh`);
 }
 
-setPlain(plain);
+document.body.classList.add("ocean");
+document.body.classList.toggle("reduced-motion", prefersReduced);
 
 const mountQueue = [...SECTIONS];
 
@@ -183,25 +168,15 @@ document.addEventListener("keydown", (event) => {
 
 const shelfSections = SECTIONS.filter((section) => section.shelfSlot !== null).sort((a, b) => (a.shelfSlot ?? 0) - (b.shelfSlot ?? 0));
 
-function restoreFullContext(): void {
-  // Surface: every scene re-blooms along the same pure path on the way up.
-  window.scrollTo({ behavior: plain ? "auto" : "smooth", top: 0 });
-}
-
 const shelf = shelfNav
   ? createShelf(shelfNav, shelfSections, {
-      onRestore(slot) {
+      onNavigate(slot) {
         const entry = shelfSections[slot];
         const target = entry ? mounted.find((m) => m.runner.scene.id === entry.scene.id) : undefined;
-        target?.section.scrollIntoView({ behavior: plain ? "auto" : "smooth", block: "start" });
+        target?.section.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
       },
-      onRestoreAll: restoreFullContext,
     })
   : null;
-
-// The ocean-floor overlay CTA (the pixel line at the descent's destination)
-// is the same restore action as the shelf's "restore full context".
-document.querySelector<HTMLButtonElement>(".floor-restore")?.addEventListener("click", restoreFullContext);
 
 // --- Ocean field (the only always-on sim) ---------------------------------
 
@@ -209,6 +184,10 @@ const field = fieldCanvas instanceof HTMLCanvasElement ? createOceanField(fieldC
 
 function resizeField(): void {
   field?.resize(window.innerWidth, window.innerHeight);
+
+  if (prefersReduced) {
+    field?.step(0, 0);
+  }
 }
 
 resizeField();
@@ -216,7 +195,7 @@ window.addEventListener("resize", resizeField);
 
 // --- Provenance packets ----------------------------------------------------
 
-bindProvenancePackets(document, () => !plain && !prefersReduced);
+bindProvenancePackets(document, () => !prefersReduced);
 
 // --- Frame driver: scroll -> depth -> compaction/dock/turbulence -----------
 
@@ -290,30 +269,43 @@ function frame(now: number): void {
   const dt = Math.min(0.1, Math.max(0.0001, (now - lastNow) / 1000));
   lastNow = now;
 
-  if (!plain) {
-    const vh = Math.max(1, window.innerHeight);
-    const scrolled = Math.abs(window.scrollY - lastScrollY) / vh / dt;
-    lastScrollY = window.scrollY;
-    const target = Math.min(1, scrolled / TURBULENCE.vhPerSecAtMax);
-    turbulence += (target - turbulence) * (1 - Math.exp(-dt / TURBULENCE.tau));
+  const vh = Math.max(1, window.innerHeight);
+  const scrolled = Math.abs(window.scrollY - lastScrollY) / vh / dt;
+  lastScrollY = window.scrollY;
+  const target = Math.min(1, scrolled / TURBULENCE.vhPerSecAtMax);
+  turbulence += (target - turbulence) * (1 - Math.exp(-dt / TURBULENCE.tau));
 
-    if (field) {
-      benchCpuAccum += field.step(dt, turbulence);
+  if (field && !prefersReduced) {
+    benchCpuAccum += field.step(dt, turbulence);
+  }
+
+  if (bridgeLayer && bridgeCue && !prefersReduced) {
+    const bridgeRect = bridgeCue.getBoundingClientRect();
+
+    if (bridgeRect.top < vh && bridgeRect.bottom > 0) {
+      benchCpuAccum += bridgeLayer.draw(now / 1000);
+    }
+  }
+
+  for (const m of mounted) {
+    const rect = m.section.getBoundingClientRect();
+    const depth = depthForSectionTop(rect.top, vh);
+    m.runner.setDepth(depth);
+
+    if (prefersReduced && Math.abs(depth - m.lastReducedDepth) >= 0.005) {
+      m.runner.step(0);
+      m.lastReducedDepth = depth;
     }
 
-    for (const m of mounted) {
-      const rect = m.section.getBoundingClientRect();
-      const depth = depthForSectionTop(rect.top, vh);
-      m.runner.setDepth(depth);
+    const resolution = resolutionForDepth(depth, m.runner.scene.tuning.resolution ?? {});
+    m.canvas.style.opacity = (1 - resolution.collapse).toFixed(3);
 
-      const resolution = resolutionForDepth(depth, m.runner.scene.tuning.resolution ?? {});
-      m.canvas.style.opacity = (1 - resolution.collapse).toFixed(3);
-
-      if (m.slot !== null && shelf) {
-        const c = m.canvas.getBoundingClientRect();
-        const rectPx: Rect = { h: c.height, w: c.width, x: c.x, y: c.y };
-        shelf.update(m.slot, resolution.collapse, rectPx);
-      }
+    if (m.slot !== null && shelf) {
+      const c = m.canvas.getBoundingClientRect();
+      const rectPx: Rect = { h: c.height, w: c.width, x: c.x, y: c.y };
+      const shelfCollapse = prefersReduced ? (resolution.collapse >= 0.98 ? 1 : 0) : resolution.collapse;
+      const visited = rect.top <= 0 && rect.bottom > 0;
+      shelf.update(m.slot, shelfCollapse, rectPx, visited);
     }
   }
 

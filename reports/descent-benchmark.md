@@ -1,34 +1,34 @@
 # Descent full-run benchmark + page weight (WS-C Phase C)
 
-July 9, 2026 (overnight of July 7 work order). Integrated page at `/ocean/` on branch `redesign/armature-v1`.
+July 9, 2026 (overnight of July 7 work order); updated July 14 after the live-review interaction pass. Integrated page at `/ocean/` on branch `redesign/armature-v1`.
 
 ## Method (the Phase A method, full-run edition)
 
 - `bun run build && bun tools/bench-descent.ts`
 - Headless Chrome via playwright-core (channel "chrome"), CDP `Emulation.setCPUThrottlingRate(4)` as the throttled mobile profile, `deviceScaleFactor: 2` (the dpr cap).
-- The page's `?bench=1` hook scripts a constant-speed scroll top → bottom → top over 26s (2s warmup excluded). The round trip exercises compaction in BOTH directions, every scene's sleep/wake crossing, dock/re-bloom travel, and the scroll-velocity → turbulence coupling at sustained fast-scroll churn.
-- Metrics: rAF frame deltas (end-to-end pacing) + the summed per-frame CPU of every awake scene runner and the ocean field (`performance.now()` around update+draw submission, as in Phase A).
+- The page's `?bench=1` hook scripts a constant-speed scroll top → bottom → top over 26s (2s warmup excluded). The round trip exercises compaction in BOTH directions, every scene's sleep/wake crossing, one-load shelf collection/rewind retention, and the scroll-velocity → turbulence coupling at sustained fast-scroll churn.
+- Metrics: rAF frame deltas (end-to-end pacing) + the summed per-frame CPU of every awake scene runner, the ocean field, and the animated ASCII bridge when visible (`performance.now()` around update+draw submission, as in Phase A).
 - Host: Apple M1 Max, macOS 27, Chrome headless with real GPU (ANGLE Metal). Headless rAF paces at 120Hz; read avg fps against a 120 ceiling — the binding budget is CPU < 8ms/frame and frame times < 16.7ms.
 
 ## Results (cpuThrottlingRate = 4, dpr 2, 26s full run)
 
-| profile | avg fps | avg frame ms | p95 frame ms | avg scene+field cpu ms | p95 cpu ms | frames >17ms | frames |
+| profile | avg fps | avg frame ms | p95 frame ms | avg scene+field+bridge cpu ms | p95 cpu ms | frames >17ms | frames |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| desktop 1680x820 | 118.6 | 8.43 | 10.10 | 3.61 | 5.40 | 0.1% | 2848 |
-| mobile 390x844 | 120.0 | 8.33 | 10.00 | 2.35 | 4.00 | 0.0% | 2881 |
+| desktop 1680x820 | 119.9 | 8.34 | 9.20 | 3.63 | 5.40 | 0.0% | 2878 |
+| mobile 390x844 | 120.0 | 8.34 | 9.10 | 2.40 | 4.10 | 0.0% | 2880 |
 
-Verdict: 60fps holds with >2x frame-time headroom and >2x CPU headroom at 4x throttle, during the worst window this page has (continuous scroll churn + compaction threshold crossings + 2-3 scenes awake at once + the always-on field). The renderer is the Phase A WebGL2 winner; its cost is dirty-independent, which is why compaction frames do not spike (see reports/renderer-spike.md).
+Verdict: 60fps holds with >2x frame-time headroom and CPU headroom at 4x throttle, during the worst window this page has (continuous scroll churn + compaction threshold crossings + 2-3 scenes awake at once + the always-on field + the bridge when visible). The renderer is the Phase A WebGL2 winner; its cost is dirty-independent, which is why compaction frames do not spike (see reports/renderer-spike.md).
 
 ## Page weight (gz, budget: glyph atlas + JS < 300KB)
 
 | asset | raw | gz |
 | --- | --- | --- |
-| /assets/ocean/descent.js (all 10 scenes + SDK + integration) | 67,277 B | 27,143 B |
-| /ocean/index.html (inline CSS + full plain-view DOM) | 23,055 B | 5,980 B |
+| /assets/ocean/descent.js (all 10 scenes + bridge + SDK + integration) | 67,988 B | 27,395 B |
+| /ocean/index.html (inline CSS + single-layout static DOM) | 26,161 B | 7,420 B |
 | glyph atlas | 0 B downloaded | rasterized at runtime from the system monospace stack (no font download, no font flash) |
 | favicon.svg | 284 B | 217 B |
 
-Total interactive payload ≈ **33.3KB gz** — ~267KB under budget. (The OG image, 76.7KB PNG, is metadata-fetched by crawlers only, not part of the page load.)
+Total interactive payload = **34,815 B gz** (`gzip -9 -n`) — about 265KB under budget. (The OG image, 76.7KB PNG, is metadata-fetched by crawlers only, not part of the page load.)
 
 ## Caveats (same shape as Phase A, honestly)
 
@@ -36,14 +36,14 @@ Total interactive payload ≈ **33.3KB gz** — ~267KB under budget. (The OG ima
 - Headless rAF paced 120Hz; a 60Hz device has strictly more per-frame budget.
 - Mobile profile runs the desktop scene grids CSS-scaled down (see TRIAGE.md — per-scene mobile grid sizing is a morning decision, not improvised tonight).
 
-## Lighthouse (headless Chrome via `bunx lighthouse`, local server)
+## Lighthouse baseline (July 9; not rerun after the live-review interaction pass)
 
 | config | performance | accessibility | best-practices | seo |
 | --- | --- | --- | --- | --- |
 | staging as committed (`noindex` staging meta present) | 100 | 100 | 100 | 60 |
 | launch config (same page, `noindex` removed) | 100 | 100 | 100 | 100 |
 
-The only SEO deduction is `is-crawlable` — the deliberate `<meta name="robots" content="noindex">` staging guard, marked in the HTML for removal at ship. Three findings were fixed en route to 100: initial TBT 1,610ms (all 10 renderer+atlas+scene inits in one task → staggered one-per-frame, now 0-10ms), CLS 1.0 (mode class landing after first paint → tiny pre-paint inline script), and dim-ink contrast (epistemic dim weights lifted to >= 4.5:1: todo 0.45→0.58, grade tag 0.38→0.58, caveat 0.5→0.58).
+These are retained as the July 9 baseline rather than asserted for the July 14 interaction tree. The only SEO deduction in that run was `is-crawlable` — the deliberate `<meta name="robots" content="noindex">` staging guard, marked in the HTML for removal at ship. Three findings were fixed en route to 100: initial TBT 1,610ms (all 10 renderer+atlas+scene inits in one task → staggered one-per-frame, now 0-10ms), CLS 1.0 (mode class landing after first paint → tiny pre-paint inline script), and dim-ink contrast (epistemic dim weights lifted to >= 4.5:1: todo 0.45→0.58, grade tag 0.38→0.58, caveat 0.5→0.58).
 
 ## Reproduce
 

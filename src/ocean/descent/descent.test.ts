@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { DEFAULT_RESOLUTION, DOCK_GLYPH_COLS, DOCK_GLYPH_ROWS, resolutionForDepth } from "../sdk/index.ts";
 import { RENDERED_CLAIMS } from "./claims.generated.ts";
 import { DESCENT_CONTACT_LINKS, depthForSectionTop, MEMORY_LINE_VH, SECTIONS, SHELF_SECTIONS } from "./content.ts";
+import { createCollectionState } from "./shelf.ts";
 
 const pageHtml = await Bun.file(join(import.meta.dir, "..", "..", "..", "public", "ocean", "index.html")).text();
 
@@ -88,11 +89,20 @@ describe("contact links (from the WS-A verified set)", () => {
     }
   });
 
-  test("email/GitHub/LinkedIn present in page header, beach overlay, and floor", () => {
+  test("only the untargeted floor email remains and social profiles use one icon-only top rail", () => {
     const occurrences = pageHtml.split("mailto:collin.bentley@me.com").length - 1;
-    expect(occurrences).toBeGreaterThanOrEqual(4);
+    expect(occurrences).toBe(1);
+    expect(pageHtml).not.toContain('class="beach-contacts"');
+    expect(pageHtml).not.toContain('class="contact-row"');
+    expect(pageHtml).toContain('class="floor-links"');
     expect(pageHtml).toContain("https://github.com/collinbentley1");
     expect(pageHtml).toContain("https://www.linkedin.com/in/collinbentley");
+    expect(pageHtml).toContain('aria-label="Collin Bentley on GitHub"');
+    expect(pageHtml).toContain('aria-label="Collin Bentley on LinkedIn"');
+    expect(pageHtml).toContain('<svg viewBox="0 0 98 96" aria-hidden="true" focusable="false">');
+    expect(pageHtml).toContain('<svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">');
+    expect(pageHtml).not.toMatch(/<a[^>]*>GitHub<\/a>/);
+    expect(pageHtml).not.toMatch(/<a[^>]*>LinkedIn<\/a>/);
   });
 });
 
@@ -116,7 +126,7 @@ describe("epistemic ink (generated claims)", () => {
     expect(byId.get("R9-president")).toBe("UNGRADED");
   });
 
-  test("every generated claim is typeset in the static page (plain view carries it)", () => {
+  test("every generated claim is typeset in the static document", () => {
     for (const claim of RENDERED_CLAIMS) {
       expect(pageHtml).toContain(`data-slot="${claim.slot}"`);
     }
@@ -147,24 +157,88 @@ describe("epistemic ink (generated claims)", () => {
   });
 });
 
-describe("plain view / a11y invariants in the static page", () => {
-  test("the ocean-floor overlay restore CTA exists and descent.ts wires it", async () => {
-    expect(pageHtml).toContain('class="floor-restore"');
-    // Regression: the button shipped once with no handler (a dead control for
-    // anyone who reached the floor). The bundle must reference the selector.
+describe("single-layout / a11y invariants in the static page", () => {
+  test("the rejected full-context state and every global restore surface are absent", async () => {
     const descentSource = await Bun.file(join(import.meta.dir, "descent.ts")).text();
-    expect(descentSource).toContain('".floor-restore"');
+    const shelfSource = await Bun.file(join(import.meta.dir, "shelf.ts")).text();
+    const floorSource = await Bun.file(join(import.meta.dir, "..", "scenes", "ocean-floor", "scene.ts")).text();
+    const surface = [pageHtml, descentSource, shelfSource, floorSource].join("\n");
+
+    expect(surface).not.toContain("expand full context");
+    expect(surface).not.toContain("restore full context");
+    expect(surface).not.toContain("ocean.plain");
+    expect(surface).not.toContain("plain-toggle");
+    expect(surface).not.toContain("floor-restore");
+    expect(surface).not.toContain("shelf-restore-all");
   });
 
-  test("landmarks, skip link, toggle, aria-hidden canvas, noindex staging meta", () => {
+  test("landmarks, hidden identity heading, ASCII bridge canvas, and staging meta", () => {
+    const headerMarkup = /<header class="site">([\s\S]*?)<\/header>/.exec(pageHtml)?.[1] ?? "missing";
+    const bridgeMarkup = /<div class="bridge-cue"[^>]*>([\s\S]*?)<\/div>/.exec(pageHtml)?.[1] ?? "missing";
     expect(pageHtml).toContain('class="skip-link"');
-    expect(pageHtml).toContain('id="plain-toggle"');
-    expect(pageHtml).toContain("expand full context");
-    expect(pageHtml).toContain("restore full context");
+    expect(pageHtml).toContain('<h1 class="visually-hidden">COLLIN BENTLEY</h1>');
+    expect(headerMarkup).not.toBe("missing");
+    expect(headerMarkup).not.toContain("<a ");
+    expect(pageHtml).toContain('class="bridge-cue" aria-hidden="true"');
+    expect(bridgeMarkup).not.toBe("missing");
+    expect(bridgeMarkup).toContain('<canvas class="bridge-canvas" aria-hidden="true"></canvas>');
+    expect(bridgeMarkup).not.toContain("<svg");
     expect(pageHtml).toContain('<canvas id="ocean-field" aria-hidden="true">');
     expect(pageHtml).toContain('<meta name="robots" content="noindex" />');
     expect(pageHtml).toContain('property="og:image"');
     expect(pageHtml).toContain('name="twitter:card"');
+  });
+
+  test("the memory shelf starts with Collin and reveals later slots only after the first docks", async () => {
+    const shelfSource = await Bun.file(join(import.meta.dir, "shelf.ts")).text();
+    expect(pageHtml).toContain('<li><a href="#scene-beach">Collin Bentley</a></li>');
+    expect(shelfSource).toContain('item.className = "shelf-item"');
+    expect(shelfSource).toContain('slot === 0 && collapse >= 1');
+    expect(shelfSource).toContain('const isTerminal = slot === sections.length - 1');
+    expect(shelfSource).toContain("collection.update(slot, collapse, visited, isTerminal)");
+    expect(shelfSource).toContain('nav.classList.add("shelf-expanded")');
+    expect(shelfSource).not.toContain("sessionStorage");
+    expect(shelfSource).not.toContain("localStorage");
+    expect(shelfSource).not.toContain("document.cookie");
+    expect(pageHtml).toContain("right: 0;");
+    expect(pageHtml).toContain("padding: 0 calc(98px + env(safe-area-inset-right)) 0 0;");
+    expect(pageHtml).toContain('#shelf:not(.shelf-expanded) .shelf-item:not([data-slot="0"])');
+    expect(pageHtml).toContain('transition-delay: calc(var(--reveal-index) * 65ms)');
+  });
+
+  test("collected frames are monotonic for one page-load state and reset with a new state", () => {
+    const firstLoad = createCollectionState(8);
+    expect(firstLoad.flags).toEqual([false, false, false, false, false, false, false, false]);
+
+    // Passing a scene without ever making it the active frame is not a visit.
+    firstLoad.update(0, 1, false, false);
+    expect(firstLoad.flags[0]).toBe(false);
+
+    firstLoad.update(0, 0, true, false);
+    firstLoad.update(0, 1, false, false);
+    firstLoad.update(3, 0, true, false);
+    firstLoad.update(3, 1, false, false);
+    firstLoad.update(0, 0, false, false);
+    expect(firstLoad.flags).toEqual([true, false, false, true, false, false, false, false]);
+    expect(firstLoad.visited).toEqual([true, false, false, true, false, false, false, false]);
+
+    // The terminal floor collects as soon as its active frame is reached.
+    firstLoad.update(7, 0, true, true);
+    expect(firstLoad.flags[7]).toBe(true);
+
+    const reload = createCollectionState(8);
+    expect(reload.flags).toEqual([false, false, false, false, false, false, false, false]);
+    expect(reload.visited).toEqual([false, false, false, false, false, false, false, false]);
+  });
+
+  test("the top rail uses inline white vector marks with distinct optical sizes", () => {
+    expect(pageHtml).toContain('<svg viewBox="0 0 98 96" aria-hidden="true" focusable="false">');
+    expect(pageHtml).toContain('<svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">');
+    expect(pageHtml).toContain('fill="#fff"');
+    expect(pageHtml).toContain(".social-link--github svg");
+    expect(pageHtml).toContain("height: 22px");
+    expect(pageHtml).toContain(".social-link--linkedin svg");
+    expect(pageHtml).toContain("height: 21px");
   });
 
   test("no CRT effects and no per-character DOM anywhere in the page styles", () => {
