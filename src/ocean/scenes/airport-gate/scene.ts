@@ -114,9 +114,9 @@ const tuning: SceneTuning = {
     nightDrift: 0.05,
     nightScale: 0.12,
     reshuffleEvery: 5.5,
-    residueDepth: 0.9,
+    residueDepth: 0.85,
     residueLevel: 0.62,
-    residueSpan: 0.4,
+    residueSpan: 0.25,
   },
   ramp: " ·:~-=+*#%@",
   rows: ROWS,
@@ -192,9 +192,9 @@ export const scene: SceneModule = {
       nightDrift = 0.05,
       nightScale = 0.12,
       reshuffleEvery = 5.5,
-      residueDepth = 0.9,
+      residueDepth = 0.85,
       residueLevel = 0.62,
-      residueSpan = 0.4,
+      residueSpan = 0.25,
     } = tuning.motion;
 
     // 1) Static architecture.
