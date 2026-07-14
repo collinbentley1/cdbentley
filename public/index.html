@@ -162,8 +162,12 @@
         margin: 0 0 1rem;
       }
 
+      /* Dim the ink via color alpha, not element opacity: in ocean mode the
+         summary's black scrim comes from the `.prose > *` backing, and element
+         opacity would fade that scrim too — letting bright glyphs bleed
+         through the subtitle. Alpha on the text alone keeps the scrim solid. */
       .scene-summary {
-        opacity: 0.62;
+        color: rgba(232, 227, 211, 0.62);
         font-size: 0.9em;
       }
 
@@ -371,6 +375,24 @@
          don't land on it (the desks below are a repeating field). */
       body.ocean section[data-scene="classroom"] .prose {
         margin-top: -52vh;
+      }
+
+      /* The three long chapters below were the only ones still on the -62vh
+         default; that deepest pull floated their heading up under the fixed
+         shelf band (--top-rail-h) at mid-scroll, shaving the glyph tops. Each
+         gets its own slightly gentler offset so the label clears the band
+         while the chapter still sits above the scene's focal feature (the lit
+         phone / the desks / the platform tracks, all lower in frame). */
+      body.ocean section[data-scene="kitchen-table"] .prose {
+        margin-top: -56vh;
+      }
+
+      body.ocean section[data-scene="trading-floor"] .prose {
+        margin-top: -58vh;
+      }
+
+      body.ocean section[data-scene="subway-platform"] .prose {
+        margin-top: -54vh;
       }
 
       .bridge-cue {

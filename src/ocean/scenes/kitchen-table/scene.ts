@@ -132,11 +132,11 @@ function drawRoom(pen: Pen, w: number, h: number): Rect {
   // Under compaction these outlive the furniture.
   const farA = { x: X(0.13), y: Y(0.27) };
   const farB = { x: X(0.185), y: Y(0.16) };
-  pen.cell(farA.x, farA.y, 0.34);
-  pen.cell(farA.x - 1, farA.y, 0.11);
-  pen.cell(farA.x + 1, farA.y, 0.11);
-  pen.cell(farB.x, farB.y, 0.26);
-  pen.cell(farB.x + 1, farB.y, 0.09);
+  pen.cell(farA.x, farA.y, 0.24);
+  pen.cell(farA.x - 1, farA.y, 0.08);
+  pen.cell(farA.x + 1, farA.y, 0.08);
+  pen.cell(farB.x, farB.y, 0.19);
+  pen.cell(farB.x + 1, farB.y, 0.07);
 
   // The table: one solid mass. Slab top seen at a shallow angle (a trapezoid
   // of wood grain), a firm near edge, an apron, four legs. The grain rides
@@ -162,16 +162,19 @@ function drawRoom(pen: Pen, w: number, h: number): Rect {
     }
   }
 
-  // Back-edge whisper, near-edge line, apron shadow under the slab.
-  pen.h(backL, backR, backY, 0.1);
-  pen.h(frontL, frontR, frontY, 0.23);
-  pen.h(frontL + 1, frontR - 1, frontY + 1, 0.075);
+  // Back-edge whisper, near-edge line, apron shadow under the slab. The near
+  // edge is the table's read-at-a-glance silhouette, so it carries the most
+  // weight of any structural stroke — it survives the shallow-depth (thin,
+  // bin-1) render at the fold, where the room is otherwise a whisper.
+  pen.h(backL, backR, backY, 0.13);
+  pen.h(frontL, frontR, frontY, 0.32);
+  pen.h(frontL + 1, frontR - 1, frontY + 1, 0.09);
 
   // Legs: front pair to the floor, back pair shorter (depth), dimmer.
-  pen.v(frontL + 2, frontY + 2, Y(0.88), 0.13);
-  pen.v(frontR - 3, frontY + 2, Y(0.88), 0.13);
-  pen.v(backL + 2, frontY + 1, Y(0.8), 0.09);
-  pen.v(backR - 3, frontY + 1, Y(0.8), 0.09);
+  pen.v(frontL + 2, frontY + 2, Y(0.88), 0.16);
+  pen.v(frontR - 3, frontY + 2, Y(0.88), 0.16);
+  pen.v(backL + 2, frontY + 1, Y(0.8), 0.1);
+  pen.v(backR - 3, frontY + 1, Y(0.8), 0.1);
 
   // The chair, pulled up at the near-right corner: a tall narrow backrest
   // rising above the slab (two rails), stiles down to the seat, the seat
@@ -266,8 +269,8 @@ export const scene: SceneModule = {
   id: "kitchen-table",
   init(context: SceneContext): void {
     buildBases(context.buffer);
-    const radius = Math.max(this.tuning.motion.glowRadiusMin ?? 8, this.tuning.motion.glowRadius ?? 15);
-    const spread = this.tuning.motion.glowSpread ?? 8;
+    const radius = Math.max(this.tuning.motion.glowRadiusMin ?? 8, this.tuning.motion.glowRadius ?? 19);
+    const spread = this.tuning.motion.glowSpread ?? 11;
     context.lights.length = 0;
 
     // One phone, one pool: three lobes along the screen's long axis stretch
@@ -294,10 +297,10 @@ export const scene: SceneModule = {
       farTwinkle: 0.045,
       flickerHz: 8,
       glowDropY: 1.5,
-      glowIntensity: 0.21,
-      glowRadius: 15,
+      glowIntensity: 0.34,
+      glowRadius: 19,
       glowRadiusMin: 8,
-      glowSpread: 8,
+      glowSpread: 11,
       msgLen: 2.4,
       msgPeriod: 13,
       msgPhase: 8.4,
@@ -310,7 +313,7 @@ export const scene: SceneModule = {
       ripplePeriod: 29,
       ripplePhase: 20,
       rippleWidth: 1.6,
-      screenBase: 0.52,
+      screenBase: 0.62,
       screenBreathe: 0.06,
     },
     ramp: " ·:-=+*#@",
@@ -324,10 +327,10 @@ export const scene: SceneModule = {
       farTwinkle = 0.045,
       flickerHz = 8,
       glowDropY = 1.5,
-      glowIntensity = 0.21,
-      glowRadius = 15,
+      glowIntensity = 0.34,
+      glowRadius = 19,
       glowRadiusMin = 8,
-      glowSpread = 8,
+      glowSpread = 11,
       msgLen = 2.4,
       msgPeriod = 13,
       msgPhase = 8.4,
@@ -340,7 +343,7 @@ export const scene: SceneModule = {
       ripplePeriod = 29,
       ripplePhase = 20,
       rippleWidth = 1.6,
-      screenBase = 0.52,
+      screenBase = 0.62,
       screenBreathe = 0.06,
     } = this.tuning.motion;
     const w = buffer.width;
