@@ -25,7 +25,7 @@ const cycleNoise = createValueNoise(41);
 /** Horizontal/vertical layout, as fractions of the buffer (top = 0). */
 const F = {
   beamTop: 0.07,
-  edgeBottom: 0.65,
+  edgeBottom: 0.64,
   edgeTop: 0.62,
   gapBottom: 0.44,
   railA: 0.515,
@@ -34,38 +34,55 @@ const F = {
   signLeft: 0.4,
   signRight: 0.6,
   signTop: 0.13,
-  stripeBottom: 0.21,
-  stripeTop: 0.17,
-  tactileBottom: 0.7,
+  stripeBottom: 0.19,
+  stripeTop: 0.18,
+  tactileBottom: 0.67,
   tunnelMouth: 0.05,
   wallBottom: 0.42,
   wallTop: 0.1,
 } as const;
 
 /**
- * Static luminance values, placed against the scene ramp's 11 equal bins
- * (width 1/11 ≈ 0.091): wall 0.265 sits at the ':'/'~' boundary so tiny
- * breathing reads; trench 0.055 sits just under '·' so drifting air
- * surfaces as sparse dots out of the black.
+ * Static luminance values against the ramp's 11 equal bins (width 1/11 ≈
+ * 0.091). Three legible tiers, per the readability brief:
+ *   - track pit near-black: gap/trench 0.05 sit BELOW bin 1 -> render as the
+ *     empty rest band the whole frame settles into.
+ *   - platform mid: the floor gradients 0.05 -> 0.17 (empty near the pit,
+ *     '·'/':' toward the viewer), one calm plane, no dither.
+ *   - tiled wall lightest: tile faces 0.34 land on '~', grout drops to 0.05
+ *     (empty) so the grid reads as dark mortar lines, not a solid field.
+ * Ink diet: grout lines and the emptied floor back turn ~40% of the old
+ * field to rest.
  */
 const V = {
-  beam: 0.14,
-  ceiling: 0.04,
-  column: 0.58,
-  edge: 0.86,
-  fixture: 0.95,
-  floor: 0.15,
+  beam: 0.1,
+  ceiling: 0.03,
+  column: 0.6,
+  edge: 0.5,
+  fixture: 0.9,
+  floorBack: 0.04,
+  floorFront: 0.14,
   gap: 0.05,
-  mortar: 0.13,
-  poolAdd: 0.11,
+  grout: 0.05,
+  poolAdd: 0.08,
   railBase: 0.4,
-  sign: 0.5,
-  stripe: 0.3,
-  tactileHigh: 0.42,
-  tactileLow: 0.14,
-  trench: 0.055,
-  wall: 0.26,
+  sign: 0.13,
+  signFrame: 0.68,
+  stripe: 0.5,
+  tactileHigh: 0.26,
+  tactileLow: 0.06,
+  trench: 0.05,
+  wall: 0.34,
 } as const;
+
+/**
+ * Tile grid: lit faces separated by empty grout. Vertical grout is 2 cells
+ * wide (GROUT_W) so the mortar reads and the wall's ink stays on a diet;
+ * one empty row every TILE_H completes the grid.
+ */
+const TILE_W = 9;
+const GROUT_W = 2;
+const TILE_H = 4;
 
 export interface SubwayCopySlot {
   /** Stable id for the integrator's DOM overlay. */
@@ -160,15 +177,17 @@ function buildStatic(width: number, height: number, columnSpacing: number, fixtu
       if (y >= beamTop && y < wallTop) {
         v = V.beam;
       } else if (y >= wallTop && y < wallBottom) {
-        v = V.wall;
-        if (x % 8 === 0 || (y - wallTop) % 3 === 2) {
-          v = V.mortar;
-        }
+        // Lit tile faces with empty grout lines: the wall's grid reads as
+        // dark mortar between light tiles (figure/ground, not a solid field).
+        v = x % TILE_W < GROUT_W || (y - wallTop) % TILE_H === 0 ? V.grout : V.wall;
+        // A single bright trim line — the station's tile band, one row only.
         if (y >= stripeTop && y < stripeBottom) {
           v = V.stripe;
         }
+        // The sign slab: a framed panel that gives the DOM sign text a home.
         if (x >= signLeft && x < signRight && y >= signTop && y < signBottom) {
-          v = V.sign;
+          const onFrame = x === signLeft || x === signRight - 1 || y === signTop || y === signBottom - 1;
+          v = onFrame ? V.signFrame : V.sign;
         }
       } else if (y >= wallBottom && y < trenchTop) {
         v = V.gap;
@@ -178,14 +197,18 @@ function buildStatic(width: number, height: number, columnSpacing: number, fixtu
       } else if (y >= edgeTop && y < edgeBottom) {
         v = V.edge;
       } else if (y >= edgeBottom && y < tactileBottom) {
+        // Thinned warning strip: a low-contrast dashed line, not a bright bar,
+        // so it doesn't fight the sign for attention.
         v = Math.floor(x / 2) % 2 === 0 ? V.tactileHigh : V.tactileLow;
       } else if (y >= tactileBottom) {
-        v = V.floor;
-        // Fixture light pooling on the platform floor, fading with distance.
-        const depth = 1 - (y - tactileBottom) / Math.max(1, height - tactileBottom);
+        // Platform floor: one calm mid plane that gradients from near-black at
+        // the pit edge (a rest band) up to '·'/':' toward the viewer.
+        const frac = (y - tactileBottom) / Math.max(1, height - 1 - tactileBottom);
+        v = V.floorBack + (V.floorFront - V.floorBack) * frac;
+        // Fixture light pools on the lit near floor.
         for (const fx of fixtureXs) {
           const dx = x - fx;
-          v += V.poolAdd * Math.exp(-(dx * dx) / 40) * depth * depth;
+          v += V.poolAdd * Math.exp(-(dx * dx) / 40) * frac;
         }
       }
 
@@ -265,14 +288,14 @@ export const subwayPlatformScene: SceneModule = {
       fixtureSpacing: 20,
       headlightApproach: 9,
       headlightHold: 5,
-      headlightIntensity: 0.8,
+      headlightIntensity: 0.55,
       headlightPeriod: 42,
-      headlightRadius: 11,
-      headlightReach: 0.15,
+      headlightRadius: 8,
+      headlightReach: 0.12,
       headlightRecede: 7,
       noiseScale: 0.11,
-      railFalloff: 0.2,
-      railGlow: 0.32,
+      railFalloff: 0.12,
+      railGlow: 0.22,
       tileBreath: 0.015,
     },
     ramp: " ·:~-=|+*#@",
@@ -288,14 +311,14 @@ export const subwayPlatformScene: SceneModule = {
       fixtureSpacing = 20,
       headlightApproach = 9,
       headlightHold = 5,
-      headlightIntensity = 0.8,
+      headlightIntensity = 0.55,
       headlightPeriod = 42,
-      headlightRadius = 11,
-      headlightReach = 0.15,
+      headlightRadius = 8,
+      headlightReach = 0.12,
       headlightRecede = 7,
       noiseScale = 0.11,
-      railFalloff = 0.2,
-      railGlow = 0.32,
+      railFalloff = 0.12,
+      railGlow = 0.22,
       tileBreath = 0.015,
     } = this.tuning.motion;
     const width = buffer.width;
@@ -351,7 +374,6 @@ export const subwayPlatformScene: SceneModule = {
     const railA = rowOf(height, F.railA);
     const railB = rowOf(height, F.railB);
     const edgeTop = rowOf(height, F.edgeTop);
-    const tactileBottom = rowOf(height, F.tactileBottom);
     const signLeft = Math.round(width * F.signLeft);
     const signRight = Math.round(width * F.signRight);
     const signTop = rowOf(height, F.signTop);
@@ -385,16 +407,8 @@ export const subwayPlatformScene: SceneModule = {
       }
     }
 
-    // Fainter air over the platform floor.
-    const floorAmount = airAmount * 0.7;
-    for (let y = tactileBottom; y < height; y++) {
-      const base = y * width;
-      const ny = y * noiseScale * 1.7;
-      for (let x = 0; x < width; x++) {
-        const v = (data[base + x] ?? 0) + (fbm2(airNoise, x * noiseScale + airPhase, ny, 2) - 0.5) * 2 * floorAmount;
-        data[base + x] = clamp01(v);
-      }
-    }
+    // The platform floor stays a still rest plane (no dither): the only air
+    // that moves is in the track trench, where the train pushes it.
 
     // Rails catch the headlight: a reflection spreading from the light.
     const lightX = -4 + travel * (headlightReach * width + 4);
