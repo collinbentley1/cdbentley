@@ -57,6 +57,26 @@ const EDGE_MARGIN = 14;
 const RIM_WIDTH = 1.8;
 /** Interior silhouette luminance — below the first ramp step: a hole. */
 const BODY_FLOOR = 0.012;
+/**
+ * Mobile readability floor. At the mobile breakpoint the canvas is drawn at
+ * ~96vw (≈2.3px/cell on a 390px grid), where a true hole in near-black water
+ * carries zero contrast and the pass vanishes. There the interior is lifted to
+ * a dim, uniform silhouette — its darkest visible state sits two ramp steps
+ * above black (ramp " ·:~≈…" index 2 = ":"), so the shape reads as a form even
+ * away from the glow, while still staying darker than the glow-lit rim it
+ * carves. Desktop keeps the true hole (BODY_FLOOR). Snapshot at module load,
+ * mirroring the beach scene's orientation probe; guarded for the test/no-DOM
+ * environment so the desktop hole is what the contract test measures.
+ */
+const BODY_FLOOR_MOBILE = 0.26;
+/** Radius multiplier at the mobile breakpoint (§4.11): a bigger silhouette. */
+const MOBILE_GIRTH = 1.5;
+const IS_MOBILE =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(max-width: 760px)").matches;
+const BODY_FLOOR_EFF = IS_MOBILE ? BODY_FLOOR_MOBILE : BODY_FLOOR;
+const GIRTH_EFF = IS_MOBILE ? MOBILE_GIRTH : 1;
 /** Idle depth gate: the clock only runs at full resolution (bin 1). */
 const IDLE_MAX_DEPTH = DEFAULT_RESOLUTION.binDepths[0];
 /**
@@ -414,7 +434,7 @@ export const deepShapeScene: SceneModule = {
         }
 
         const sy = pathY(pass, sx, time, waveAmp, waveLength);
-        const r = radiusAt(u, bodyGirth);
+        const r = radiusAt(u, bodyGirth * GIRTH_EFF);
         const cx0 = Math.max(0, Math.floor(sx - r - reach));
         const cx1 = Math.min(width - 1, Math.ceil(sx + r + reach));
         const cy0 = Math.max(0, Math.floor(sy - r - reach));
@@ -455,7 +475,7 @@ export const deepShapeScene: SceneModule = {
           }
 
           if (s <= 0) {
-            data[rowBase + x] = BODY_FLOOR;
+            data[rowBase + x] = BODY_FLOOR_EFF;
             continue;
           }
 
