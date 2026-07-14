@@ -3,13 +3,18 @@ import { join } from "node:path";
 
 const root = join(import.meta.dir, "..");
 const failures: string[] = [];
-const allowedIndexOrigins = new Set(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]);
+// The root ocean document is self-hosted: its only external URLs are the
+// social/profile links and the canonical OG url. The /v1 site keeps its fonts.
+const allowedRootOrigins = new Set(["https://cdbentley.com", "https://github.com", "https://www.linkedin.com"]);
+const allowedV1Origins = new Set(["https://fonts.googleapis.com", "https://fonts.gstatic.com"]);
 
 await requireContains("Dockerfile", "dhi.io/bun", "Dockerfile must use Docker Hardened Bun images.");
 await requireContains("Dockerfile", "bun upgrade --canary", "Dockerfile must upgrade Bun to the latest canary.");
 await requireContains("public/index.html", 'rel="icon"', "The document must link a favicon.");
-await requireContains("public/index.html", "family=Press+Start+2P&family=Caveat", "The document must load the portfolio display fonts.");
-await rejectUnapprovedHttpsUrls("public/index.html", allowedIndexOrigins);
+await rejectUnapprovedHttpsUrls("public/index.html", allowedRootOrigins);
+await requireContains("public/v1/index.html", 'rel="icon"', "The v1 document must link a favicon.");
+await requireContains("public/v1/index.html", "family=Press+Start+2P&family=Caveat", "The v1 document must load its display fonts.");
+await rejectUnapprovedHttpsUrls("public/v1/index.html", allowedV1Origins);
 await rejectContains("public/assets/styles.css", "@import", "Styles should not import third-party design libraries.");
 await rejectContains("src/client.ts", "react", "The frontend should stay framework-free.");
 

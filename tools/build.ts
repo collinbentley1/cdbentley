@@ -85,8 +85,11 @@ assertBuild(serverBuild, "server");
 
 await Bun.write(join(distPublicDir, "index.html"), Bun.file(join(publicDir, "index.html")));
 await Bun.write(join(distPublicDir, "favicon.svg"), Bun.file(join(publicDir, "favicon.svg")));
+
+await Bun.write(join(distPublicDir, "resume.pdf"), Bun.file(join(publicDir, "resume.pdf")));
 await cp(join(publicDir, "assets"), join(distPublicDir, "assets"), { recursive: true });
 await cp(join(publicDir, "ocean"), join(distPublicDir, "ocean"), { recursive: true });
+await cp(join(publicDir, "v1"), join(distPublicDir, "v1"), { recursive: true });
 
 function assertBuild(result: Bun.BuildOutput, label: string): void {
   if (!result.success) {

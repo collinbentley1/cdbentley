@@ -12,9 +12,13 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".ico": "image/x-icon",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".pdf": "application/pdf",
   ".png": "image/png",
   ".svg": "image/svg+xml",
 };
+
+/** Documents that must revalidate on every request (route entry points). */
+const NO_CACHE_PATHS: ReadonlySet<string> = new Set(["index.html", join("v1", "index.html"), join("ocean", "index.html")]);
 
 export async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
@@ -77,7 +81,7 @@ async function serveStatic(pathname: string): Promise<Response> {
 
   return new Response(file, {
     headers: {
-      "Cache-Control": normalizedPath === "index.html" ? "no-cache" : "public, max-age=300",
+      "Cache-Control": NO_CACHE_PATHS.has(normalizedPath) ? "no-cache" : "public, max-age=300",
       "Content-Type": CONTENT_TYPES[extname(filePath)] ?? "application/octet-stream",
     },
   });

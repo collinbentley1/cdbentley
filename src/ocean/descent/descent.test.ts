@@ -11,7 +11,7 @@ import { DEFAULT_RESOLUTION, DOCK_GLYPH_COLS, DOCK_GLYPH_ROWS, resolutionForDept
 import { DESCENT_CONTACT_LINKS, depthForSectionTop, MEMORY_LINE_VH, SECTIONS, SHELF_SECTIONS } from "./content.ts";
 import { createCollectionState } from "./shelf.ts";
 
-const pageHtml = await Bun.file(join(import.meta.dir, "..", "..", "..", "public", "ocean", "index.html")).text();
+const pageHtml = await Bun.file(join(import.meta.dir, "..", "..", "..", "public", "index.html")).text();
 
 /** First sentence of each chapter, per the final copy (POLISH-SPEC §2.3). */
 const CHAPTER_OPENERS: Record<string, string> = {
