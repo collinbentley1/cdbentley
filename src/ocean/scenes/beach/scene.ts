@@ -6,24 +6,36 @@
  * loss, restoration in the first five seconds, wordless.
  *
  * The sim writes luminance only (SDK contract). Bands, top to bottom: dry
- * sand (static grain, tide-line deposits, and the contact-block anchor
- * region — never washed at depth <= 0), the foreshore where the name lives,
- * then open water breathing on the sparse end of the ramp. Scrolling begins
- * the undertow: context.depth lifts the waterline up the grid, and lowers it
- * again on scroll-up — a pure function of depth, like compaction itself.
+ * sand (static grain and tide-line deposits), the foreshore where the name
+ * lives inside a quiet band (speckle damped so the glyphs always sit ramp
+ * steps above their surroundings), then open water breathing on the sparse
+ * end of the ramp. Scrolling begins the undertow: context.depth lifts the
+ * waterline up the grid, and lowers it again on scroll-up — a pure function
+ * of depth, like compaction itself.
+ *
+ * Portrait viewports get a taller grid (chosen once at module load) so the
+ * first fold is mostly shore instead of letterbox; the composition is all
+ * fractions, so the same sim fills either frame.
  *
  * All hand-tunables live in tuning.motion (live-editable in the harness).
  */
 
 import { cellIndex, createValueNoise, fbm2 } from "../../sdk/index.ts";
 import type { SceneContext, SceneModule } from "../../sdk/index.ts";
-import { CONTACT_REGION } from "./contact-links.ts";
 import { buildNameMask, NAME_TEXT, type NameMask } from "./name-glyphs.ts";
 
 const noiseGrain = createValueNoise(21);
 const noiseWater = createValueNoise(22);
 const noiseChop = createValueNoise(23);
 const noiseHash = createValueNoise(24);
+
+/**
+ * Grid choice, made once at module load (the descent mounts each scene once).
+ * Landscape keeps the wide 200x90 shore; portrait trades width for height so
+ * the 390px-class first fold is mostly scene instead of letterbox. Tests run
+ * without a window and always get the landscape grid (deterministic).
+ */
+const PORTRAIT = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(orientation: portrait)").matches;
 
 /** Deterministic decorrelated random in [0, 1] from two coordinates. */
 function rand01(a: number, b: number): number {
@@ -36,10 +48,12 @@ const CHOP_SCALE = 0.045;
 const CHOP_SPEED = 0.35;
 const DEPOSIT_TAU_SAND = 30;
 const DEPOSIT_TAU_WATER = 1.6;
-const SHORE_FRAC = 0.74;
-const NAME_Y_FRAC = 0.38;
 const SWEEP_BAND = 14;
 const SWEEP_PAD = 18;
+/** The quiet band: name bbox + this margin, in cells (brief: 2). */
+const QUIET_MARGIN = 2;
+/** Feather width outside the band so the carve has no hard seam. */
+const QUIET_FEATHER = 2;
 
 interface BeachState {
   biasCycle: number;
@@ -50,10 +64,13 @@ interface BeachState {
   letterBias: Float32Array;
   mask: NameMask;
   maskScale: number;
+  maskYFrac: number;
   minEdgeRow: number;
   nameIndex: Int32Array;
   prevCycle: number;
   prevU: number;
+  /** 1 fully inside the quiet band, feathering to 0 outside it. */
+  quiet: Float32Array;
   rows: number;
   strength: Float32Array;
   wet: Float32Array;
@@ -61,9 +78,10 @@ interface BeachState {
 
 let state: BeachState | null = null;
 
-function buildMaskState(s: BeachState, scale: number): void {
-  s.mask = buildNameMask(NAME_TEXT, s.cols, s.rows, scale, NAME_Y_FRAC, (x, y) => rand01(x * 7.13 + 0.31, y * 5.77 + 0.83));
+function buildMaskState(s: BeachState, scale: number, yFrac: number): void {
+  s.mask = buildNameMask(NAME_TEXT, s.cols, s.rows, scale, yFrac, (x, y) => rand01(x * 7.13 + 0.31, y * 5.77 + 0.83));
   s.maskScale = scale;
+  s.maskYFrac = yFrac;
   s.strength = new Float32Array(s.mask.cells.length).fill(1);
   s.letterBias = new Float32Array(s.mask.letterCount).fill(1);
   s.biasCycle = -1;
@@ -76,9 +94,28 @@ function buildMaskState(s: BeachState, scale: number): void {
       s.nameIndex[cell.y * s.cols + cell.x] = c + 1;
     }
   }
+
+  // The quiet band around the name: speckle inside is damped at paint time so
+  // the glyphs always sit ramp steps above their sand. Chebyshev falloff,
+  // full strength across bbox + QUIET_MARGIN, feathered for QUIET_FEATHER.
+  s.quiet = new Float32Array(s.cols * s.rows);
+  const bx0 = s.mask.x0;
+  const bx1 = s.mask.x0 + s.mask.width - 1;
+  const by0 = s.mask.y0;
+  const by1 = s.mask.y0 + s.mask.height - 1;
+  const reach = QUIET_MARGIN + QUIET_FEATHER;
+
+  for (let y = Math.max(0, by0 - reach); y <= Math.min(s.rows - 1, by1 + reach); y++) {
+    for (let x = Math.max(0, bx0 - reach); x <= Math.min(s.cols - 1, bx1 + reach); x++) {
+      const dx = Math.max(0, bx0 - x, x - bx1);
+      const dy = Math.max(0, by0 - y, y - by1);
+      const d = Math.max(dx, dy);
+      s.quiet[y * s.cols + x] = d <= QUIET_MARGIN ? 1 : 1 - (d - QUIET_MARGIN) / (QUIET_FEATHER + 1);
+    }
+  }
 }
 
-function createState(cols: number, rows: number, tideAmp: number, nameScale: number): BeachState {
+function createState(cols: number, rows: number, tideAmp: number, nameScale: number, shoreFrac: number, nameYFrac: number): BeachState {
   const grain = new Float32Array(cols * rows);
   const deposit = new Float32Array(cols * rows);
 
@@ -97,7 +134,7 @@ function createState(cols: number, rows: number, tideAmp: number, nameScale: num
 
   // Seed a few faint historic tide lines so the opening frame already reads
   // as a shore that has been remembering and forgetting for a while.
-  const base = rows * SHORE_FRAC;
+  const base = rows * shoreFrac;
 
   for (const [line, frac] of [0.9, 0.68, 0.5].entries()) {
     const y = Math.floor(base - tideAmp * (frac ?? 0));
@@ -124,16 +161,18 @@ function createState(cols: number, rows: number, tideAmp: number, nameScale: num
     letterBias: new Float32Array(0),
     mask: { cells: [], height: 0, letterCount: 0, width: 0, x0: 0, y0: 0 },
     maskScale: 0,
+    maskYFrac: Number.NaN,
     minEdgeRow: rows,
     nameIndex: new Int32Array(0),
     prevCycle: -1,
     prevU: 0,
+    quiet: new Float32Array(0),
     rows,
     strength: new Float32Array(0),
     wet: new Float32Array(cols * rows),
   };
 
-  buildMaskState(s, nameScale);
+  buildMaskState(s, nameScale, nameYFrac);
 
   return s;
 }
@@ -149,27 +188,34 @@ export const scene: SceneModule = {
   ],
   id: "beach",
   init(context: SceneContext): void {
-    const { tideAmp = 22, nameScale = 2 } = this.tuning.motion;
-    state = createState(context.buffer.width, context.buffer.height, tideAmp, nameScale);
+    const { tideAmp = 22, nameScale = 2, shoreFrac = 0.74, nameYFrac = 0.38 } = this.tuning.motion;
+    state = createState(context.buffer.width, context.buffer.height, tideAmp, nameScale, shoreFrac, nameYFrac);
   },
-  summaryChip: "TODO(collin): one-line beach summary",
+  summaryChip: "The name in the sand — where the story starts.",
   tuning: {
-    cellH: 8,
-    cellW: 8,
-    cols: 200,
+    cellH: PORTRAIT ? 6 : 8,
+    cellW: PORTRAIT ? 6 : 8,
+    cols: PORTRAIT ? 96 : 200,
     minimalGlyph: "·",
     motion: {
       chopAmp: 2.2,
-      contactMarker: 1,
-      erodeRate: 0.55,
-      foamWidth: 2,
+      // Portrait: the scale-1 name is 7 rows tall, so a surge covers all of
+      // it at once; a slower erode keeps washes partial (desktop parity —
+      // both grids bottom out near half the name, then the sand redraws).
+      erodeRate: PORTRAIT ? 0.3 : 0.55,
+      foamWidth: PORTRAIT ? 3 : 2,
       nameInk: 0.82,
       nameScale: 2,
+      // Portrait pulls the name and waterline up the frame so the 390px
+      // first fold leads with the name and keeps living water inside it.
+      nameYFrac: PORTRAIT ? 0.34 : 0.38,
+      quietBand: 0.4,
       redrawPeriod: 11,
       redrawRate: 2.6,
       rushFrac: 0.26,
+      shoreFrac: PORTRAIT ? 0.7 : 0.74,
       surgeVar: 0.7,
-      tideAmp: 22,
+      tideAmp: PORTRAIT ? 46 : 22,
       tidePeriod: 7,
       undertowRate: 0.5,
       waterContrast: 0.2,
@@ -177,29 +223,25 @@ export const scene: SceneModule = {
       wetTau: 6,
     },
     ramp: " ·:~≈=+*#@",
-    rows: 90,
+    rows: PORTRAIT ? 152 : 90,
   },
   update(dt: number, context: SceneContext): void {
     const { buffer, depth, time } = context;
     const cols = buffer.width;
     const rows = buffer.height;
 
-    if (!state || state.cols !== cols || state.rows !== rows) {
-      const { tideAmp: amp = 22, nameScale: scale = 2 } = this.tuning.motion;
-      state = createState(cols, rows, amp, scale);
-    }
-
-    const s = state;
     const {
       chopAmp = 2.2,
-      contactMarker = 1,
       erodeRate = 0.55,
       foamWidth = 2,
       nameInk = 0.82,
       nameScale = 2,
+      nameYFrac = 0.38,
+      quietBand = 0.4,
       redrawPeriod = 11,
       redrawRate = 2.6,
       rushFrac = 0.26,
+      shoreFrac = 0.74,
       surgeVar = 0.7,
       tideAmp = 22,
       tidePeriod = 7,
@@ -209,10 +251,15 @@ export const scene: SceneModule = {
       wetTau = 6,
     } = this.tuning.motion;
 
+    if (!state || state.cols !== cols || state.rows !== rows) {
+      state = createState(cols, rows, tideAmp, nameScale, shoreFrac, nameYFrac);
+    }
+
+    const s = state;
     const requestedScale = Math.max(1, Math.round(nameScale));
 
-    if (requestedScale !== s.maskScale) {
-      buildMaskState(s, requestedScale);
+    if (requestedScale !== s.maskScale || nameYFrac !== s.maskYFrac) {
+      buildMaskState(s, requestedScale, nameYFrac);
     }
 
     // --- Tide phase: one swash per period; fast rush up, slow retreat. ---
@@ -235,7 +282,7 @@ export const scene: SceneModule = {
     }
 
     const advancing = u < rush;
-    const base = rows * SHORE_FRAC;
+    const base = rows * shoreFrac;
     // The undertow lifts the waterline with depth but the swash edge stays
     // pinned on-grid: sinking, the surface is the last thing that resolves —
     // and it is what survives binning as the compacted residue.
@@ -311,11 +358,7 @@ export const scene: SceneModule = {
     // Slight luminance lift in deep water so the binned/simplified residue
     // keeps sparse wave texture instead of draining to pure black.
     const deepLift = depth > 0.6 ? Math.min(0.14, (depth - 0.6) * 0.15) : 0;
-    const marker = contactMarker > 0.5;
-    const cx0 = Math.round(CONTACT_REGION.xFrac * cols);
-    const cx1 = Math.round((CONTACT_REGION.xFrac + CONTACT_REGION.wFrac) * cols);
-    const cy0 = Math.round(CONTACT_REGION.yFrac * rows);
-    const cy1 = Math.round((CONTACT_REGION.yFrac + CONTACT_REGION.hFrac) * rows);
+    const quietDamp = 1 - Math.min(1, Math.max(0, quietBand));
     const data = buffer.data;
     let i = cellIndex(buffer, 0, 0);
 
@@ -329,7 +372,9 @@ export const scene: SceneModule = {
           s.wet[i] = w;
           const dep = (s.deposit[i] ?? 0) * depSandF;
           s.deposit[i] = dep;
-          v = (s.grain[i] ?? 0) + w * 0.12 + dep * 0.18;
+          // Speckle inside the quiet band is damped toward quietBand of its
+          // luminance; the name's own ink is applied after, undamped.
+          v = ((s.grain[i] ?? 0) + w * 0.12 + dep * 0.18) * (1 - (s.quiet[i] ?? 0) * quietDamp);
           const ni = s.nameIndex[i] ?? 0;
 
           if (ni > 0) {
@@ -338,19 +383,6 @@ export const scene: SceneModule = {
             if (ink > v) {
               v = ink;
             }
-          }
-
-          if (
-            marker &&
-            y >= cy0 &&
-            y <= cy1 &&
-            x >= cx0 &&
-            x <= cx1 &&
-            (x === cx0 || x === cx1 || y === cy0 || y === cy1) &&
-            ((x + y) & 1) === 0 &&
-            v < 0.15
-          ) {
-            v = 0.15;
           }
         } else {
           s.wet[i] = 1;
@@ -383,6 +415,10 @@ export const scene: SceneModule = {
 
 /** Test/tuning taps — not part of the SDK contract. */
 export const beachDebug = {
+  /** Water edge row for column x from the last update (rows if unknown). */
+  edgeRowAt(x: number): number {
+    return state ? (state.edgeRow[x] ?? state.rows) : Number.POSITIVE_INFINITY;
+  },
   /** Mean drawn strength of the name cells, [0, 1]. */
   meanNameStrength(): number {
     if (!state || state.strength.length === 0) {
@@ -400,5 +436,28 @@ export const beachDebug = {
   /** Highest row (smallest y) the water reached in the last update. */
   minEdgeRowLastFrame(): number {
     return state ? state.minEdgeRow : Number.POSITIVE_INFINITY;
+  },
+  /** Name-cell drawn strength at (x, y); -1 when (x, y) is not a name cell. */
+  nameStrengthAt(x: number, y: number): number {
+    if (!state) {
+      return -1;
+    }
+
+    const ni = state.nameIndex[y * state.cols + x] ?? 0;
+    return ni > 0 ? (state.strength[ni - 1] ?? 0) : -1;
+  },
+  /** Quiet-band cell bounds (inclusive, unclamped), or null before init. */
+  quietBandRect(): { x0: number; x1: number; y0: number; y1: number } | null {
+    if (!state || state.mask.cells.length === 0) {
+      return null;
+    }
+
+    const m = state.mask;
+    return {
+      x0: m.x0 - QUIET_MARGIN,
+      x1: m.x0 + m.width - 1 + QUIET_MARGIN,
+      y0: m.y0 - QUIET_MARGIN,
+      y1: m.y0 + m.height - 1 + QUIET_MARGIN,
+    };
   },
 };

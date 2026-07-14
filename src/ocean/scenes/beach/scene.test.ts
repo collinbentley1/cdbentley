@@ -5,6 +5,7 @@ import {
   assertResolutionMonotone,
   assertSceneContract,
   createBuffer,
+  quantizeIndex,
   resolutionForDepth,
 } from "../../sdk/index.ts";
 import type { SceneContext } from "../../sdk/index.ts";
@@ -86,6 +87,44 @@ test("the tide erodes the name and the sand redraws it", () => {
   expect(recoveredAfterMin).toBeGreaterThan(minMean + 0.1);
 });
 
+test("the quiet band keeps the name 2+ ramp steps above its sand", () => {
+  const context = makeContext();
+  scene.init(context);
+  // 3 s in: the gentle opening swash has not reached the name yet.
+  run(context, 3, 0.05);
+
+  const band = beachDebug.quietBandRect();
+  expect(band).not.toBeNull();
+
+  if (!band) {
+    return;
+  }
+
+  const rampLength = Array.from(scene.tuning.ramp).length;
+  const cols = scene.tuning.cols;
+  let minName = rampLength;
+  let maxSand = 0;
+
+  for (let y = Math.max(0, band.y0); y <= band.y1; y++) {
+    for (let x = Math.max(0, band.x0); x <= Math.min(cols - 1, band.x1); x++) {
+      if (y >= beachDebug.edgeRowAt(x)) {
+        continue; // water/foam cells are the wash, not the sand bed
+      }
+
+      const q = quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLength);
+      const strength = beachDebug.nameStrengthAt(x, y);
+
+      if (strength >= 0.95) {
+        minName = Math.min(minName, q);
+      } else if (strength < 0) {
+        maxSand = Math.max(maxSand, q);
+      }
+    }
+  }
+
+  expect(minName - maxSand).toBeGreaterThanOrEqual(2);
+});
+
 test("the contact block region stays above the tide at depth 0", () => {
   const context = makeContext();
   scene.init(context);
@@ -94,6 +133,18 @@ test("the contact block region stays above the tide at depth 0", () => {
 
   run(context, 30, 0.05, () => {
     expect(beachDebug.minEdgeRowLastFrame()).toBeGreaterThan(regionBottomRow + 4);
+  });
+});
+
+test("the tide never floods the quiet band's top edge at depth 0", () => {
+  const context = makeContext();
+  scene.init(context);
+
+  const band = beachDebug.quietBandRect();
+  expect(band).not.toBeNull();
+
+  run(context, 30, 0.05, () => {
+    expect(beachDebug.minEdgeRowLastFrame()).toBeGreaterThan(band?.y0 ?? 0);
   });
 });
 
