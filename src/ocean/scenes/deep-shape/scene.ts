@@ -26,11 +26,10 @@
  * clock — you have to dwell in the deep. Screenshot-worthy and missable is
  * the point.
  *
- * Copy rule: this scene renders no text and carries no claims (FACTS.md not
- * applicable — that absence is the point); summaryChip is a TODO(collin)
- * placeholder. The dock glyph deliberately compresses to what MOST visitors
- * saw — dark water, the small glow, a faint undulation underneath — so the
- * shelf never spoils the encounter for those who missed it.
+ * Copy rule: this scene renders no text — that absence is the point. The
+ * dock glyph deliberately compresses to what MOST visitors saw — dark
+ * water, the small glow, a faint undulation underneath — so the shelf
+ * never spoils the encounter for those who missed it.
  *
  * Ramp intent (hand-tunable, Collin's brush), dark -> bright: " ·:~≈=+*#@".
  * Water breathes in " ·:", the glow halo lifts it to "~≈", the lit rim
@@ -224,7 +223,7 @@ export const deepShapeScene: SceneModule = {
     // occludable, so it is stamped (and carved) inside update() instead.
     context.lights.length = 0;
   },
-  summaryChip: "TODO(collin)",
+  summaryChip: "Deeper — it doesn't have a name.",
   tuning: {
     cellH: 8,
     cellW: 8,

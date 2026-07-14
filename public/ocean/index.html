@@ -1,28 +1,21 @@
 <!doctype html>
 <html lang="en">
   <!--
-    "The Ocean Remembers" — WS-C Phase C staging preview (armature v1).
-    Served at /ocean/ on this branch so the current site stays untouched
-    until morning triage; flipping the root route is a one-line change.
+    "The Ocean Remembers" — Collin Bentley's site.
 
     The document below stays linear, static, and searchable before JS.
     descent.js progressively enhances the SAME document into the canvas ocean;
     reduced motion quiets that presentation without swapping layouts.
-
-    Claim markup between ink markers is GENERATED from the private FACTS.md
-    by tools/facts-claims.ts (verbatim-checked, C-section excluded). Do not
-    hand-edit between the markers.
   -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <!-- staging preview: noindex until launch; remove at ship -->
     <title>Collin Bentley — The Ocean Remembers</title>
-    <meta name="description" content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview." />
+    <meta name="description" content="Collin Bentley, builder in New York. An ASCII ocean that remembers the story so far — Yale, Beijing, Humana, Healthyr, OTseek — and forgets it as you scroll." />
     <meta name="theme-color" content="#000000" />
     <meta property="og:title" content="Collin Bentley — The Ocean Remembers" />
-    <meta property="og:description" content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview." />
+    <meta property="og:description" content="Collin Bentley, builder in New York. An ASCII ocean that remembers the story so far — Yale, Beijing, Humana, Healthyr, OTseek — and forgets it as you scroll." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://cdbentley.com/ocean/" />
     <meta property="og:image" content="https://cdbentley.com/assets/og/ocean-og.png" />
@@ -30,7 +23,7 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Collin Bentley — The Ocean Remembers" />
-    <meta name="twitter:description" content="Collin Bentley — portfolio. A terminal ocean that remembers like a model. Staging preview." />
+    <meta name="twitter:description" content="Collin Bentley, builder in New York. An ASCII ocean that remembers the story so far — Yale, Beijing, Humana, Healthyr, OTseek — and forgets it as you scroll." />
     <meta name="twitter:image" content="https://cdbentley.com/assets/og/ocean-og.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <style>
@@ -168,78 +161,14 @@
         margin: 0 0 1rem;
       }
 
-      .todo {
-        opacity: 0.58;
-        border-left: 2px dashed rgba(232, 227, 211, 0.35);
-        padding-left: 0.8em;
-      }
-
       .scene-summary {
         opacity: 0.62;
         font-size: 0.9em;
       }
 
-      /* Epistemic ink: the grading system is the type system. */
-      .claim {
-        margin: 1.25rem 0;
-      }
-
-      .claim-text {
-        margin: 0;
-      }
-
-      .claim--bulletproof .claim-text {
-        font-weight: 700;
-        opacity: 1;
-      }
-
-      .claim--defensible .claim-text {
+      .scene-sign {
+        letter-spacing: 0.08em;
         opacity: 0.85;
-      }
-
-      .claim--needs-caveat .claim-text {
-        opacity: 0.7;
-      }
-
-      .claim--ungraded .claim-text {
-        opacity: 0.66;
-      }
-
-      .claim-caveat {
-        margin: 0.15rem 0 0;
-        opacity: 0.58;
-        font-size: 0.85em;
-      }
-
-      .claim-grade {
-        display: inline-block;
-        margin-top: 0.15rem;
-        opacity: 0.58;
-        font-size: 0.7em;
-        letter-spacing: 0.1em;
-      }
-
-      .receipt-chip {
-        display: inline-block;
-        margin-top: 0.25rem;
-        margin-right: 0.6em;
-        padding: 0 0.5em;
-        border: 1px solid rgba(232, 227, 211, 0.4);
-        font-size: 0.8em;
-        opacity: 0.75;
-        transition:
-          color 0.6s,
-          border-color 0.6s,
-          opacity 0.3s;
-      }
-
-      body.ocean .claim--defensible .receipt-chip {
-        opacity: 0;
-      }
-
-      body.ocean .claim--defensible:hover .receipt-chip,
-      body.ocean .claim--defensible:focus-within .receipt-chip {
-        opacity: 0.9;
       }
 
       /* Shelf: static nav list by default (no-JS), fixed strip when enhanced. */
@@ -475,18 +404,6 @@
         will-change: transform, opacity;
       }
 
-      .provenance-packet {
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 8;
-        white-space: pre;
-        font-size: 11px;
-        opacity: 0.8;
-        pointer-events: none;
-        will-change: transform, opacity;
-      }
-
       footer.site {
         max-width: 68ch;
         margin: 0 auto;
@@ -505,8 +422,7 @@
           transition: none !important;
         }
 
-        .dock-traveler,
-        .provenance-packet {
+        .dock-traveler {
           display: none !important;
         }
       }
@@ -568,8 +484,8 @@
 
     <header class="site">
       <h1 class="visually-hidden">COLLIN BENTLEY</h1>
-      <p class="todo">TODO(collin): resume link</p>
-      <p class="todo">TODO(collin): one-line site introduction (the ocean explains itself only at the colophon).</p>
+      <p>I'm Collin Bentley, a builder in New York. This page is where I experiment with new ways to tell my story; the plain version reads top to bottom, oldest first.</p>
+      <p><a href="/resume.pdf">Resume (PDF)</a></p>
     </header>
 
     <main id="main">
@@ -582,8 +498,8 @@
         </div>
         <div class="prose">
           <h2 id="h-beach">beach</h2>
-          <p class="scene-summary">TODO(collin): one-line beach summary</p>
-          <p class="todo">TODO(collin): beach copy — the name in the sand says it wordlessly; anything written here is your pen.</p>
+          <p class="scene-summary">The name in the sand — where the story starts.</p>
+          <p>The water takes the name and the sand writes it back. Below this shore the story runs oldest to newest; the links at the very bottom never wash away.</p>
         </div>
       </section>
 
@@ -593,20 +509,13 @@
         </div>
         <div class="prose">
           <h2 id="h-stage">stage</h2>
-          <p class="scene-summary">TODO(collin): stage summary — Yale material per FACTS R9 + C4 (President 2017 per C3)</p>
-          <!-- ink:stage:begin -->
-<div class="claim claim--ungraded" data-claim="R9" data-slot="R9-president" data-edge="left">
-  <p class="claim-text">President (2017) of a ~$200k/yr 501(c)(3) theater</p>
-  <a class="receipt-chip" href="https://collegearts.yale.edu/events/shows-screenings/reverie" rel="noopener">receipt: collegearts.yale.edu (Reverie, Apr 2017)</a>
-  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
-</div>
-<div class="claim claim--ungraded" data-claim="R9" data-slot="R9-credits" data-edge="left">
-  <p class="claim-text">Yale College Arts biography page (yale.edu) lists 9 production credits 2016–19</p>
-  <p class="claim-caveat">ungraded in source; receipts are public and re-runnable: yale.edu, Yale Daily News, IRS 990s</p>
-  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
-</div>
-<!-- ink:stage:end -->
-          <p class="todo">TODO(collin): rigging line — use the FACTS C4 approved phrasing verbatim (Reverie flight team; Head Rigger credits); your pen picks how much of it to set here.</p>
+          <p class="scene-summary">Yale, 2016–2019 — computer science and mainstage musicals.</p>
+          <p>
+            I studied computer science at Yale and produced mainstage musicals there from 2016 to 2019, engineering aerial elements along the way. One
+            of them, Reverie, put robotic arm holograms onstage; ideas like it are now emerging in Broadway immersive shows. A 2017 idea for
+            personalized spatial sound, placing museumgoers in the center of the action, was later featured in the 2024 re-launch of the Yale Peabody
+            Museum.
+          </p>
         </div>
       </section>
 
@@ -616,10 +525,11 @@
         </div>
         <div class="prose">
           <h2 id="h-classroom">classroom</h2>
-          <p class="scene-summary">TODO(collin): classroom summary line</p>
-          <p class="todo">
-            TODO(collin): classroom copy — the education thread (international bilingual school, Beijing) is listed ungraded in FACTS L3, so
-            nothing renders as fact tonight; needs your pen and a receipt.
+          <p class="scene-summary">Beijing, 2019–2020 — teaching STEM at AndKids.</p>
+          <p>
+            After Yale I moved to Beijing and taught STEM at AndKids, building a maker community of students and parents around 3D printing,
+            robotics, and coding. The cohort broke records for science and reading improvement. Teaching those students still fills me with hope
+            that all learning is possible for every person, and there's joy in being part of others' journeys.
           </p>
         </div>
       </section>
@@ -630,15 +540,13 @@
         </div>
         <div class="prose">
           <h2 id="h-corridor">corridor</h2>
-          <p class="scene-summary">TODO(collin): corridor scene summary line</p>
-          <!-- ink:corridor:begin -->
-<div class="claim claim--defensible" data-claim="S1" data-slot="S1" data-edge="right">
-  <p class="claim-text">Enterprise LLM products inside a Fortune-50 payer, 2022–24.</p>
-  <span class="receipt-chip" tabindex="0">receipt: Humana Studio H press · Fierce Healthcare</span>
-  <span class="claim-grade" aria-label="claim grade">DEFENSIBLE</span>
-</div>
-<!-- ink:corridor:end -->
-          <p class="todo">TODO(collin): the brief's "2M-member refill model" is not in FACTS.md at any grade — it never renders as fact; needs a receipt first.</p>
+          <p class="scene-summary">Humana, 2020–2024 — safe rails for AI products.</p>
+          <p>
+            From 2020 to 2024 I was a senior product manager in Humana's incubation lab, advising the Chief Strategy Officer on AI deployment risks
+            and incubating the software rails for repeatable, safe launches of AI products. Embedded with ML scientists and clinical pharmacists, I
+            turned medication-refill risk research into a predictive capability social workers use to prioritize high-risk patients sooner. I also
+            mentored two bootcamp students from their foodservice jobs into full-time product engineering roles in 32 weeks.
+          </p>
         </div>
       </section>
 
@@ -648,19 +556,13 @@
         </div>
         <div class="prose">
           <h2 id="h-trading-floor">trading floor</h2>
-          <p class="scene-summary">TODO(collin): trading-floor summary line (FACTS L1 at grade; C11/C12: demo-stage, never daily-trader use)</p>
-          <!-- ink:trading-floor:begin -->
-<div class="claim claim--ungraded" data-claim="L1" data-slot="L1-framing" data-edge="below">
-  <p class="claim-text">Built Agency MBS workflow products with institutional traders (co-founder was an ex-SquarePoint MBS quant); I know the blotter, BWIC, and TRACE workflows first-hand — and I ship at 14 PRs/week.</p>
-  <p class="claim-caveat">do not claim production traders used it daily; it was demo-stage with production-grade plumbing</p>
-  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
-</div>
-<div class="claim claim--ungraded" data-claim="L1" data-slot="L1-receipts" data-edge="below">
-  <p class="claim-text">11 domain routers (bwic, collateral_sourcing, prepay, sec_master_viewer…), a layered ELT data platform with ETF retrievers and SharePoint ingestion, SIFMA calendar/settlement utils, OAS/cheapness scoring, guarded prepay query building with server-rendered plots</p>
-  <span class="receipt-chip" tabindex="0">receipt: v1 repo (private; routers/utilities enumerable on request)</span>
-  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
-</div>
-<!-- ink:trading-floor:end -->
+          <p class="scene-summary">OTseek, 2025 — zero to one with bond traders.</p>
+          <p>
+            In November 2025 I co-founded OTseek in Pear's PearX W26 batch, and we went from customer discovery to production with institutional
+            bond traders. We navigated bank and hedge fund compliance and negotiated production NASDAQ connectivity. I built our agent-native
+            engineering discipline, embracing Codex and Claude Code without producing slop, through property-based testing, formal methods, pair
+            programming, and weekly retros with real human writing.
+          </p>
         </div>
       </section>
 
@@ -670,21 +572,11 @@
         </div>
         <div class="prose">
           <h2 id="h-airport-gate">airport gate</h2>
-          <p class="scene-summary">TODO(collin): airport-gate summary chip (one line; ground in FACTS S3/F4)</p>
-          <!-- ink:airport-gate:begin -->
-<div class="claim claim--bulletproof" data-claim="S3" data-slot="S3" data-edge="below">
-  <p class="claim-text">Production MCP server (medlock.ai) live July 2025, eight months after Anthropic shipped MCP and ~4 months after the Streamable HTTP transport entered the spec. Then the Visit Emery ChatGPT app approved by OpenAI and published to the app directory within ~5 months of the directory opening (Dec 17, 2025)</p>
-  <p class="claim-caveat">Withdrawn at dissolution; receipts = Collin's screenshots and demo videos</p>
-  <a class="receipt-chip" href="https://medlock.ai/" rel="noopener">live: medlock.ai (MCP endpoint at /api/mcp)</a>
-  <span class="claim-grade" aria-label="claim grade">BULLETPROOF</span>
-</div>
-<div class="claim claim--bulletproof" data-claim="F4" data-slot="F4" data-edge="below">
-  <p class="claim-text">Pivot merged Mar 7, 2026 → first ChatGPT app merged in 27 days → first live destination tenant in 31 days → live booking-vendor integration (Ventrata/OCTO) in 48 days → app-store submission packet in 66 days. 132 PRs in 9.5 weeks (14/week; 10 merged on May 12 alone).</p>
-  <span class="receipt-chip" tabindex="0">receipt: commit dates (git history)</span>
-  <span class="claim-grade" aria-label="claim grade">BULLETPROOF</span>
-</div>
-<!-- ink:airport-gate:end -->
-          <p class="todo">TODO(collin): the kiosk's directory-listing receipt is a clearly-fake placeholder tonight — swap in the real screenshot per FACTS C14 (your asset, backed up twice).</p>
+          <p class="scene-summary">OTseek, 2026 — a ChatGPT app in the first public wave.</p>
+          <p>
+            In 2026 we went zero to one a second time, with US local government customers, and OpenAI approved our native ChatGPT app in its first
+            public wave. In June 2026 we wound down amicably with our investors.
+          </p>
         </div>
       </section>
 
@@ -694,9 +586,15 @@
         </div>
         <div class="prose">
           <h2 id="h-subway-platform">subway platform</h2>
-          <p class="scene-summary">TODO(collin): subway-platform summary line</p>
-          <p class="todo">TODO(collin): scene 7 sign line — threshold, not stuck</p>
-          <p class="todo">TODO(collin): scene 7 body copy — between trains, present tense</p>
+          <p class="scene-summary">July 2026 — between trains, shipping open source.</p>
+          <p class="scene-sign">Up Next &gt; NYRR Midnight Run &gt; NYE 2026</p>
+          <p>
+            It's July 2026 and I'm between things, building. I maintain a platform that is the infrastructure and guts of everything I build, and a
+            CLI that makes maintenance, multi-agent collaboration, and building more enjoyable for me. I'm building HealthMCP to connect personal
+            health data to AI with greater privacy and control, and incubating Runsetta to share the motivation and connectedness I feel through
+            running. Making with AGI feels better to me when it's like sitting down for a bit to continue chiseling on marble, rather than never
+            leaving my seat so I can be ready to pull the slot machine's lever.
+          </p>
         </div>
       </section>
 
@@ -715,31 +613,29 @@
       <section data-scene="ocean-floor" id="scene-ocean-floor" aria-labelledby="h-ocean-floor">
         <div class="scene-stage">
           <div class="canvas-box">
-            <nav class="floor-links" aria-label="Contact — never compacted">
+            <nav class="floor-links" aria-label="Contact — never washes away">
               <a href="mailto:collin.bentley@me.com">Email</a>
+              <a href="/resume.pdf">Resume</a>
             </nav>
           </div>
         </div>
         <div class="prose">
           <h2 id="h-ocean-floor">ocean floor</h2>
-          <p class="scene-summary">TODO(collin): ocean-floor summary line</p>
-          <p class="todo">TODO(collin): shelf/floor copy — what the compressed story should say when it is all that is left.</p>
+          <p class="scene-summary">The floor — what stays when the rest is forgotten.</p>
+          <p>
+            I don't remember most of what I've learned, especially facts, and this bothers me on occasion, but I'm also reminded that skills reflect
+            my learning. If anything here is worth a conversation, the email below never washes away.
+          </p>
         </div>
       </section>
     </main>
 
     <footer class="site" aria-label="Colophon">
       <h2>colophon</h2>
-      <!-- ink:colophon:begin -->
-<div class="claim claim--ungraded" data-claim="S4" data-slot="S4" data-edge="below">
-  <p class="claim-text">I've been early three times in a row — enterprise LLMs in 2022, voice-LLM health in 2024, MCP apps in 2025 — and I have the commit dates to prove it.</p>
-  <span class="receipt-chip" tabindex="0">receipt: commit dates (git history)</span>
-  <span class="claim-grade" aria-label="claim grade">UNGRADED (receipt-carried)</span>
-</div>
-<!-- ink:colophon:end -->
-      <p class="todo">
-        TODO(collin): the colophon is the one place the site says what it is (density degradation = context compaction; the ramp = epistemic
-        ink). Your pen.
+      <p>
+        This page forgets the way a model does: past a certain depth each scene drains to a coarser alphabet, and what's left settles on the shelf;
+        scroll back up and it returns. My personal site is where I experiment with new ways to tell my story, and the previous experiment still runs
+        at <a href="/v1/">/v1</a>. Set in one monospace face on true black. — Collin Bentley, New York, July 2026
       </p>
     </footer>
 

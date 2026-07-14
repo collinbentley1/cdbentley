@@ -27,7 +27,7 @@ export const demoScene: SceneModule = {
   init(context: SceneContext): void {
     context.lights.push({ intensity: 0.9, radius: 9, x: context.buffer.width / 2, y: context.buffer.height / 2 });
   },
-  summaryChip: "TODO(collin): demo scene summary line",
+  summaryChip: "SDK demo scene — drifting noise and one light.",
   tuning: {
     cellH: 8,
     cellW: 8,

@@ -36,7 +36,7 @@ export const scene: SceneModule = {
     resolution: {},                       // optional threshold overrides
   },
   dockGlyph: [ /* exactly 6 strings x 12 chars */ ],
-  summaryChip: "TODO(collin): one-line summary",
+  summaryChip: "One-line shelf summary.",
   init(ctx) { /* seed state; may push into ctx.lights */ },
   update(dt, ctx) { /* write ctx.buffer.data, values 0..1 */ },
   wake(ctx) {}, sleep(ctx) {},            // optional
@@ -100,4 +100,4 @@ test("classroom obeys the scene contract", () => {
 
 ## Copy discipline
 
-Any human-readable copy in a scene (summary chips, prose, labels) is a `TODO(collin)` placeholder unless it comes from FACTS.md at grade. Never invent claims; C-section claims are never rendered.
+Any human-readable copy in a scene (summary chips, labels) is final site copy sourced from Collin's own materials. Never invent biographical facts; scenes render glyph texture, not text (the subway sign line is the one test-enforced exception).

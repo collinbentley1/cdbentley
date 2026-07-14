@@ -99,11 +99,17 @@ test("the headlight arrives, stays in [0,1], and the platform goes dark between 
   expect(darkFrames / frames).toBeGreaterThan(0.2);
 });
 
-test("all copy is TODO(collin) placeholder only — nothing rendered, no claims", () => {
-  expect(subwayPlatformScene.summaryChip?.startsWith("TODO(collin)")).toBe(true);
+test("copy slots carry the final strings and stay inside the canvas — nothing rendered as glyphs", () => {
+  expect(subwayPlatformScene.summaryChip).toBe("July 2026 — between trains, shipping open source.");
+
+  const signSlot = subwayCopySlots.find((slot) => slot.id === "subway-sign");
+  const bodySlot = subwayCopySlots.find((slot) => slot.id === "subway-body");
+  expect(signSlot?.text).toBe("Up Next > NYRR Midnight Run > NYE 2026");
+  expect(bodySlot?.text).toStartWith("It's July 2026 and I'm between things, building.");
 
   for (const slot of subwayCopySlots) {
-    expect(slot.placeholder.startsWith("TODO(collin)")).toBe(true);
+    expect(slot.text.length).toBeGreaterThan(0);
+    expect(slot.text).not.toContain("TODO");
     expect(slot.rect.x).toBeGreaterThanOrEqual(0);
     expect(slot.rect.y).toBeGreaterThanOrEqual(0);
     expect(slot.rect.x + slot.rect.w).toBeLessThanOrEqual(1);

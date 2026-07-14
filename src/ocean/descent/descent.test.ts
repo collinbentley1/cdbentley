@@ -1,18 +1,44 @@
 /**
  * Descent integration wiring tests (WS-C Phase C) — DOM-free checks of the
- * scene order, depth mapping, shelf wiring, contact links, and the generated
- * epistemic-ink claims (both the data module and the static page markup).
+ * scene order, depth mapping, shelf wiring, contact links, and the final
+ * chapter copy in the static page markup.
  */
 
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 
 import { DEFAULT_RESOLUTION, DOCK_GLYPH_COLS, DOCK_GLYPH_ROWS, resolutionForDepth } from "../sdk/index.ts";
-import { RENDERED_CLAIMS } from "./claims.generated.ts";
 import { DESCENT_CONTACT_LINKS, depthForSectionTop, MEMORY_LINE_VH, SECTIONS, SHELF_SECTIONS } from "./content.ts";
 import { createCollectionState } from "./shelf.ts";
 
 const pageHtml = await Bun.file(join(import.meta.dir, "..", "..", "..", "public", "ocean", "index.html")).text();
+
+/** First sentence of each chapter, per the final copy (POLISH-SPEC §2.3). */
+const CHAPTER_OPENERS: Record<string, string> = {
+  "airport-gate": "In 2026 we went zero to one a second time, with US local government customers",
+  beach: "The water takes the name and the sand writes it back.",
+  classroom: "After Yale I moved to Beijing and taught STEM at AndKids",
+  corridor: "From 2020 to 2024 I was a senior product manager in Humana's incubation lab",
+  "ocean-floor": "I don't remember most of what I've learned, especially facts",
+  stage: "I studied computer science at Yale and produced mainstage musicals there from 2016 to 2019",
+  "subway-platform": "It's July 2026 and I'm between things, building.",
+  "trading-floor": "In November 2025 I co-founded OTseek in Pear's PearX W26 batch",
+};
+
+/** Words that must never appear user-facing (POLISH-SPEC §6 ban list). */
+const BANNED_USER_FACING = [
+  "proof",
+  "receipt",
+  "evidence",
+  "bulletproof",
+  "defensible",
+  "ungraded",
+  "claim grade",
+  "provenance",
+  "epistemic",
+  "staging preview",
+  "todo(collin)",
+] as const;
 
 describe("scene order", () => {
   test("descent order per the brief: 1-8 with the deep register before the floor", () => {
@@ -35,7 +61,7 @@ describe("scene order", () => {
     expect(SHELF_SECTIONS.some((section) => section.scene.id === "anglerfish" || section.scene.id === "deep-shape")).toBe(false);
   });
 
-  test("every scene ships a 12x6 dock glyph and a TODO(collin) summary chip", () => {
+  test("every scene ships a 12x6 dock glyph and a final summary chip", () => {
     for (const section of SECTIONS) {
       expect(section.scene.dockGlyph).toHaveLength(DOCK_GLYPH_ROWS);
 
@@ -43,7 +69,9 @@ describe("scene order", () => {
         expect(row).toHaveLength(DOCK_GLYPH_COLS);
       }
 
-      expect(section.scene.summaryChip ?? "TODO(collin)").toStartWith("TODO(collin)");
+      const chip = section.scene.summaryChip ?? "";
+      expect(chip.length).toBeGreaterThan(0);
+      expect(chip).not.toContain("TODO");
     }
   });
 
@@ -78,15 +106,14 @@ describe("memory line / depth mapping", () => {
 });
 
 describe("contact links (from the WS-A verified set)", () => {
-  test("no integrator placeholders remain in the live links", () => {
+  test("every link is live — no placeholders, resume wired to the PDF", () => {
     for (const link of DESCENT_CONTACT_LINKS) {
-      if (link.todo === undefined) {
-        expect(link.href).not.toContain("TODO");
-        expect(link.href.length).toBeGreaterThan(0);
-      } else {
-        expect(link.todo).toStartWith("TODO(collin)");
-      }
+      expect(link.href).not.toContain("TODO");
+      expect(link.href.length).toBeGreaterThan(0);
     }
+
+    const resume = DESCENT_CONTACT_LINKS.find((link) => link.label === "Resume");
+    expect(resume?.href).toBe("/resume.pdf");
   });
 
   test("only the untargeted floor email remains and social profiles use one icon-only top rail", () => {
@@ -106,45 +133,59 @@ describe("contact links (from the WS-A verified set)", () => {
   });
 });
 
-describe("epistemic ink (generated claims)", () => {
-  test("claims exist and none traces to the C section", () => {
-    expect(RENDERED_CLAIMS.length).toBeGreaterThanOrEqual(6);
+describe("final copy (the chapters are plain prose — no grading system)", () => {
+  test("each chapter's opening sentence is typeset in the static document", () => {
+    for (const section of SECTIONS) {
+      const opener = CHAPTER_OPENERS[section.scene.id];
 
-    for (const claim of RENDERED_CLAIMS) {
-      expect(claim.id.startsWith("C")).toBe(false);
-      expect(["BULLETPROOF", "DEFENSIBLE", "NEEDS-CAVEAT", "UNGRADED"]).toContain(claim.grade);
-      expect(["left", "below", "right"]).toContain(claim.edge);
+      if (section.scene.id === "anglerfish" || section.scene.id === "deep-shape") {
+        expect(opener).toBeUndefined();
+        continue;
+      }
+
+      expect(opener).toBeDefined();
+      expect(pageHtml.replace(/\s+/g, " ")).toContain(opener ?? "");
     }
   });
 
-  test("grades carried at grade for the wired ids", () => {
-    const byId = new Map(RENDERED_CLAIMS.map((claim) => [claim.slot, claim.grade]));
-    expect(byId.get("S1")).toBe("DEFENSIBLE");
-    expect(byId.get("S3")).toBe("BULLETPROOF");
-    expect(byId.get("F4")).toBe("BULLETPROOF");
-    expect(byId.get("L1-framing")).toBe("UNGRADED");
-    expect(byId.get("R9-president")).toBe("UNGRADED");
-  });
+  test("no TODO(collin) marker survives anywhere user-facing", () => {
+    expect(pageHtml).not.toContain("TODO(collin)");
+    expect(pageHtml).not.toContain("TODO");
 
-  test("every generated claim is typeset in the static document", () => {
-    for (const claim of RENDERED_CLAIMS) {
-      expect(pageHtml).toContain(`data-slot="${claim.slot}"`);
+    for (const section of SECTIONS) {
+      expect(section.scene.summaryChip ?? "").not.toContain("TODO");
     }
   });
 
-  test("displayed claim text keeps intra-word underscores verbatim (FACTS L1 names)", () => {
-    expect(pageHtml).toContain("collateral_sourcing");
-    expect(pageHtml).toContain("sec_master_viewer");
-    expect(pageHtml).not.toContain("collateralsourcing");
-    expect(pageHtml).not.toContain("secmasterviewer");
+  test("the banned vocabulary appears nowhere in the page", () => {
+    const lower = pageHtml.toLowerCase();
+
+    for (const banned of BANNED_USER_FACING) {
+      expect(lower).not.toContain(banned);
+    }
   });
 
-  test("ungrounded brief items stay visible TODO(collin) placeholders", () => {
-    expect(pageHtml).toContain("2M-member refill model");
-    expect(pageHtml.includes("2M-member refill model") && pageHtml.includes("never renders as fact")).toBe(true);
-    // Scene 7 + beach copy are Collin's pen.
-    expect(pageHtml).toContain("TODO(collin): scene 7 sign line");
-    expect(pageHtml).toContain("TODO(collin): beach copy");
+  test("shelf chips match the static scene-summary lines, word for word", () => {
+    for (const section of SECTIONS) {
+      if (section.shelfSlot === null) {
+        continue;
+      }
+
+      expect(pageHtml).toContain(`<p class="scene-summary">${section.scene.summaryChip}</p>`);
+    }
+  });
+
+  test("the subway sign line ships verbatim", () => {
+    expect(pageHtml).toContain("Up Next &gt; NYRR Midnight Run &gt; NYE 2026");
+  });
+
+  test("the receipts system is gone from the page and the bundle sources", async () => {
+    const descentSource = await Bun.file(join(import.meta.dir, "descent.ts")).text();
+    expect(pageHtml).not.toContain("claim");
+    expect(pageHtml).not.toContain("data-claim");
+    expect(descentSource).not.toContain("bindProvenancePackets");
+    expect(await Bun.file(join(import.meta.dir, "provenance.ts")).exists()).toBe(false);
+    expect(await Bun.file(join(import.meta.dir, "claims.generated.ts")).exists()).toBe(false);
   });
 
   test("the deep register carries no copy at all — its sections are canvas-only", () => {
@@ -172,13 +213,14 @@ describe("single-layout / a11y invariants in the static page", () => {
     expect(surface).not.toContain("shelf-restore-all");
   });
 
-  test("landmarks, hidden identity heading, ASCII bridge canvas, and staging meta", () => {
+  test("landmarks, hidden identity heading, header intro + resume link, ASCII bridge canvas, and meta", () => {
     const headerMarkup = /<header class="site">([\s\S]*?)<\/header>/.exec(pageHtml)?.[1] ?? "missing";
     const bridgeMarkup = /<div class="bridge-cue"[^>]*>([\s\S]*?)<\/div>/.exec(pageHtml)?.[1] ?? "missing";
     expect(pageHtml).toContain('class="skip-link"');
     expect(pageHtml).toContain('<h1 class="visually-hidden">COLLIN BENTLEY</h1>');
     expect(headerMarkup).not.toBe("missing");
-    expect(headerMarkup).not.toContain("<a ");
+    expect(headerMarkup).toContain("I'm Collin Bentley, a builder in New York.");
+    expect(headerMarkup).toContain('<a href="/resume.pdf">Resume (PDF)</a>');
     expect(pageHtml).toContain('class="bridge-cue" aria-hidden="true"');
     expect(bridgeMarkup).not.toBe("missing");
     expect(bridgeMarkup).toContain('<canvas class="bridge-canvas" aria-hidden="true"></canvas>');

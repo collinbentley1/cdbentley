@@ -9,11 +9,9 @@
  * screensaver: everything else stands still — tiled wall, blank sign slab,
  * columns, platform edge, tactile strip, pooled fixture light.
  *
- * ALL human-readable copy in this scene is TODO(collin) — his pen,
- * explicitly. The sign slab and the calm floor region are the two copy
- * slots; they render as blank luminance and are exported below as
- * integrator-facing overlay hints (`subwayCopySlots`). No FACTS.md claims
- * are rendered here.
+ * The sign slab and the calm floor region are the two copy slots; they
+ * render as blank luminance and are exported below as integrator-facing
+ * overlay hints (`subwayCopySlots`) carrying the final copy strings.
  *
  * View: standing on the platform, looking across the tracks at the far wall.
  */
@@ -72,8 +70,8 @@ const V = {
 export interface SubwayCopySlot {
   /** Stable id for the integrator's DOM overlay. */
   readonly id: string;
-  /** TODO(collin) placeholder only — scene 7 copy is Collin's pen. */
-  readonly placeholder: string;
+  /** The final copy string this slot carries (rendered as DOM, not glyphs). */
+  readonly text: string;
   /** Overlay rect, normalized to the scene canvas (0..1, y down). */
   readonly rect: { readonly h: number; readonly w: number; readonly x: number; readonly y: number };
 }
@@ -81,18 +79,18 @@ export interface SubwayCopySlot {
 /**
  * The two copy slots this scene reserves. The sim keeps both regions calm
  * (the sign is a blank slab; the floor region gets only faint air) so DOM
- * prose can sit on them. Placeholder text only — never rendered as glyphs.
+ * prose can sit on them.
  */
 export const subwayCopySlots: readonly SubwayCopySlot[] = [
   {
     id: "subway-sign",
-    placeholder: "TODO(collin): scene 7 sign line — threshold, not stuck",
     rect: { h: F.signBottom - F.signTop, w: F.signRight - F.signLeft, x: F.signLeft, y: F.signTop },
+    text: "Up Next > NYRR Midnight Run > NYE 2026",
   },
   {
     id: "subway-body",
-    placeholder: "TODO(collin): scene 7 body copy — between trains, present tense",
     rect: { h: 0.26, w: 0.44, x: 0.3, y: 0.72 },
+    text: "It's July 2026 and I'm between things, building. I maintain a platform that is the infrastructure and guts of everything I build, and a CLI that makes maintenance, multi-agent collaboration, and building more enjoyable for me. I'm building HealthMCP to connect personal health data to AI with greater privacy and control, and incubating Runsetta to share the motivation and connectedness I feel through running. Making with AGI feels better to me when it's like sitting down for a bit to continue chiseling on marble, rather than never leaving my seat so I can be ready to pull the slot machine's lever.",
   },
 ];
 
@@ -253,7 +251,7 @@ export const subwayPlatformScene: SceneModule = {
       y: rowOf(context.buffer.height, (F.railA + F.railB) / 2),
     });
   },
-  summaryChip: "TODO(collin): subway-platform summary line",
+  summaryChip: "July 2026 — between trains, shipping open source.",
   tuning: {
     cellH: 8,
     cellW: 8,

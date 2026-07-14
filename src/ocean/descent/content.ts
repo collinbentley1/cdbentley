@@ -80,15 +80,13 @@ export function depthForSectionTop(topPx: number, viewportPx: number): number {
 export interface DescentContactLink {
   href: string;
   label: string;
-  /** Resume stays a placeholder until Collin provides the asset. */
-  todo?: string;
 }
 
 export const DESCENT_CONTACT_LINKS: readonly DescentContactLink[] = [
   { href: "mailto:collin.bentley@me.com", label: "Email" },
   { href: "https://github.com/collinbentley1", label: "GitHub" },
   { href: "https://www.linkedin.com/in/collinbentley", label: "LinkedIn" },
-  { href: "", label: "Resume", todo: "TODO(collin): resume link (asset + label)" },
+  { href: "/resume.pdf", label: "Resume" },
 ];
 
 /** Scroll-velocity -> turbulence coupling (subtle; discovered, not announced). */

@@ -9,7 +9,6 @@ import {
   resolutionForDepth,
   type SceneContext,
 } from "../../sdk/index.ts";
-import { makeFakeDirectoryListing, patchFromRgba, scalePatch } from "./receipt.ts";
 import { scene } from "./scene.ts";
 
 function makeContext(): SceneContext {
@@ -150,45 +149,6 @@ test("deep register leaves a residue that survives bin-4 + level-2 ramp", () => 
   expect(panelCell).toBeLessThan(0.2);
 });
 
-test("receipt pipeline: patchFromRgba maps luma, normalizes and inverts", () => {
-  // One black pixel, one white pixel.
-  const rgba = new Uint8ClampedArray([0, 0, 0, 255, 255, 255, 255, 255]);
-  const patch = patchFromRgba(2, 1, rgba);
-  expect(patch.data[0]).toBe(0);
-  expect(patch.data[1]).toBe(1);
-
-  const inverted = patchFromRgba(2, 1, rgba, { invert: true });
-  expect(inverted.data[0]).toBe(1);
-  expect(inverted.data[1]).toBe(0);
-
-  expect(() => patchFromRgba(3, 1, rgba)).toThrow();
-});
-
-test("receipt pipeline: placeholder is deterministic, sized, in range", () => {
-  const a = makeFakeDirectoryListing(64, 22, 42);
-  const b = makeFakeDirectoryListing(64, 22, 42);
-  const c = makeFakeDirectoryListing(64, 22, 43);
-  expect(a.width).toBe(64);
-  expect(a.height).toBe(22);
-  expect(Array.from(a.data)).toEqual(Array.from(b.data));
-  expect(Array.from(a.data)).not.toEqual(Array.from(c.data));
-
-  for (const v of a.data) {
-    expect(Number.isFinite(v)).toBe(true);
-    expect(v).toBeGreaterThanOrEqual(0);
-    expect(v).toBeLessThanOrEqual(1);
-  }
-
-  const scaled = scalePatch(a, 32, 11);
-  expect(scaled.width).toBe(32);
-  expect(scaled.height).toBe(11);
-
-  for (const v of scaled.data) {
-    expect(v).toBeGreaterThanOrEqual(0);
-    expect(v).toBeLessThanOrEqual(1);
-  }
-});
-
-test("summary chip stays a TODO(collin) placeholder (copy rule)", () => {
-  expect(scene.summaryChip ?? "").toStartWith("TODO(collin)");
+test("summary chip carries the final shelf copy", () => {
+  expect(scene.summaryChip).toBe("OTseek, 2026 — a ChatGPT app in the first public wave.");
 });

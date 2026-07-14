@@ -135,7 +135,7 @@ export const scene: SceneModule = {
     context.lights.length = 0;
     context.lights.push({ intensity: 0.1, radius: 15, x: context.buffer.width / 2, y: 44 });
   },
-  summaryChip: "TODO(collin): ocean-floor summary line",
+  summaryChip: "The floor — what stays when the rest is forgotten.",
   tuning: {
     cellH: 8,
     cellW: 8,

@@ -235,8 +235,8 @@ describe("deep-shape scene", () => {
     expect(deepShapeScene.dockGlyph.length).toBe(6);
   });
 
-  test("copy rule: summaryChip is a TODO(collin) placeholder", () => {
-    expect(deepShapeScene.summaryChip?.startsWith("TODO(collin)")).toBe(true);
+  test("copy rule: summaryChip never names the shape", () => {
+    expect(deepShapeScene.summaryChip).toBe("Deeper — it doesn't have a name.");
   });
 
   test("all motion tunables are finite numbers (harness live-edit contract)", () => {

@@ -2,8 +2,8 @@
  * The descent (WS-C Phase C integrator) — assembles "The Ocean Remembers":
  * scenes 1-8 in order with the deep register between subway and floor, the
  * always-on ocean field, the memory-line depth mapping (pure, bidirectional),
- * scroll-velocity -> turbulence coupling, the shelf, provenance packets, and
- * a reduced-motion path that keeps the same document and spatial context.
+ * scroll-velocity -> turbulence coupling, the shelf, and a reduced-motion
+ * path that keeps the same document and spatial context.
  *
  * Grammar: depth = viewport-heights past the memory line (FROZEN unit).
  * Everything resolution-related is a pure function of scroll position; the
@@ -14,7 +14,6 @@ import { bindSleepWake, createGlyphRenderer, createSceneRunner, resolutionForDep
 import { createBridgeLayer } from "../scenes/beach/bridge-layer.ts";
 import { depthForSectionTop, SECTIONS, TURBULENCE } from "./content.ts";
 import { createOceanField } from "./field.ts";
-import { bindProvenancePackets } from "./provenance.ts";
 import { createShelf } from "./shelf.ts";
 
 interface BenchStats {
@@ -192,10 +191,6 @@ function resizeField(): void {
 
 resizeField();
 window.addEventListener("resize", resizeField);
-
-// --- Provenance packets ----------------------------------------------------
-
-bindProvenancePackets(document, () => !prefersReduced);
 
 // --- Frame driver: scroll -> depth -> compaction/dock/turbulence -----------
 

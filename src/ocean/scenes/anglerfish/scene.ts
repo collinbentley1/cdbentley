@@ -17,8 +17,7 @@
  * exactly where it should be — scene.test.ts proves buffer equality across
  * different dt partitions.
  *
- * Copy note (binding): this scene renders no text and no claims — pure scene
- * craft. summaryChip stays a TODO(collin) placeholder.
+ * Copy note (binding): this scene renders no text — pure scene craft.
  *
  * Ramp intent (hand-tunable, Collin's brush), dark -> bright:
  * " ·:~≈=+*#@" — the deep lives in the first two glyphs (black + rare '·'),
@@ -70,7 +69,7 @@ export const anglerfishScene: SceneModule = {
       y: context.buffer.height / 2,
     });
   },
-  summaryChip: "TODO(collin): anglerfish summary line (deep-register easter egg; no claims)",
+  summaryChip: "The deep — something carries its own light.",
   tuning: {
     cellH: 8,
     cellW: 8,

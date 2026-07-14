@@ -9,22 +9,20 @@
  * - CONTACT_REGION is the buffer-cell region (fractions of the scene grid)
  *   the sim keeps permanently dry at depth <= 0. The integrator positions
  *   the DOM block over it. scene.test.ts proves the tide never reaches it.
- * - CONTACT_LINKS carries clearly-marked placeholder href tokens for the
- *   integrator to fill; link set per GOALS.md WS-A (email/GitHub/LinkedIn)
- *   plus the resume slot from the brief's recruiter path. No claims here.
+ * - CONTACT_LINKS carries the link set (email/GitHub/LinkedIn/resume);
+ *   the integrator's DESCENT_CONTACT_LINKS mirrors it.
  */
 
 export interface ContactLink {
-  /** Placeholder token — integrator fills the real value in Phase C. */
   readonly href: string;
   readonly label: string;
 }
 
 export const CONTACT_LINKS: readonly ContactLink[] = [
-  { href: "{{TODO(integrator): mailto href}}", label: "Email" },
-  { href: "{{TODO(integrator): GitHub profile href}}", label: "GitHub" },
-  { href: "{{TODO(integrator): LinkedIn profile href}}", label: "LinkedIn" },
-  { href: "{{TODO(integrator): resume href}}", label: "TODO(collin): resume link label" },
+  { href: "mailto:collin.bentley@me.com", label: "Email" },
+  { href: "https://github.com/collinbentley1", label: "GitHub" },
+  { href: "https://www.linkedin.com/in/collinbentley", label: "LinkedIn" },
+  { href: "/resume.pdf", label: "Resume" },
 ];
 
 /**

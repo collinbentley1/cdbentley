@@ -106,7 +106,7 @@ describe("corridor scene", () => {
     }
   });
 
-  test("summary chip stays a TODO(collin) placeholder (copy rule)", () => {
-    expect(scene.summaryChip ?? "").toContain("TODO(collin)");
+  test("summary chip carries the final shelf copy", () => {
+    expect(scene.summaryChip).toBe("Humana, 2020–2024 — safe rails for AI products.");
   });
 });

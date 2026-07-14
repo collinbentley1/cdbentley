@@ -1,24 +1,18 @@
 /**
- * Scene 6 — "airport-gate": an airport gate, last flight gone.
+ * Scene 7 — "airport-gate": an airport gate, last flight gone.
  *
  * The one idiomatic motion is the departure board reshuffling: a board cell's
- * luminance sweeping through the ramp IS the split-flap flip — the flap
- * animation and the site's epistemic ink are literally the same mechanism,
- * no skeuomorphism. Around it, a diorama: night glass breathing on the
- * sparse end of the ramp, a runway beacon (one LightSource) crossing the
- * window, empty seat rows, and a kiosk slot where a directory-listing bitmap
- * renders AS ASCII and cures into a receipt chip docked under the board.
- *
- * Claim slots (Phase C, DOM prose beside this scene — NOT rendered here):
- * FACTS S3 + F4, BULLETPROOF at grade (the pivot, first ChatGPT app merged in
- * 27 days, the OpenAI-approved directory listing). C14 governs the screenshot
- * receipt: the real asset is Collin's and absent tonight — receipt.ts ships a
- * clearly-fake placeholder behind the same pipeline. All human-readable copy
- * stays TODO(collin).
+ * luminance sweeping through the ramp reads as a split-flap flip, no
+ * skeuomorphism. Around it, one room, not four islands: a back-wall line and
+ * a floor line tie the board, the night glass, and two linked rows of empty
+ * seats together. The board's grid — a digit-pair time column, dash-run
+ * destinations, a dim status column — reads as departures without one
+ * legible word. Three runway lights sit on the horizon; a beacon crosses the
+ * glass on a slow period. The chapter prose beside this scene is DOM, never
+ * rendered here.
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule, type SceneTuning } from "../../sdk/index.ts";
-import { makeFakeDirectoryListing, type LuminancePatch } from "./receipt.ts";
 
 const COLS = 192;
 const ROWS = 84;
@@ -34,35 +28,38 @@ const HEADER_Y = 8;
 const DATA_ROW_YS = [10, 12, 14, 16, 18, 20] as const;
 const CLOCK_C0 = 66; // header-local column where the clock block starts
 
-// Window band (right): mullions, breathing night glass, horizon dots.
+// Board columns (board-local cells). Alignment does the reading: every row
+// puts a digit pair on the left, a dash-run destination mid-left, and a dim
+// status run on the right — the grid says "departures" with no legible words.
+const TIME_C1 = 4; // cells 0..4: digit pair, separator, digit pair
+const DEST_C0 = 9;
+const DEST_MAX = 40;
+const STATUS_C0 = 52;
+const STATUS_MAX = 69;
+
+// Window band (right): mullions, breathing night glass, a horizon.
 const WIN_X0 = 108;
 const WIN_X1 = 186;
 const WIN_Y0 = 5;
 const WIN_Y1 = 44;
 const MULLION_STEP = 13;
 const HORIZON_Y = 36;
-const BEACON_Y = 30;
+const BEACON_Y = 35; // the beacon rides the horizon, not the sky
+const RUNWAY_DOT_XS = [126, 149, 171] as const; // three lights, off-mullion
 
-// Empty seat rows facing the glass.
-const SEAT_YS = [52, 60] as const;
+// Room lines: the two horizontals that make the islands one room.
+const WALL_LINE_Y = 48; // back wall meets floor, under board and window alike
+const FLOOR_LINE_Y = 73; // front edge of the floor; the near seats stand on it
 
-// Receipt kiosk: the slot where the listing renders as ASCII (C14 pipeline).
-const KIOSK_X0 = 112;
-const KIOSK_X1 = 179;
-const KIOSK_Y0 = 48;
-const KIOSK_Y1 = 73;
-const SLOT_X0 = 114;
-const SLOT_Y0 = 50;
-const SLOT_W = 64;
-const SLOT_H = 22;
+// Two linked rows of empty seats facing the glass, two banks per row with an
+// aisle. The near row is taller (closer); its legs reach the floor line.
+const SEAT_UNIT_W = 11;
+const SEAT_UNITS = 6;
+const SEAT_ROWS_SPEC = [
+  { banks: [26, 107] as const, legsTo: 58, yTop: 52 },
+  { banks: [22, 103] as const, legsTo: 72, yTop: 63 },
+] as const;
 
-// Receipt chip dock, under the board (Phase C anchors S3/F4 claim prose here).
-const CHIP_X0 = 84;
-const CHIP_Y0 = 26;
-const CHIP_W = 12;
-const CHIP_H = 3;
-
-const FLOOR_Y0 = 74;
 const PANEL_BG = 0.13; // blank board cell (a dark flap, not a hole)
 
 const noise = createValueNoise(6);
@@ -80,27 +77,21 @@ interface BoardRow {
 
 interface SceneState {
   base: Float32Array;
-  chipLit: boolean;
-  dotXs: number[];
   eventCounter: number;
   /** Packed [bufferIndex, x, y] triples for glass cells (noise per frame). */
   glassCells: Int32Array;
   nextCascadeAt: number;
   nextReshuffleAt: number;
-  patch: LuminancePatch;
   reshuffleCursor: number;
   rows: BoardRow[];
 }
 
 let state: SceneState = {
   base: new Float32Array(0),
-  chipLit: false,
-  dotXs: [],
   eventCounter: 0,
   glassCells: new Int32Array(0),
   nextCascadeAt: 0,
   nextReshuffleAt: 0,
-  patch: { data: new Float32Array(1), height: 1, width: 1 },
   reshuffleCursor: 0,
   rows: [],
 };
@@ -116,12 +107,9 @@ const tuning: SceneTuning = {
     beaconRadius: 7,
     cascadeEvery: 47,
     cascadeStagger: 0.28,
-    condenseDur: 1.6,
-    cureCycle: 18,
     flipDuration: 0.55,
     flipStagger: 0.035,
     flipTick: 0.045,
-    holdDur: 5,
     nightAmp: 0.11,
     nightDrift: 0.05,
     nightScale: 0.12,
@@ -129,7 +117,6 @@ const tuning: SceneTuning = {
     residueDepth: 0.9,
     residueLevel: 0.62,
     residueSpan: 0.4,
-    resolveDur: 3,
   },
   ramp: " ·:~-=+*#%@",
   rows: ROWS,
@@ -138,23 +125,20 @@ const tuning: SceneTuning = {
 export const scene: SceneModule = {
   dockGlyph: [
     " ========== ",
-    " =%*+-:· ·= ",
-    " =· :+*%··= ",
+    " =%%·---·:= ",
+    " =%%·--··:= ",
     " ========== ",
-    "     ||     ",
-    "   ·:||:·   ",
+    "  =·=·=·=·  ",
+    "  | | | |   ",
   ],
   id: "airport-gate",
   init(context: SceneContext): void {
     state = {
       base: buildBase(),
-      chipLit: false,
-      dotXs: [],
       eventCounter: 0,
       glassCells: new Int32Array(0),
       nextCascadeAt: Math.max(10, tuning.motion.cascadeEvery ?? 47),
       nextReshuffleAt: 2.5,
-      patch: makeFakeDirectoryListing(SLOT_W, SLOT_H, 42),
       reshuffleCursor: 0,
       rows: [],
     };
@@ -186,18 +170,11 @@ export const scene: SceneModule = {
 
     state.glassCells = Int32Array.from(triples);
 
-    // Sparse static runway lights on the horizon (they twinkle, dimly).
-    for (let x = WIN_X0 + 1; x < WIN_X1; x++) {
-      if ((x - WIN_X0) % MULLION_STEP !== 0 && hash3(x, 77, 1) < 0.12) {
-        state.dotXs.push(x);
-      }
-    }
-
     // The runway beacon is the scene's single light source.
     context.lights.splice(0, context.lights.length);
     context.lights.push({ intensity: 0, radius: 7, x: WIN_X0 + 2, y: BEACON_Y });
   },
-  summaryChip: "TODO(collin): airport-gate summary chip (one line; ground in FACTS S3/F4)",
+  summaryChip: "OTseek, 2026 — a ChatGPT app in the first public wave.",
   tuning,
   update(dt: number, context: SceneContext): void {
     const t = context.time;
@@ -208,12 +185,9 @@ export const scene: SceneModule = {
       beaconRadius = 7,
       cascadeEvery = 47,
       cascadeStagger = 0.28,
-      condenseDur = 1.6,
-      cureCycle = 18,
       flipDuration = 0.55,
       flipStagger = 0.035,
       flipTick = 0.045,
-      holdDur = 5,
       nightAmp = 0.11,
       nightDrift = 0.05,
       nightScale = 0.12,
@@ -221,25 +195,36 @@ export const scene: SceneModule = {
       residueDepth = 0.9,
       residueLevel = 0.62,
       residueSpan = 0.4,
-      resolveDur = 3,
     } = tuning.motion;
 
     // 1) Static architecture.
     data.set(state.base);
 
-    // 2) Night glass breathes on the sparse end of the ramp.
+    // 2) Night glass breathes on the sparse end of the ramp; the tarmac below
+    //    the horizon carries a touch more light than the sky above it.
     const cells = state.glassCells;
 
     for (let i = 0; i < cells.length; i += 3) {
       const idx = cells[i] ?? 0;
       const x = cells[i + 1] ?? 0;
       const y = cells[i + 2] ?? 0;
-      const v = 0.02 + nightAmp * fbm2(noise, x * nightScale + t * nightDrift, y * nightScale * 1.7 - t * nightDrift * 0.35, 2);
+      const ground = y > HORIZON_Y ? 0.02 : 0;
+      const v = 0.02 + ground + nightAmp * fbm2(noise, x * nightScale + t * nightDrift, y * nightScale * 1.7 - t * nightDrift * 0.35, 2);
       data[idx] = clampWrite(v);
     }
 
-    for (const x of state.dotXs) {
-      data[HORIZON_Y * COLS + x] = clampWrite(0.26 + 0.08 * hash3(x, Math.floor(t * 2), 3));
+    //    A faint steady horizon line out on the tarmac, three runway lights
+    //    sitting on it. They twinkle, dimly — the airfield is alive.
+    for (let x = WIN_X0 + 1; x < WIN_X1; x++) {
+      if ((x - WIN_X0) % MULLION_STEP !== 0) {
+        const idx = HORIZON_Y * COLS + x;
+        const under = data[idx] ?? 0;
+        data[idx] = clampWrite(Math.max(under, 0.16));
+      }
+    }
+
+    for (const x of RUNWAY_DOT_XS) {
+      data[HORIZON_Y * COLS + x] = clampWrite(0.5 + 0.08 * hash3(x, Math.floor(t * 2), 3));
     }
 
     // 3) Board events: single-row reshuffles, and the occasional full cascade.
@@ -319,114 +304,12 @@ export const scene: SceneModule = {
       }
     }
 
-    // 6) Receipt slot: shimmer -> scanline resolve (cells flip in, same move
-    //    as the board) -> hold -> condense into the chip under the board.
-    const cycle = Math.max(1, cureCycle);
-    const u = ((t % cycle) + cycle) % cycle;
-    const rDur = Math.max(0.2, resolveDur);
-    const hEnd = rDur + Math.max(0, holdDur);
-    const cEnd = hEnd + Math.max(0.2, condenseDur);
-    const patch = state.patch;
-
-    if (u < rDur) {
-      const scan = (u / rDur) * (SLOT_H + 4) - 2;
-
-      for (let j = 0; j < SLOT_H; j++) {
-        const rowBase = (SLOT_Y0 + j) * COLS + SLOT_X0;
-        const d = scan - j;
-
-        for (let i = 0; i < SLOT_W; i++) {
-          const pv = patch.data[j * SLOT_W + i] ?? 0;
-          let v: number;
-
-          if (d <= 0) {
-            v = shimmer(i, j, t);
-          } else if (d < 3 && pv > 0.18) {
-            v = 0.2 + 0.7 * hash3(i, j * 131, Math.floor(t / tick));
-          } else if (d < 3) {
-            v = pv * (d / 3);
-          } else {
-            v = pv;
-          }
-
-          data[rowBase + i] = clampWrite(v);
-        }
-      }
-
-      drawChipIfLit(data);
-    } else if (u < hEnd) {
-      for (let j = 0; j < SLOT_H; j++) {
-        const rowBase = (SLOT_Y0 + j) * COLS + SLOT_X0;
-
-        for (let i = 0; i < SLOT_W; i++) {
-          data[rowBase + i] = clampWrite(patch.data[j * SLOT_W + i] ?? 0);
-        }
-      }
-
-      drawChipIfLit(data);
-    } else if (u < cEnd) {
-      // Condense: the listing collapses along a straight path into the chip.
-      // (Phase C pairs the real dock move with createDockAnimation + the one
-      // accent color; tonight this stays luminance-only by decree.)
-      const s = (u - hEnd) / (cEnd - hEnd);
-      const e = s * s * (3 - 2 * s);
-
-      for (let j = 0; j < SLOT_H; j++) {
-        const rowBase = (SLOT_Y0 + j) * COLS + SLOT_X0;
-
-        for (let i = 0; i < SLOT_W; i++) {
-          data[rowBase + i] = clampWrite(shimmer(i, j, t) * (1 - e));
-        }
-      }
-
-      drawChipIfLit(data);
-
-      const rx = Math.round(SLOT_X0 + (CHIP_X0 - SLOT_X0) * e);
-      const ry = Math.round(SLOT_Y0 + (CHIP_Y0 - SLOT_Y0) * e);
-      const rw = Math.max(CHIP_W, Math.round(SLOT_W + (CHIP_W - SLOT_W) * e));
-      const rh = Math.max(CHIP_H, Math.round(SLOT_H + (CHIP_H - SLOT_H) * e));
-
-      for (let cy = 0; cy < rh; cy++) {
-        const y = ry + cy;
-
-        if (y < 0 || y >= ROWS) {
-          continue;
-        }
-
-        const sj = Math.min(SLOT_H - 1, Math.floor(((cy + 0.5) / rh) * SLOT_H));
-
-        for (let cx = 0; cx < rw; cx++) {
-          const x = rx + cx;
-
-          if (x < 0 || x >= COLS) {
-            continue;
-          }
-
-          const si = Math.min(SLOT_W - 1, Math.floor(((cx + 0.5) / rw) * SLOT_W));
-          const pv = patch.data[sj * SLOT_W + si] ?? 0;
-          data[y * COLS + x] = clampWrite(pv + (0.88 - pv) * e);
-        }
-      }
-    } else {
-      state.chipLit = true;
-
-      for (let j = 0; j < SLOT_H; j++) {
-        const rowBase = (SLOT_Y0 + j) * COLS + SLOT_X0;
-
-        for (let i = 0; i < SLOT_W; i++) {
-          data[rowBase + i] = clampWrite(shimmer(i, j, t));
-        }
-      }
-
-      drawChip(data, clampWrite(0.84 + 0.05 * Math.sin(t * 2.5)));
-    }
-
-    // 7) Residue shaping, pure in depth (so re-bloom retraces the same path):
+    // 6) Residue shaping, pure in depth (so re-bloom retraces the same path):
     //    past the ramp-collapse band the level-2 ramp is two glyphs with a
     //    0.5 threshold, and 4x4 binning averages everything below it — the
     //    scene would forget itself to solid black. Instead the board panel
-    //    and the docked receipt lift toward a luminance that survives the
-    //    binning: what you remember of the gate is the board and the receipt.
+    //    lifts toward a luminance that survives the binning: what you
+    //    remember of the gate is the board.
     const residue = Math.min(1, Math.max(0, (context.depth - residueDepth) / Math.max(0.05, residueSpan)));
 
     if (residue > 0) {
@@ -444,24 +327,9 @@ export const scene: SceneModule = {
           }
         }
       }
-
-      const chipLift = clampWrite(residue * 0.88);
-
-      for (let y = CHIP_Y0; y < CHIP_Y0 + CHIP_H; y++) {
-        const rowBase = y * COLS;
-
-        for (let x = CHIP_X0; x < CHIP_X0 + CHIP_W; x++) {
-          const idx = rowBase + x;
-          const current = data[idx] ?? 0;
-
-          if (current < chipLift) {
-            data[idx] = chipLift;
-          }
-        }
-      }
     }
 
-    // 8) The runway beacon crosses the glass; sin^2 envelope so it never pops.
+    // 7) The runway beacon crosses the glass; sin^2 envelope so it never pops.
     const light = context.lights[0];
 
     if (light) {
@@ -496,73 +364,63 @@ function fireRow(r: number, startTime: number): void {
 /**
  * Deterministic board line, 76 board-local cells; 0 = blank flap (drawn as
  * PANEL_BG). Two kinds, weighted toward remnants — the last flight is gone:
- * a "remembered entry" (time / destination / flight / gate dashes / a dim
- * status run) or an "emptied row" (sparse dashes). No letterforms — glyph
- * texture only; real copy is Phase C DOM and TODO(collin).
+ * a "remembered entry" (digit-pair time, dash-run destination, dim status
+ * run) or an "emptied row" (the same column skeleton, sparse). No letterforms
+ * — glyph texture only; the chapter prose is DOM beside the scene.
  */
 function generateLine(target: Float32Array, rowIndex: number, event: number): void {
   target.fill(0);
   const rng = makeRng(rowIndex * 7919 + event * 104729 + 17);
 
   if (rng() < 0.55) {
-    for (let c = 0; c <= 4; c++) {
-      target[c] = c === 2 ? 0.5 : 0.62 + (rng() - 0.5) * 0.08;
+    // Time column: two digit pairs around a dimmer separator.
+    for (let c = 0; c <= TIME_C1; c++) {
+      target[c] = c === 2 ? 0.42 : 0.62 + (rng() - 0.5) * 0.12;
     }
 
-    let c = 7;
-    const words = 1 + (rng() < 0.45 ? 1 : 0);
+    // Destination column: one or two dash-runs of varying length.
+    let c = DEST_C0;
+    const segments = rng() < 0.4 ? 2 : 1;
 
-    for (let w = 0; w < words; w++) {
-      const len = 3 + Math.floor(rng() * 7);
+    for (let s = 0; s < segments; s++) {
+      const len = 6 + Math.floor(rng() * 12);
 
-      for (let i = 0; i < len && c < 31; i++, c++) {
-        target[c] = 0.66 + (rng() - 0.5) * 0.1;
+      for (let i = 0; i < len && c <= DEST_MAX; i++, c++) {
+        target[c] = 0.66 + (rng() - 0.5) * 0.08;
       }
 
-      c += 2;
+      c += 2 + Math.floor(rng() * 2);
     }
 
-    for (let f = 33; f <= 39; f++) {
-      target[f] = f === 35 ? 0.5 : 0.6 + (rng() - 0.5) * 0.08;
-    }
+    // Status column: a single dim run — everything already departed.
+    const statusLen = 5 + Math.floor(rng() * 8);
 
-    for (let g = 42; g <= 46; g++) {
-      if (rng() < 0.6) {
-        target[g] = 0.3;
-      }
-    }
-
-    const len = 6 + Math.floor(rng() * 8);
-
-    for (let i = 0; i < len && 50 + i < TEXT_COLS; i++) {
-      target[50 + i] = 0.5 + (rng() - 0.5) * 0.06;
+    for (let i = 0; i < statusLen && STATUS_C0 + i <= STATUS_MAX; i++) {
+      target[STATUS_C0 + i] = 0.48 + (rng() - 0.5) * 0.06;
     }
   } else {
+    // Emptied row: the same column skeleton, sparse and dim.
     for (const c of [0, 1, 3, 4]) {
-      target[c] = 0.3;
-    }
-
-    for (let c = 7; c <= 30; c++) {
-      if (rng() < 0.22) {
-        target[c] = 0.3;
+      if (rng() < 0.8) {
+        target[c] = 0.28;
       }
     }
 
-    for (let c = 33; c <= 39; c++) {
-      if (rng() < 0.3) {
-        target[c] = 0.3;
+    for (let c = DEST_C0; c <= DEST_MAX; c++) {
+      if (rng() < 0.16) {
+        target[c] = 0.28;
       }
     }
 
-    for (let c = 50; c <= 63; c++) {
-      if (rng() < 0.18) {
-        target[c] = 0.3;
+    for (let c = STATUS_C0; c <= STATUS_MAX; c++) {
+      if (rng() < 0.16) {
+        target[c] = 0.28;
       }
     }
   }
 }
 
-/** Static architecture, rebuilt on init: panel, window, seats, kiosk, floor. */
+/** Static architecture, rebuilt on init: panel, window, room lines, seats. */
 function buildBase(): Float32Array {
   const b = new Float32Array(COLS * ROWS);
   b.fill(0.035);
@@ -571,8 +429,17 @@ function buildBase(): Float32Array {
     b.fill(0.02, y * COLS, y * COLS + COLS);
   }
 
-  for (let y = FLOOR_Y0; y < ROWS; y++) {
-    b.fill(Math.max(0.02, 0.07 - (y - FLOOR_Y0) * 0.005), y * COLS, y * COLS + COLS);
+  // Floor plane: from the wall line forward, faintly lighter than the wall.
+  for (let y = WALL_LINE_Y + 1; y < ROWS; y++) {
+    b.fill(0.05, y * COLS, y * COLS + COLS);
+  }
+
+  // The two room lines that unify the islands: a quiet back-wall line (far,
+  // first to be forgotten under compaction) and a firmer floor-front line
+  // (near, it survives into bin-2 as a trace).
+  for (let x = 4; x <= 188; x++) {
+    b[WALL_LINE_Y * COLS + x] = 0.16;
+    b[FLOOR_LINE_Y * COLS + x] = 0.42;
   }
 
   // Departure board panel.
@@ -583,12 +450,11 @@ function buildBase(): Float32Array {
     }
   }
 
-  // Header column labels (static blocks; the clock block stays dynamic).
+  // Header labels over the three data columns (the clock block stays dynamic).
   const labelRuns: ReadonlyArray<readonly [number, number]> = [
-    [0, 4],
-    [7, 17],
-    [33, 39],
-    [50, 57],
+    [0, TIME_C1],
+    [DEST_C0, DEST_C0 + 10],
+    [STATUS_C0, STATUS_C0 + 6],
   ];
 
   for (const [c0, c1] of labelRuns) {
@@ -608,54 +474,62 @@ function buildBase(): Float32Array {
       b[y * COLS + x] = 0.4;
     }
 
-    // Faint mullion reflections on the floor.
-    for (let y = FLOOR_Y0; y <= FLOOR_Y0 + 3 && y < ROWS; y++) {
-      b[y * COLS + x] = 0.1 - (y - FLOOR_Y0) * 0.02;
+    // Faint mullion reflections just past the wall line, on the floor.
+    for (let y = WALL_LINE_Y + 1; y <= WALL_LINE_Y + 4 && y < ROWS; y++) {
+      b[y * COLS + x] = Math.max(b[y * COLS + x] ?? 0, 0.12 - (y - WALL_LINE_Y - 1) * 0.02);
     }
   }
 
-  // Two rows of empty seats facing the glass.
-  for (const sy of SEAT_YS) {
-    for (let ux = 18; ux + 4 <= 96; ux += 7) {
-      for (let y = sy; y <= sy + 2; y++) {
-        for (let x = ux; x <= ux + 4; x++) {
-          b[y * COLS + x] = y === sy ? 0.42 : 0.3;
-        }
-      }
-
-      b[(sy + 3) * COLS + ux + 1] = 0.18;
-      b[(sy + 3) * COLS + ux + 3] = 0.18;
-    }
-  }
-
-  // Receipt kiosk frame + dark screen.
-  for (let y = KIOSK_Y0; y <= KIOSK_Y1; y++) {
-    for (let x = KIOSK_X0; x <= KIOSK_X1; x++) {
-      const edge = y === KIOSK_Y0 || y === KIOSK_Y1 || x === KIOSK_X0 || x === KIOSK_X1;
-      b[y * COLS + x] = edge ? 0.42 : 0.05;
+  // Two linked rows of empty seats facing the glass, two banks per row.
+  for (const rowSpec of SEAT_ROWS_SPEC) {
+    for (const bankX0 of rowSpec.banks) {
+      drawSeatBank(b, bankX0, rowSpec.yTop, rowSpec.legsTo);
     }
   }
 
   return b;
 }
 
-/** Faint static in the kiosk slot when nothing is resolved there. */
-function shimmer(i: number, j: number, t: number): number {
-  return 0.03 + 0.05 * hash3(i, j, Math.floor(t * 8));
-}
+/**
+ * One bank of linked seats: back-rest band with a bright top edge, seat pan,
+ * a continuous rail linking every unit, armrest verticals at unit boundaries,
+ * and legs dropping toward the floor.
+ */
+function drawSeatBank(b: Float32Array, x0: number, yTop: number, legsTo: number): void {
+  const x1 = x0 + SEAT_UNITS * SEAT_UNIT_W;
 
-function drawChip(data: Float32Array, level: number): void {
-  for (let y = CHIP_Y0; y < CHIP_Y0 + CHIP_H; y++) {
-    for (let x = CHIP_X0; x < CHIP_X0 + CHIP_W; x++) {
-      data[y * COLS + x] = level;
+  for (let u = 0; u < SEAT_UNITS; u++) {
+    const ux = x0 + u * SEAT_UNIT_W;
+
+    for (let x = ux + 1; x < ux + SEAT_UNIT_W; x++) {
+      b[yTop * COLS + x] = 0.42; // top edge of the back rest
+      b[(yTop + 1) * COLS + x] = 0.14; // back-rest body, dotted open weave
+      b[(yTop + 2) * COLS + x] = 0.14;
+      b[(yTop + 3) * COLS + x] = 0.34; // seat pan
     }
   }
-}
 
-/** Once cured, the docked chip stays dimly lit through later cycles. */
-function drawChipIfLit(data: Float32Array): void {
-  if (state.chipLit) {
-    drawChip(data, 0.5);
+  // The linking rail: one continuous line under every pan in the bank.
+  for (let x = x0; x <= x1; x++) {
+    b[(yTop + 4) * COLS + x] = 0.4;
+  }
+
+  // Armrest verticals at every unit boundary, rising through the back band.
+  for (let u = 0; u <= SEAT_UNITS; u++) {
+    const ax = x0 + u * SEAT_UNIT_W;
+
+    for (let y = yTop; y <= yTop + 4; y++) {
+      b[y * COLS + ax] = 0.62;
+    }
+  }
+
+  // Legs at every other boundary, from the rail toward the floor.
+  for (let u = 0; u <= SEAT_UNITS; u += 2) {
+    const lx = x0 + u * SEAT_UNIT_W;
+
+    for (let y = yTop + 5; y <= legsTo && y < ROWS; y++) {
+      b[y * COLS + lx] = 0.16;
+    }
   }
 }
 

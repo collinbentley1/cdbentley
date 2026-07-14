@@ -5,9 +5,9 @@
  * frame reaches the shelf it stays collected for the lifetime of this page
  * load, even when the visitor scrolls back up.
  *
- * Hover/focus a slot = one-line summary chip (TODO(collin) placeholders
- * tonight). Click = navigate. Collected state is deliberately runtime memory
- * only: reload starts fresh; no browser storage, cookie, or session is used.
+ * Hover/focus a slot = one-line summary chip. Click = navigate. Collected
+ * state is deliberately runtime memory only: reload starts fresh; no
+ * browser storage, cookie, or session is used.
  * The first slot is the only slot visible at load; once it docks, the
  * remaining empty slots reveal left-to-right so the shelf reads as earned
  * progress instead of chrome.
@@ -98,7 +98,7 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
     chip.className = "shelf-chip";
     chip.setAttribute("role", "tooltip");
     chip.id = `shelf-chip-${slot}`;
-    chip.textContent = section.scene.summaryChip ?? `TODO(collin): ${section.scene.id} summary line`;
+    chip.textContent = section.scene.summaryChip ?? section.label;
     button.setAttribute("aria-describedby", chip.id);
     button.append(chip);
 

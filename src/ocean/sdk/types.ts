@@ -62,7 +62,7 @@ export interface SceneModule {
    * DOCK_GLYPH_COLS characters each. This is what drifts to the shelf.
    */
   readonly dockGlyph: readonly string[];
-  /** One-line shelf hover summary. Collin's pen: keep as TODO(collin) text. */
+  /** One-line shelf hover summary (final copy lives in each scene). */
   readonly summaryChip?: string;
   /** Called once before the first update. Seed state, precompute tables. */
   init(context: SceneContext): void;
