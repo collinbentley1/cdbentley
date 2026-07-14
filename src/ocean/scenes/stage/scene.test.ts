@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
 import {
+  applyLights,
   assertBufferInRange,
   assertBufferShape,
   assertResolutionMonotone,
   assertSceneContract,
   createBuffer,
+  quantizeIndex,
   resolutionForDepth,
   type SceneContext,
 } from "../../sdk/index.ts";
@@ -91,6 +93,60 @@ test("stage sways: the fly system moves between frames", () => {
   }
 
   expect(changed).toBeGreaterThan(0);
+});
+
+test("stage floor: one solid '='-weight proscenium line spans the full width", () => {
+  const context = makeContext();
+  stageScene.init(context);
+
+  context.time = 1 / 60;
+  stageScene.update(1 / 60, context);
+
+  const { cols, rows, ramp } = stageScene.tuning;
+  const rampLen = Array.from(ramp).length;
+  const floorTop = Math.floor(rows * 0.62);
+
+  for (let x = 0; x < cols; x++) {
+    const lum = context.buffer.data[floorTop * cols + x] ?? 0;
+    expect(quantizeIndex(lum, rampLen)).toBe(5); // '=' band, pre-light
+  }
+});
+
+test("stage figure: 2-cell head over a 4-cell shoulder line, 2+ ramp steps above the pool", () => {
+  const context = makeContext();
+  stageScene.init(context);
+
+  context.time = 1 / 60;
+  stageScene.update(1 / 60, context);
+  applyLights(context.buffer, context.lights); // the runner's post-update pass
+
+  const { cols, rows, ramp } = stageScene.tuning;
+  const rampLen = Array.from(ramp).length;
+  const floorTop = Math.floor(rows * 0.62);
+  const figX = Math.round((stageScene.tuning.motion.figureX ?? 0.535) * (cols - 1));
+  const figTop = floorTop - 8;
+  const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
+
+  // Head: exactly 2 cells wide, flanked by darker air.
+  const headBand = Math.min(band(figX, figTop), band(figX + 1, figTop));
+  expect(headBand).toBeGreaterThanOrEqual(band(figX - 1, figTop) + 2);
+  expect(headBand).toBeGreaterThanOrEqual(band(figX + 2, figTop) + 2);
+  expect(headBand).toBeGreaterThanOrEqual(band(figX, figTop - 1) + 2);
+
+  // Shoulder line: 4 cells wide, flanked by darker air.
+  const shoulderY = figTop + 2;
+  let shoulderBand = rampLen;
+
+  for (let dx = -1; dx <= 2; dx++) {
+    shoulderBand = Math.min(shoulderBand, band(figX + dx, shoulderY));
+  }
+
+  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX - 2, shoulderY) + 2);
+  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX + 3, shoulderY) + 2);
+
+  // The silhouette sits 2+ ramp steps above the spotlight pool beside it.
+  expect(headBand).toBeGreaterThanOrEqual(band(figX - 3, shoulderY) + 2);
+  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX + 4, shoulderY) + 2);
 });
 
 test("stage registers exactly one light (the ghost light) with sane params", () => {
