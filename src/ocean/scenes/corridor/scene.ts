@@ -64,9 +64,15 @@ const DASH_LO = 0.31;
 const DASH_SPAN = 0.07;
 const FLOOR_CAP = 0.29; // floor base never enters the dash band on its own
 
-/** Emitters dim only slightly with distance (they are sources, not surfaces). */
+/**
+ * Emitters dim with distance (they are sources, not surfaces, so they fall off
+ * gentler than the walls). The falloff is tuned so the nearest tube stays hot
+ * while the last one or two before the vanishing point settle back — that keeps
+ * the far end calm enough for the illuminated sign to read as the destination
+ * instead of getting lost under a bright fixture convergence.
+ */
 function emitterFade(z: number): number {
-  return 1 / (1 + (z - 1) * 0.06);
+  return 1 / (1 + (z - 1) * 0.11);
 }
 
 interface StaticLayers {
@@ -300,7 +306,10 @@ function buildLayers(width: number, height: number): StaticLayers {
       }
 
       if (touchesDoor) {
-        base[i] = Math.max(base[i] ?? 0, 0.62 * (wallFV[i] ?? 0));
+        // Near frames punch as a crisp bright edge against the near-black
+        // recess; distant ones fade to a faint dotted outline (fv carries the
+        // distance falloff), so every doorway reads as a framed opening.
+        base[i] = Math.max(base[i] ?? 0, 0.72 * (wallFV[i] ?? 0));
       }
     }
   }
