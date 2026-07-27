@@ -29,6 +29,19 @@
  *   frame, dim panel, one gapped text-suggestion row) so the glyph soup at
  *   the end of the corridor reads as A SIGN.
  *
+ * Art pass (light temperature + rhythm):
+ * - Tubes carry a quartic (flat-top, fast-cutoff) vertical profile with
+ *   tight end caps: cold institutional bars, not warm glows.
+ * - The floor sheen breaks at every door depth on its outer reach (the
+ *   reflection of the recess), so the corridor floor reads wet-waxed with
+ *   an interruption rhythm instead of uniform bands.
+ * - The farthest right-hand doorway holds an absolute hint of glow plus a
+ *   wide dim wash on the neighboring wall, giving the eye a step between
+ *   the last fixture pool and the sign.
+ * - The struggling ballast is the mid-corridor tube, gated to sag at long
+ *   irregular intervals (median gap tens of seconds); the ambient all-tube
+ *   drift is shallower so cold light reads steady between events.
+ *
  * This scene renders no human-readable copy (glyphs only); the chapter
  * prose beside it is DOM.
  */
@@ -54,6 +67,16 @@ const VANISH_Y = 0.44; // vanishing point, as a fraction of grid height
 const Z_END = 14; // corridor length in depth units; beyond it: the end wall
 const FIXTURE_Z = [1.75, 3.8, 6.0, 8.2, 10.4, 12.6] as const;
 const DOOR_Z = [2.7, 5.1, 7.5, 9.9, 12.3] as const;
+
+/**
+ * The farthest right-hand doorway holds a hint of glow — a lit room the
+ * corridor never reaches — so the eye travels past the last fluorescent
+ * pool to the end wall instead of stopping mid-corridor. Peak luminance
+ * sits in the first ramp band (a soft dotted doorway, not a second sign).
+ */
+const FAR_DOOR_Z = 12.3;
+const FAR_DOOR_GLOW = 0.17;
+const FAR_WALL_WASH = 0.08;
 
 /**
  * The dash band of the tuned ramp " ·:-|=+*#@" (10 glyphs, equal bins):
@@ -177,8 +200,14 @@ function buildLayers(width: number, height: number): StaticLayers {
           const fuy = 1 / zf;
           const sigma = Math.max(0.12 * fuy * fuy, 0.6 * rowStepUp);
           const d = (vertical - fuy) / sigma;
-          const across = Math.min(1, Math.max(0, (0.4 - Math.abs(u)) / 0.1));
-          const g = Math.exp(-d * d) * across * emitterFade(zf);
+          // Cold light is even light: a quartic falloff gives each tube a
+          // flat plateau with a fast vertical cutoff, so it reads as a
+          // uniform institutional bar with crisp caps instead of a warm glow
+          // that swells in the middle and bleeds upward.
+          const d4 = d * d * d * d;
+          const bar = Math.min(1, 1.35 * Math.exp(-d4));
+          const across = Math.min(1, Math.max(0, (0.4 - Math.abs(u)) / 0.06));
+          const g = bar * across * emitterFade(zf);
 
           if (g > bestGain) {
             bestGain = g;
@@ -216,14 +245,38 @@ function buildLayers(width: number, height: number): StaticLayers {
           }
         }
 
+        // Wet-wax interruption rhythm: the sheen is a reflection of the lit
+        // wall plane, so where a doorway recess interrupts the wall the outer
+        // reach of each pool breaks — a dark gap sweeps across at every door
+        // depth — while the center streak (reflecting the tubes themselves)
+        // runs on unbroken. This is what keeps the floor from reading as a
+        // uniform band: polished linoleum, not carpet.
+        let gap = 0;
+
+        for (const zd of DOOR_Z) {
+          const dgz = (z - zd) / 0.55;
+          gap = Math.max(gap, Math.exp(-dgz * dgz));
+        }
+
+        const sideLin = Math.min(1, Math.max(0, (Math.abs(u) - 0.12) / 0.3));
+        const interrupt = 1 - 0.88 * gap * sideLin * sideLin;
+
+        bestG *= interrupt;
+
         // Hard shoulder on the footprint: no stray dashes far from a pool,
         // full density in the core.
         const lin = Math.min(1, Math.max(0, (bestG - 0.12) / 0.38));
         const w = lin * lin * (3 - 2 * lin);
 
         // Polished linoleum: the specular patch replaces the diffuse ground,
-        // so the floor darkens where the sheen lives and the dashes pop.
-        base[i] = Math.min(FLOOR_CAP, 0.3 * fade * (1 - 0.15 * Math.abs(u))) * (1 - 0.45 * w) * vignette;
+        // so the floor darkens where the sheen lives and the dashes pop. The
+        // diffuse ground also dims a touch inside each doorway's reflection
+        // gap (the recess it mirrors is near-black).
+        base[i] =
+          Math.min(FLOOR_CAP, 0.3 * fade * (1 - 0.15 * Math.abs(u))) *
+          (1 - 0.45 * w) *
+          (1 - 0.22 * gap * sideLin) *
+          vignette;
 
         if (w > 0.01) {
           sheenW[i] = w;
@@ -253,6 +306,13 @@ function buildLayers(width: number, height: number): StaticLayers {
               v = 0.24 * fade; // small lit door window
             }
 
+            if (zd === FAR_DOOR_Z && sx > 0) {
+              // The one lit room: an absolute (not distance-faded) glow with
+              // a soft vertical falloff, so the farthest doorway carries a
+              // faint dotted warmth at the end of the cold fixture run.
+              v = Math.max(v, FAR_DOOR_GLOW * (1 - 0.45 * Math.max(0, vwall)));
+            }
+
             break;
           }
         }
@@ -263,6 +323,17 @@ function buildLayers(width: number, height: number): StaticLayers {
 
           if (vwall > 0.14 && vwall < 0.26) {
             v += 0.12 * fade; // bumper rail
+          }
+
+          if (sx > 0) {
+            // Spill from the lit far room onto the neighboring wall: a dim
+            // dotted wedge that lifts the near-black end of the right wall
+            // just enough to catch the eye on its way to the sign. Very wide
+            // in z on purpose — perspective compresses the last several
+            // z-units into a few columns, and the wash needs those columns
+            // to read as light instead of noise.
+            const dzGlow = (z - FAR_DOOR_Z) / 3.2;
+            v += FAR_WALL_WASH * Math.exp(-dzGlow * dzGlow);
           }
         }
 
@@ -339,11 +410,11 @@ export const scene: SceneModule = {
     minimalGlyph: "·",
     motion: {
       ambient: 1,
-      faultyDip: 0.5,
-      faultyFixture: 1,
-      faultyRate: 0.5,
-      flickerDepth: 0.22,
-      flickerRate: 0.6,
+      faultyDip: 0.55,
+      faultyFixture: 2,
+      faultyRate: 0.26,
+      flickerDepth: 0.14,
+      flickerRate: 0.45,
       lightLevel: 1,
       sheenDensity: 0.6,
       sheenScale: 0.3,
@@ -361,11 +432,11 @@ export const scene: SceneModule = {
 
     const {
       ambient = 1,
-      faultyDip = 0.5,
-      faultyFixture = 1,
-      faultyRate = 0.5,
-      flickerDepth = 0.22,
-      flickerRate = 0.6,
+      faultyDip = 0.55,
+      faultyFixture = 2,
+      faultyRate = 0.26,
+      flickerDepth = 0.14,
+      flickerRate = 0.45,
       lightLevel = 1,
       sheenDensity = 0.6,
       sheenScale = 0.3,
@@ -384,8 +455,11 @@ export const scene: SceneModule = {
       let level = 1 - flickerDepth * drift;
 
       if (f === faulty) {
+        // The struggling ballast mid-corridor: a raised gate on slow noise so
+        // the sag arrives at long, irregular intervals — most of the time the
+        // tube holds steady, then it dims over a second or two and recovers.
         const surge = fbm2(noise, 40 + time * faultyRate, 9.3, 2);
-        const s = Math.min(1, Math.max(0, (surge - 0.6) / 0.15));
+        const s = Math.min(1, Math.max(0, (surge - 0.72) / 0.14));
         level *= 1 - faultyDip * s * s * (3 - 2 * s);
       }
 
