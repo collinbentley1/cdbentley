@@ -34,6 +34,18 @@ const SLOT_X0 = 14;
 const MAX_SNOW = 160;
 
 /**
+ * The two light shafts breathe on incommensurate periods (seconds) with a
+ * phase offset, so one is always mid-inhale while the other exhales. Kept as
+ * constants, not tunables: "never synchronized" is a law of the scene.
+ */
+const SHAFT_PERIOD_A = 9.5;
+const SHAFT_PERIOD_B = 14.8;
+const SHAFT_PHASE_B = 2.6;
+
+/** How far (cells) each settled object's sediment skirt reaches past its edges. */
+const SKIRT_REACH = 5;
+
+/**
  * The seven settled memory-objects, in resting order along the floor. Each is a
  * verbatim copy of that scene's own shelf compaction-glyph (the dock glyph), so
  * the mounds are the docked memories themselves — half-buried, not generic
@@ -213,6 +225,7 @@ export const scene: SceneModule = {
       lightDrift: 0.06,
       lightIntensity: 0.1,
       lightRadius: 15,
+      linkCarve: 0.12,
       moundBeacon: 0.26,
       moundBreath: 0.04,
       moundBreathRate: 0.09,
@@ -220,12 +233,16 @@ export const scene: SceneModule = {
       moundGlow: 0.66,
       moundSettle: 0.92,
       sedimentGrain: 0.12,
+      shaftBreathe: 0.55,
       shaftCount: 2,
       shaftDrift: 0.05,
       shaftIntensity: 0.07,
       shaftWidth: 8,
+      skirtGlow: 0.34,
+      skirtRise: 2.8,
       snowCount: 70,
       snowFall: 2.4,
+      snowSettle: 0.35,
       snowSway: 0.5,
       waterGlow: 0.14,
     },
@@ -241,19 +258,24 @@ export const scene: SceneModule = {
       lightDrift = 0.06,
       lightIntensity = 0.1,
       lightRadius = 15,
+      linkCarve = 0.12,
       moundBeacon = 0.26,
       moundBreath = 0.04,
       moundBreathRate = 0.09,
-      moundExpose = 0.72,
+      moundExpose = 0.58,
       moundGlow = 0.66,
-      moundSettle = 1.15,
+      moundSettle = 0.92,
       sedimentGrain = 0.12,
+      shaftBreathe = 0.55,
       shaftCount = 2,
       shaftDrift = 0.05,
-      shaftIntensity = 0.05,
-      shaftWidth = 5,
+      shaftIntensity = 0.07,
+      shaftWidth = 8,
+      skirtGlow = 0.34,
+      skirtRise = 2.8,
       snowCount = 70,
       snowFall = 2.4,
+      snowSettle = 0.35,
       snowSway = 0.5,
       waterGlow = 0.14,
     } = this.tuning.motion;
@@ -272,6 +294,12 @@ export const scene: SceneModule = {
     const shaftX1 = w * 0.66 + Math.sin(time * shaftDrift * TWO_PI * 0.73 + 2.2) * w * 0.1;
     const invShaftW2 = 1 / (shaftWidth * shaftWidth);
 
+    // Each shaft breathes — swells and thins — on its own offset period, so
+    // the two are never in phase: one arrives as the other leaves.
+    const breathe = shaftBreathe < 0 ? 0 : shaftBreathe > 1 ? 1 : shaftBreathe;
+    const shaftGainA = 1 - breathe * (0.5 + 0.5 * Math.sin((TWO_PI * time) / SHAFT_PERIOD_A));
+    const shaftGainB = 1 - breathe * (0.5 + 0.5 * Math.sin((TWO_PI * time) / SHAFT_PERIOD_B + SHAFT_PHASE_B));
+
     for (let y = 0; y < h; y++) {
       const row = y * w;
       const depthGain = 0.75 + (0.35 * y) / h;
@@ -287,11 +315,11 @@ export const scene: SceneModule = {
             const topFade = y < 10 ? y / 10 : 1;
             const floorFade = 1 - (0.5 * y) / (fy > 1 ? fy : 1);
             const d0 = x - shaftX0;
-            let shaft = Math.exp(-d0 * d0 * invShaftW2);
+            let shaft = Math.exp(-d0 * d0 * invShaftW2) * shaftGainA;
 
             if (shafts > 1) {
               const d1 = x - shaftX1;
-              shaft += Math.exp(-d1 * d1 * invShaftW2);
+              shaft += Math.exp(-d1 * d1 * invShaftW2) * shaftGainB;
             }
 
             v += shaftIntensity * shaft * topFade * floorFade;
@@ -345,6 +373,38 @@ export const scene: SceneModule = {
             v += 0.08;
           }
 
+          const idx = y * w + x;
+
+          if (v > (data[idx] ?? 0)) {
+            data[idx] = v;
+          }
+        }
+      }
+
+      // Sediment skirt: a tapered drift banked against each settled object,
+      // highest where it meets the glyph and falling away over SKIRT_REACH
+      // cells, so every memory sits IN the floor rather than ON it.
+      for (let i = -SKIRT_REACH; i < SLOT_W + SKIRT_REACH; i++) {
+        const x = left + i;
+
+        if (x < 0 || x >= w) {
+          continue;
+        }
+
+        const out = i < 0 ? -i : i >= SLOT_W ? i - SLOT_W + 1 : 0;
+        const taper = 1 - out / (SKIRT_REACH + 1);
+        // Convex profile: the drift banks steeply against the object, then
+        // runs out in a long shallow tail, the way settled sediment actually
+        // piles against an obstacle.
+        const bank = taper * Math.sqrt(taper);
+        const drift = 0.7 + 0.5 * noise(s * 3.17 + i * 0.61, 211.3);
+        const rise = skirtRise * bank * drift;
+        const rimY = floorY[x] ?? FLOOR_BASE;
+        const skirtTop = Math.round(rimY - rise);
+
+        for (let y = skirtTop < 0 ? 0 : skirtTop; y <= rimY && y < h; y++) {
+          const t01 = (y - skirtTop) / (rimY - skirtTop > 1 ? rimY - skirtTop : 1);
+          const v = skirtGlow * (0.55 + 0.45 * t01) * (0.75 + 0.25 * taper);
           const idx = y * w + x;
 
           if (v > (data[idx] ?? 0)) {
@@ -410,7 +470,13 @@ export const scene: SceneModule = {
 
       if (yi >= 0 && yi < h) {
         const idx = yi * w + xi;
-        const bright = floor.snowBright[i] ?? 0.3;
+        // Snow thins toward the floor: at this depth most of it has already
+        // settled, so flakes fade out over the last stretch of their fall.
+        const fy = floorY[xi] ?? FLOOR_BASE;
+        const settleBand = fy * (snowSettle < 0 ? 0 : snowSettle > 1 ? 1 : snowSettle);
+        const remain = fy - py;
+        const settle = settleBand > 0 && remain < settleBand ? (remain > 0 ? remain / settleBand : 0) : 1;
+        const bright = (floor.snowBright[i] ?? 0.3) * (0.3 + 0.7 * settle);
 
         if (bright > (data[idx] ?? 0)) {
           data[idx] = bright;
@@ -418,13 +484,30 @@ export const scene: SceneModule = {
       }
     }
 
-    // 4) Contact bars: never modulated, always full ink.
+    // 4) Contact bars: never modulated, always full ink. Each bar is carved
+    //    INTO the sediment: a one-cell recess around it drops the surround one
+    //    ramp step, so the page's final action takes its quiet emphasis from
+    //    contrast, not added brightness.
     for (const bar of CONTACT_BARS) {
-      for (let y = bar.y; y < bar.y + bar.h && y < h; y++) {
+      for (let y = bar.y - 1; y <= bar.y + bar.h && y < h; y++) {
+        if (y < 0) {
+          continue;
+        }
+
         const row = y * w;
 
-        for (let x = bar.x; x < bar.x + bar.w && x < w; x++) {
-          data[row + x] = 1;
+        for (let x = bar.x - 1; x <= bar.x + bar.w && x < w; x++) {
+          if (x < 0) {
+            continue;
+          }
+
+          const inside = x >= bar.x && x < bar.x + bar.w && y >= bar.y && y < bar.y + bar.h;
+
+          if (inside) {
+            data[row + x] = 1;
+          } else if ((data[row + x] ?? 0) > linkCarve) {
+            data[row + x] = linkCarve;
+          }
         }
       }
     }
