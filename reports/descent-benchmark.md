@@ -1,6 +1,6 @@
 # Descent full-run benchmark + page weight (WS-C Phase C)
 
-July 9, 2026 (overnight of July 7 work order); updated July 14 after the live-review interaction pass; refreshed July 15 after the root flip + readability/integration pass. Integrated page now served at `/` (root) on branch `redesign/armature-v1`; the bench navigates `/?bench=1`.
+July 9, 2026 (overnight of July 7 work order); updated July 14 after the live-review interaction pass; refreshed July 15 after the root flip + readability/integration pass; refreshed July 27 after the four-scene aesthetic pass (corridor, subway-platform, ocean-floor, deep-shape). Integrated page now served at `/` (root) on branch `redesign/armature-v1`; the bench navigates `/?bench=1`.
 
 ## Method (the Phase A method, full-run edition)
 
@@ -14,8 +14,10 @@ July 9, 2026 (overnight of July 7 work order); updated July 14 after the live-re
 
 | profile | avg fps | avg frame ms | p95 frame ms | avg scene+field+bridge cpu ms | p95 cpu ms | frames >17ms | frames |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| desktop 1680x820 | 120.0 | 8.33 | 10.10 | 3.10 | 5.00 | 0.0% | 2881 |
-| mobile 390x844 | 120.0 | 8.34 | 10.00 | 1.94 | 3.80 | 0.0% | 2880 |
+| desktop 1680x820 | 119.8 | 8.35 | 9.30 | 3.57 | 5.70 | 0.0% | 2877 |
+| mobile 390x844 | 119.8 | 8.34 | 9.20 | 2.44 | 4.60 | 0.1% | 2877 |
+
+Frame pacing is unchanged from the July 15 run (119.8 vs 120.0 avg fps is rAF-ceiling noise; p95 frame times actually improved). The aesthetic pass added ~0.5ms average scene CPU on both profiles (desktop 3.10 → 3.57, mobile 1.94 → 2.44) — the cost of the new per-scene texture work (wet-wax pool breaks, elliptical fixture pools + tile grime, sediment skirts + breathing shafts, wake taper + flank bloom) — still under half the 8ms budget at 4x throttle.
 
 Verdict: 60fps holds with >2x frame-time headroom and CPU headroom at 4x throttle, during the worst window this page has (continuous scroll churn + compaction threshold crossings + 2-3 scenes awake at once + the always-on field + the bridge when visible). The renderer is the Phase A WebGL2 winner; its cost is dirty-independent, which is why compaction frames do not spike (see reports/renderer-spike.md).
 
