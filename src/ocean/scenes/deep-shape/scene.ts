@@ -7,7 +7,11 @@
  * (Phase C sets motion.summon >= 1; the harness can too) — something enormous
  * and serpentine crosses the frame, once, and is gone. Silhouette only: the
  * body OCCLUDES water, snow and glow (a moving hole in the texture), and
- * where it passes near the glow a thin rim catches the light. It is never
+ * where it passes near the glow a thin rim catches the light — swelling
+ * slightly while the body's nearest point passes the light and fading a beat
+ * after (rimBloom / rimBloomFade). The undulation is enveloped along the
+ * spine (WAVE_TAPER_*): the head holds its line, the tail carries the full
+ * sweep, so the crossing reads as mass driving itself. It is never
  * named — not in code, comments, copy, commits, or the PR. Neutral
  * identifiers only; the silhouette is an original design (undulating spine,
  * blunt nose, ridge serrations, tapered tail), built from a radius profile,
@@ -55,6 +59,32 @@ function hash(seed: number, a: number, b: number): number {
 const EDGE_MARGIN = 14;
 /** Rim thickness (cells) outside the body where the glow catches the edge. */
 const RIM_WIDTH = 1.8;
+/**
+ * Wake-follow taper: fraction of waveAmp the head keeps. The head holds its
+ * line (intent); the wave builds along the spine so the tail carries the full
+ * sweep (mass). Uniform amplitude read as a corrugated ribbon sliding — the
+ * taper is what makes the undulation read as a body driving itself.
+ */
+const WAVE_TAPER_HEAD = 0.28;
+/** Shape of the build head -> tail (u^exp). >1 keeps the fore-body calm. */
+const WAVE_TAPER_EXP = 1.7;
+/** Secondary ripple floor at the head; the fine wave lives aft (u^2 build). */
+const RIPPLE_HEAD = 0.15;
+/** Extra rim thickness (fraction of RIM_WIDTH) at full flank bloom. */
+const RIM_BLOOM_WIDEN = 0.4;
+/** Surface distance (cells) inside which bloom no longer grows (deadband). */
+const BLOOM_DEADBAND = 1.5;
+/** Bloom falloff range as a fraction of glowRadius. */
+const BLOOM_RANGE = 0.45;
+/** Attack rate (1/s) when the flank nears the light; decay is rimBloomFade. */
+const BLOOM_ATTACK = 5;
+/**
+ * Adaptation time constant (s). The bloom responds to the ARRIVAL of the
+ * body's nearest point, not its dwell: a slow follower of raw proximity is
+ * subtracted from it, so a long stretch of body streaming through the pool
+ * swells once and relaxes back to the base rim instead of staying lit.
+ */
+const BLOOM_ADAPT_TAU = 3.5;
 /** Interior silhouette luminance — below the first ramp step: a hole. */
 const BODY_FLOOR = 0.012;
 /**
@@ -146,6 +176,17 @@ let pass: PassState | null = null;
 let glowX = 0;
 let glowY = 0;
 let sdf = new Float32Array(0);
+/**
+ * Flank bloom 0..1: eased proximity of the body's nearest surface point to
+ * the light. Attacks fast as the mass swings in, decays over rimBloomFade
+ * after it moves on — the swell-and-linger is the one temporal accent of the
+ * pass. Also gates the eye glint to the closest-approach beat.
+ */
+let flankBloom = 0;
+/** Slow follower of raw proximity (see BLOOM_ADAPT_TAU). */
+let bloomAdapt = 0;
+/** Diagnostic only (probe/trace): glow luminance sampled at the eye cell. */
+let eyeLocal = 0;
 
 function startPass(width: number, height: number, motion: Record<string, number>): PassState {
   const bodySpan = motion.bodySpan ?? 1.25;
@@ -168,15 +209,24 @@ function startPass(width: number, height: number, motion: Record<string, number>
   };
 }
 
-/** Spine centerline: y as a function of x, so the body follows its own wake. */
-function pathY(state: PassState, x: number, time: number, waveAmp: number, waveLength: number): number {
+/**
+ * Spine centerline: y as a function of x, so the body follows its own wake.
+ * `u` (0 head -> 1 tail) drives the amplitude envelope: the head keeps
+ * WAVE_TAPER_HEAD of the sweep and the wave builds toward the tail, so the
+ * undulation reads as mass driving itself, not a ribbon sliding. The fine
+ * secondary wave is weighted aft the same way (u^2): the fore-body stays
+ * smooth and heavy, the ripple lives in the tail.
+ */
+function pathY(state: PassState, x: number, time: number, waveAmp: number, waveLength: number, u: number): number {
   const k1 = (Math.PI * 2) / Math.max(8, waveLength);
   const k2 = k1 * 2.33;
+  const envelope = WAVE_TAPER_HEAD + (1 - WAVE_TAPER_HEAD) * u ** WAVE_TAPER_EXP;
+  const ripple = RIPPLE_HEAD + (1 - RIPPLE_HEAD) * u * u;
 
   return (
     state.baseY +
-    waveAmp * Math.sin(x * k1 + state.phase1 + time * 0.22) +
-    waveAmp * 0.32 * Math.sin(x * k2 + state.phase2 - time * 0.31)
+    waveAmp * envelope * Math.sin(x * k1 + state.phase1 + time * 0.22) +
+    waveAmp * 0.32 * envelope * ripple * Math.sin(x * k2 + state.phase2 - time * 0.31)
   );
 }
 
@@ -206,6 +256,8 @@ function glowAt(dist2: number, haloIntensity: number, haloInvR2: number, coreInt
  */
 export function deepShapeProbe(): {
   active: boolean;
+  bloom: number;
+  eyeLocal: number;
   headX: number;
   headY: number;
   idleTime: number;
@@ -215,6 +267,8 @@ export function deepShapeProbe(): {
 
   return {
     active: pass !== null,
+    bloom: flankBloom,
+    eyeLocal,
     headX,
     headY: pass ? pass.baseY : Number.NaN,
     idleTime,
@@ -236,6 +290,9 @@ export const deepShapeScene: SceneModule = {
     idleTime = 0;
     passCount = 0;
     pass = null;
+    flankBloom = 0;
+    bloomAdapt = 0;
+    eyeLocal = 0;
     glowX = context.buffer.width * 0.5;
     glowY = context.buffer.height * 0.42;
     sdf = new Float32Array(context.buffer.data.length);
@@ -262,6 +319,8 @@ export const deepShapeScene: SceneModule = {
       glowIntensity: 0.36,
       glowRadius: 18,
       idleDelay: 30,
+      rimBloom: 0.9,
+      rimBloomFade: 1.4,
       rimGain: 1.1,
       snowBright: 0.22,
       snowCount: 34,
@@ -288,6 +347,8 @@ export const deepShapeScene: SceneModule = {
       glowIntensity = 0.36,
       glowRadius = 18,
       idleDelay = 30,
+      rimBloom = 0.9,
+      rimBloomFade = 1.4,
       rimGain = 1.1,
       snowBright = 0.22,
       snowCount = 34,
@@ -361,6 +422,8 @@ export const deepShapeScene: SceneModule = {
 
       if (due || summoned) {
         pass = startPass(width, height, this.tuning.motion);
+        flankBloom = 0;
+        bloomAdapt = 0;
         idleTime = 0;
       }
     }
@@ -378,7 +441,7 @@ export const deepShapeScene: SceneModule = {
       const headX = pass.startX + pass.dir * pass.speed * pass.t;
       const foreX = headX + (pass.dir * pass.speed * 0.9) / Math.max(0.2, glowChase);
       targetX = Math.min(width - gr * 0.4, Math.max(gr * 0.4, foreX));
-      targetY = Math.min(height - 6, Math.max(6, pathY(pass, foreX, time, waveAmp, waveLength) - gr * 0.4));
+      targetY = Math.min(height - 6, Math.max(6, pathY(pass, foreX, time, waveAmp, waveLength, 0) - gr * 0.4));
     } else {
       targetX = width * (0.5 + 0.33 * Math.sin(time * glowDrift * Math.PI * 2 * 0.8));
       targetY = height * (0.45 + 0.28 * Math.sin(time * glowDrift * Math.PI * 2 * 1.27 + 1.7));
@@ -427,9 +490,10 @@ export const deepShapeScene: SceneModule = {
 
       const headX = pass.startX + pass.dir * pass.speed * pass.t;
       const samples = Math.max(24, Math.ceil(pass.bodyLen / 1.2));
-      const reach = RIM_WIDTH + 1;
+      const reach = RIM_WIDTH * (1 + RIM_BLOOM_WIDEN) + 1;
       let yMin = height;
       let yMax = -1;
+      let nearestToGlow = 1e9;
 
       for (let i = 0; i <= samples; i++) {
         const u = i / samples;
@@ -439,8 +503,16 @@ export const deepShapeScene: SceneModule = {
           continue;
         }
 
-        const sy = pathY(pass, sx, time, waveAmp, waveLength);
+        const sy = pathY(pass, sx, time, waveAmp, waveLength, u);
         const r = radiusAt(u, bodyGirth * GIRTH_EFF);
+        const gdx = sx - glowX;
+        const gdy = sy - glowY;
+        const surface = Math.sqrt(gdx * gdx + gdy * gdy) - r;
+
+        if (surface < nearestToGlow) {
+          nearestToGlow = surface;
+        }
+
         const cx0 = Math.max(0, Math.floor(sx - r - reach));
         const cx1 = Math.min(width - 1, Math.ceil(sx + r + reach));
         const cy0 = Math.max(0, Math.floor(sy - r - reach));
@@ -469,6 +541,21 @@ export const deepShapeScene: SceneModule = {
         }
       }
 
+      // Flank bloom: the rim swells slightly while the body's nearest point
+      // passes the light and fades over rimBloomFade after — attack is quick
+      // (the light finds the flank), decay lingers a beat behind the mass.
+      const bloomRange = gr * BLOOM_RANGE;
+      const closeness = bloomRange > 0 ? 1 - Math.max(0, nearestToGlow - BLOOM_DEADBAND) / bloomRange : 0;
+      const proximity = closeness > 0 ? closeness * closeness : 0;
+      bloomAdapt += (proximity - bloomAdapt) * (1 - Math.exp(-dt / BLOOM_ADAPT_TAU));
+      const bloomTarget = Math.max(0, proximity - bloomAdapt);
+      const bloomEase =
+        bloomTarget > flankBloom ? 1 - Math.exp(-BLOOM_ATTACK * dt) : 1 - Math.exp(-dt / Math.max(0.1, rimBloomFade));
+      flankBloom += (bloomTarget - flankBloom) * bloomEase;
+
+      const rimW = RIM_WIDTH * (1 + RIM_BLOOM_WIDEN * flankBloom);
+      const rimBoost = rimGain * (1 + rimBloom * flankBloom);
+
       for (let y = yMin; y <= yMax; y++) {
         const rowBase = y * width;
         const dy = y - glowY;
@@ -476,7 +563,7 @@ export const deepShapeScene: SceneModule = {
         for (let x = 0; x < width; x++) {
           const s = sdf[rowBase + x] ?? 1e9;
 
-          if (s >= RIM_WIDTH) {
+          if (s >= rimW) {
             continue;
           }
 
@@ -492,31 +579,37 @@ export const deepShapeScene: SceneModule = {
             continue;
           }
 
-          const rimT = 1 - s / RIM_WIDTH;
-          const lifted = (data[rowBase + x] ?? 0) + rimGain * local * rimT * rimT;
+          const rimT = 1 - s / rimW;
+          const lifted = (data[rowBase + x] ?? 0) + rimBoost * local * rimT * rimT;
           data[rowBase + x] = lifted >= 1 ? 1 : lifted;
         }
       }
 
       // The eye: one cell on the head (u ~ 0.045, where the skull is widest
-      // enough to contain it), glinting only when the glow is close.
+      // enough to contain it). Gated to the bloom peak: it can only glint in
+      // the beat where the flank is lit AND the glow is genuinely close —
+      // one missable moment inside an already-rare pass. Some tracks never
+      // get close enough; those passes keep the eye dark. That is intended.
       const eyeBack = headX - pass.dir * pass.bodyLen * 0.045;
       const eyeX = Math.round(eyeBack);
-      const eyeY = Math.round(pathY(pass, eyeBack, time, waveAmp, waveLength) - 1.2);
+      const eyeY = Math.round(pathY(pass, eyeBack, time, waveAmp, waveLength, 0.045) - 1.2);
+      eyeLocal = 0;
 
-      if (eyeX >= 0 && eyeX < width && eyeY >= 0 && eyeY < height) {
+      if (eyeX >= 0 && eyeX < width && eyeY >= 0 && eyeY < height && (sdf[eyeY * width + eyeX] ?? 1e9) < 0) {
         const dx = eyeX - glowX;
         const dy = eyeY - glowY;
-        const local = glowAt(dx * dx + dy * dy, gi, invR2, ci, coreInvR2);
+        eyeLocal = glowAt(dx * dx + dy * dy, gi, invR2, ci, coreInvR2);
 
-        if (local > 0.02 && (sdf[eyeY * width + eyeX] ?? 1e9) < 0) {
-          const glint = 0.35 + local * eyeGain;
+        if (eyeLocal > 0.05 && flankBloom > 0.35) {
+          const glint = 0.35 + eyeLocal * eyeGain;
           const index = eyeY * width + eyeX;
           const current = data[index] ?? 0;
           const value = glint > 0.95 ? 0.95 : glint;
           data[index] = value > current ? value : current;
         }
       }
+    } else {
+      eyeLocal = 0;
     }
   },
   wake(): void {
@@ -524,6 +617,9 @@ export const deepShapeScene: SceneModule = {
   },
   sleep(): void {
     pass = null;
+    flankBloom = 0;
+    bloomAdapt = 0;
+    eyeLocal = 0;
     idleTime = 0;
   },
 };
