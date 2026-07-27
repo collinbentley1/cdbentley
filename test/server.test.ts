@@ -12,16 +12,45 @@ describe("server", () => {
     expect(body.ok).toBe(true);
   });
 
-  test("serves the portfolio shell", async () => {
+  test("serves the ocean at the root", async () => {
     const response = await handleRequest(new Request("http://localhost/"));
     const body = await response.text();
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+    expect(response.headers.get("Cache-Control")).toBe("no-cache");
+    expect(body).toContain("The Ocean Remembers");
+    expect(body).toContain("/assets/ocean/descent.js");
+  });
+
+  test("serves the previous site intact at /v1/", async () => {
+    const response = await handleRequest(new Request("http://localhost/v1/"));
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+    expect(response.headers.get("Cache-Control")).toBe("no-cache");
     expect(body).toContain("A WILD PORTFOLIO APPEARED");
     expect(body).toContain("fonts.googleapis.com");
     expect(body).toContain("family=Press+Start+2P&family=Caveat");
     expect(body).toContain("/assets/client.js");
+  });
+
+  test("redirect stub keeps /ocean/ links alive", async () => {
+    const response = await handleRequest(new Request("http://localhost/ocean/"));
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-cache");
+    expect(body).toContain('http-equiv="refresh"');
+    expect(body).toContain("url=/");
+  });
+
+  test("serves the resume pdf", async () => {
+    const response = await handleRequest(new Request("http://localhost/resume.pdf"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("application/pdf");
   });
 
   test("serves fixed static assets with revalidating cache headers", async () => {
