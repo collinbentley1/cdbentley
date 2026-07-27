@@ -9,7 +9,10 @@
  * black: the wood grain, the mug by the phone, the chair's near edge. A
  * window hints at distance: thin mullion cross, two faint far lights. Outside
  * the pool the furniture is a whisper (sparse grain speckle, a dotted near
- * edge at most); the room stays black.
+ * edge at most); the room stays black. The whole room sits in the upper half
+ * of the frame: the integrated page floats its chapter prose over the lower
+ * half of this canvas, so the slab, pool, and chair live above the prose line
+ * and only the quiet leg strokes fall behind the text.
  *
  * One quiet motion idiom, phone-shaped: the glow breathes; on a slow cycle a
  * message arrives — the glow swells and two-to-three glyph rows flicker
@@ -118,20 +121,20 @@ function drawRoom(pen: Pen, w: number, h: number): Rect {
 
   // Window, upper left: thin frame, mullion cross, near-black glass — one
   // quiet ramp step above black, a window you notice second.
-  const win: Rect = { x0: X(0.1), x1: X(0.21), y0: Y(0.1), y1: Y(0.33) };
+  const win: Rect = { x0: X(0.1), x1: X(0.21), y0: Y(0.07), y1: Y(0.27) };
   pen.rect({ x0: win.x0 + 1, x1: win.x1 - 1, y0: win.y0 + 1, y1: win.y1 - 1 }, 0.02);
   pen.h(win.x0, win.x1, win.y0, 0.13);
   pen.h(win.x0, win.x1, win.y1, 0.13);
   pen.v(win.x0, win.y0, win.y1, 0.13);
   pen.v(win.x1, win.y0, win.y1, 0.13);
-  pen.h(win.x0 + 1, win.x1 - 1, Y(0.215), 0.115);
+  pen.h(win.x0 + 1, win.x1 - 1, Y(0.17), 0.115);
   pen.v(X(0.155), win.y0 + 1, win.y1 - 1, 0.115);
 
   // Two far lights through the glass: someone else's night, kilometres off.
   // Self-luminous (they ARE lights), one-cell halos, slow twinkle in update.
   // Under compaction these outlive the furniture.
-  const farA = { x: X(0.13), y: Y(0.27) };
-  const farB = { x: X(0.185), y: Y(0.16) };
+  const farA = { x: X(0.13), y: Y(0.22) };
+  const farB = { x: X(0.185), y: Y(0.12) };
   pen.cell(farA.x, farA.y, 0.24);
   pen.cell(farA.x - 1, farA.y, 0.08);
   pen.cell(farA.x + 1, farA.y, 0.08);
@@ -142,8 +145,8 @@ function drawRoom(pen: Pen, w: number, h: number): Rect {
   // of wood grain), a firm near edge, an apron, four legs. The grain rides
   // just under the first ramp step — sparse speckle where the figure peaks
   // keeps the slab present in the dark; the pool resolves all of it.
-  const backY = Y(0.5);
-  const frontY = Y(0.63);
+  const backY = Y(0.24);
+  const frontY = Y(0.35);
   const backL = X(0.3);
   const backR = X(0.7);
   const frontL = X(0.245);
@@ -166,31 +169,33 @@ function drawRoom(pen: Pen, w: number, h: number): Rect {
   // edge is the table's read-at-a-glance silhouette, so it carries the most
   // weight of any structural stroke — it survives the shallow-depth (thin,
   // bin-1) render at the fold, where the room is otherwise a whisper.
-  pen.h(backL, backR, backY, 0.13);
-  pen.h(frontL, frontR, frontY, 0.32);
+  pen.h(backL, backR, backY, 0.16);
+  pen.h(frontL, frontR, frontY, 0.36);
   pen.h(frontL + 1, frontR - 1, frontY + 1, 0.09);
 
-  // Legs: front pair to the floor, back pair shorter (depth), dimmer.
-  pen.v(frontL + 2, frontY + 2, Y(0.88), 0.16);
-  pen.v(frontR - 3, frontY + 2, Y(0.88), 0.16);
-  pen.v(backL + 2, frontY + 1, Y(0.8), 0.1);
-  pen.v(backR - 3, frontY + 1, Y(0.8), 0.1);
+  // Legs: front pair to the floor, back pair shorter (depth), dimmer. One
+  // ramp step above whisper so the slab-on-legs silhouette carries the
+  // "table" read even outside the pool.
+  pen.v(frontL + 2, frontY + 2, Y(0.64), 0.24);
+  pen.v(frontR - 3, frontY + 2, Y(0.64), 0.24);
+  pen.v(backL + 2, frontY + 1, Y(0.54), 0.14);
+  pen.v(backR - 3, frontY + 1, Y(0.54), 0.14);
 
   // The chair, pulled up at the near-right corner: a tall narrow backrest
   // rising above the slab (two rails), stiles down to the seat, the seat
   // overhanging toward the table, legs beneath. Its inner stile sits at
   // light height — the "chair edge" that resolves as the glow swells.
-  const seatY = Y(0.68);
+  const seatY = Y(0.41);
   const stileL = X(0.775);
   const stileR = X(0.825);
-  pen.h(stileL, stileR, Y(0.39), 0.13);
-  pen.h(stileL + 1, stileR - 1, Y(0.44), 0.12);
-  pen.h(stileL + 1, stileR - 1, Y(0.52), 0.115);
-  pen.v(stileL, Y(0.39), seatY, 0.13);
-  pen.v(stileR, Y(0.39), seatY, 0.12);
-  pen.h(stileL - 4, stileR, seatY, 0.135);
-  pen.v(stileL - 2, seatY + 1, Y(0.9), 0.12);
-  pen.v(stileR - 1, seatY + 1, Y(0.9), 0.11);
+  pen.h(stileL, stileR, Y(0.14), 0.2);
+  pen.h(stileL + 1, stileR - 1, Y(0.19), 0.16);
+  pen.h(stileL + 1, stileR - 1, Y(0.27), 0.15);
+  pen.v(stileL, Y(0.14), seatY, 0.2);
+  pen.v(stileR, Y(0.14), seatY, 0.17);
+  pen.h(stileL - 4, stileR, seatY, 0.22);
+  pen.v(stileL - 2, seatY + 1, Y(0.66), 0.16);
+  pen.v(stileR - 1, seatY + 1, Y(0.66), 0.14);
 
   // The mug, close by the phone where its rim catches the glow: a dark
   // cylinder against the lit wood — bright rim, near-black coffee, a
@@ -239,8 +244,8 @@ function buildBases(buffer: LuminanceBuffer): void {
   const X = (f: number): number => Math.round(f * (w - 1));
   const Y = (f: number): number => Math.round(f * (h - 1));
   farLights = [
-    { index: Y(0.27) * w + X(0.13), phase: 0.9 },
-    { index: Y(0.16) * w + X(0.185), phase: 3.7 },
+    { index: Y(0.22) * w + X(0.13), phase: 0.9 },
+    { index: Y(0.12) * w + X(0.185), phase: 3.7 },
   ];
 }
 

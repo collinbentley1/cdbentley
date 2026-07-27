@@ -395,15 +395,19 @@
         margin-top: -54vh;
       }
 
+      /* The bridge is a descent cue, not the chapter's centerpiece: kept
+         small and at reduced ink so the name in the sand above stays the
+         first fold's read, and the bridge is what waits beneath it. */
       .bridge-cue {
         position: relative;
         z-index: 2;
-        width: min(92vw, 960px);
-        height: clamp(180px, 32svh, 300px);
-        margin: -8svh auto 0;
+        width: min(70vw, 720px);
+        height: clamp(140px, 24svh, 230px);
+        margin: -6svh auto 0;
         display: flex;
         align-items: center;
         color: rgba(232, 227, 211, 0.72);
+        opacity: 0.62;
         pointer-events: none;
       }
 

@@ -6,10 +6,12 @@
  * full resolution (motion.idleDelay), or when the discoverable gesture fires
  * (Phase C sets motion.summon >= 1; the harness can too) — something enormous
  * and serpentine crosses the frame, once, and is gone. Silhouette only: the
- * body OCCLUDES water, snow and glow (a moving hole in the texture), and
- * where it passes near the glow a thin rim catches the light — swelling
- * slightly while the body's nearest point passes the light and fading a beat
- * after (rimBloom / rimBloomFade). The undulation is enveloped along the
+ * body OCCLUDES water, snow and glow (a moving hole in the texture); a
+ * whisper of displaced water (rimShimmer, one ramp step) traces the surface
+ * so the hole reads as a mass at desktop cell sizes, and where it passes
+ * near the glow a thin rim catches the light — swelling slightly while the
+ * body's nearest point passes the light and fading a beat after
+ * (rimBloom / rimBloomFade). The undulation is enveloped along the
  * spine (WAVE_TAPER_*): the head holds its line, the tail carries the full
  * sweep, so the crossing reads as mass driving itself. It is never
  * named — not in code, comments, copy, commits, or the PR. Neutral
@@ -322,6 +324,7 @@ export const deepShapeScene: SceneModule = {
       rimBloom: 0.9,
       rimBloomFade: 1.4,
       rimGain: 1.1,
+      rimShimmer: 0.105,
       snowBright: 0.22,
       snowCount: 34,
       snowSpeed: 1.2,
@@ -350,6 +353,7 @@ export const deepShapeScene: SceneModule = {
       rimBloom = 0.9,
       rimBloomFade = 1.4,
       rimGain = 1.1,
+      rimShimmer = 0.105,
       snowBright = 0.22,
       snowCount = 34,
       snowSpeed = 1.2,
@@ -572,15 +576,21 @@ export const deepShapeScene: SceneModule = {
             continue;
           }
 
+          const rimT = 1 - s / rimW;
           const dx = x - glowX;
           const local = glowAt(dx * dx + dy * dy, gi, invR2, ci, coreInvR2);
+          // Displacement shimmer: water pressed aside by the mass lifts one
+          // whisper step along the whole surface, even away from the glow —
+          // at desktop scale the true-hole interior is black-on-black until
+          // the light finds it, and this faint pressed-water contour is what
+          // lets the crossing read as a body instead of "the orb moved".
+          // One ramp step ('·' band) at most; the lit rim still owns "=+*".
+          let lifted = (data[rowBase + x] ?? 0) + rimShimmer * rimT * rimT;
 
-          if (local <= 0) {
-            continue;
+          if (local > 0) {
+            lifted += rimBoost * local * rimT * rimT;
           }
 
-          const rimT = 1 - s / rimW;
-          const lifted = (data[rowBase + x] ?? 0) + rimBoost * local * rimT * rimT;
           data[rowBase + x] = lifted >= 1 ? 1 : lifted;
         }
       }

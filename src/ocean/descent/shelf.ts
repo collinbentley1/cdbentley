@@ -211,7 +211,15 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
       traveler.style.display = "block";
       const sx = baseW > 0 ? frame.w / baseW : 1;
       traveler.style.transform = `translate(${frame.x.toFixed(1)}px, ${frame.y.toFixed(1)}px) scale(${sx.toFixed(4)})`;
-      traveler.style.opacity = Math.min(1, collapse * 1.4).toFixed(3);
+      // Ink follows condensation: near the start of the flight the traveler is
+      // scaled to nearly the whole canvas, and at that size even low-opacity
+      // glyphs read as a giant overlay across the next scene (the beach's wave
+      // rows mushed the stage rigging). Squaring the shrink progress keeps the
+      // glyph a ghost while it is huge and lets it ink in as it approaches
+      // slot size — the dock moment itself is unchanged.
+      const span = Math.max(1, canvasRect.w - to.w);
+      const shrink = Math.min(1, Math.max(0, (canvasRect.w - frame.w) / span));
+      traveler.style.opacity = (Math.min(1, collapse * 1.4) * shrink * shrink).toFixed(3);
     },
   };
 }

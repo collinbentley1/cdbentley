@@ -7,9 +7,12 @@
  * a floor line tie the board, the night glass, and two linked rows of empty
  * seats together. The board's grid — a digit-pair time column, dash-run
  * destinations, a dim status column — reads as departures without one
- * legible word. Three runway lights sit on the horizon; a beacon crosses the
- * glass on a slow period. The chapter prose beside this scene is DOM, never
- * rendered here.
+ * legible word. Through the glass the view resolves instead of dissolving:
+ * an empty jet bridge stands parked over the tarmac — ribbed tube, rotunda,
+ * one support pylon — with sparse taxiway dashes below the horizon; the last
+ * flight is gone and the bridge waits. Three runway lights sit on the
+ * horizon; a beacon crosses the glass on a slow period. The chapter prose
+ * beside this scene is DOM, never rendered here.
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule, type SceneTuning } from "../../sdk/index.ts";
@@ -86,6 +89,10 @@ interface SceneState {
   rows: BoardRow[];
 }
 
+/** Cells of the static view through the glass (jet bridge, taxiway dashes) —
+ * they and their one-cell margin are excluded from the breathing night noise. */
+let viewMask = new Uint8Array(0);
+
 let state: SceneState = {
   base: new Float32Array(0),
   eventCounter: 0,
@@ -158,11 +165,27 @@ export const scene: SceneModule = {
     });
 
     // Glass cells (window interior, off-mullion) get per-frame night noise.
+    // Cells the static view occupies (the jet bridge, taxiway dashes — any
+    // base above the noise ceiling), plus a one-cell quiet margin around
+    // them, are excluded: the structure stands still with a dark outline of
+    // separation while the night breathes around it.
+    const isView = (x: number, y: number): boolean => (viewMask[y * COLS + x] ?? 0) !== 0;
+    const nearView = (x: number, y: number): boolean => {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (isView(x + dx, y + dy)) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    };
     const triples: number[] = [];
 
     for (let y = WIN_Y0 + 1; y < WIN_Y1; y++) {
       for (let x = WIN_X0 + 1; x < WIN_X1; x++) {
-        if ((x - WIN_X0) % MULLION_STEP !== 0) {
+        if ((x - WIN_X0) % MULLION_STEP !== 0 && !nearView(x, y)) {
           triples.push(y * COLS + x, x, y);
         }
       }
@@ -461,6 +484,53 @@ function buildBase(): Float32Array {
     for (let c = c0; c <= c1; c++) {
       b[HEADER_Y * COLS + TEXT_X0 + c] = 0.8 - hash3(c, 5, 9) * 0.06;
     }
+  }
+
+  // The view through the glass: an empty jet bridge parked over the tarmac.
+  // Static silhouette-grade structure (excluded from the per-frame night
+  // noise in init), so the window resolves as a view instead of static:
+  // a ribbed tube sloping down toward the rotunda, one support pylon to the
+  // ground, and sparse taxiway dashes below the horizon.
+  viewMask = new Uint8Array(COLS * ROWS);
+  const view = (x: number, y: number, v: number): void => {
+    b[y * COLS + x] = v;
+    viewMask[y * COLS + x] = 1;
+  };
+  const TUBE_X0 = 112;
+  const TUBE_X1 = 138;
+  const tubeTopAt = (x: number): number => 20 + Math.round(((x - TUBE_X0) * 7) / (TUBE_X1 - TUBE_X0));
+
+  for (let x = TUBE_X0; x <= TUBE_X1; x++) {
+    const yTop = tubeTopAt(x);
+    view(x, yTop, 0.42); // roof line
+    view(x, yTop + 3, 0.38); // floor line
+
+    // Tube body: dark solid (excluded from the glass noise, so the tube
+    // reads as a mass) with brighter accordion ribs every third column.
+    const rib = (x - TUBE_X0) % 3 === 0;
+    view(x, yTop + 1, rib ? 0.3 : 0.16);
+    view(x, yTop + 2, rib ? 0.3 : 0.16);
+  }
+
+  // Rotunda at the aircraft end, and its support pylon down to the tarmac.
+  for (let y = 25; y <= 31; y++) {
+    for (let x = TUBE_X1; x <= TUBE_X1 + 4; x++) {
+      const edge = y === 25 || y === 31 || x === TUBE_X1 || x === TUBE_X1 + 4;
+      view(x, y, edge ? 0.38 : 0.18);
+    }
+  }
+
+  for (let y = 32; y <= HORIZON_Y; y++) {
+    view(TUBE_X1 + 2, y, 0.32);
+  }
+
+  // Taxiway centerline dashes, converging quietly toward the runway lights.
+  for (let x = 116; x <= 158; x += 4) {
+    view(x, 39, 0.17);
+  }
+
+  for (let x = 128; x <= 174; x += 5) {
+    view(x, 41, 0.15);
   }
 
   // Window frame + mullions.
