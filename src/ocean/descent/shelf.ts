@@ -32,18 +32,23 @@ export interface ShelfCallbacks {
 
 export interface CollectionState {
   readonly flags: readonly boolean[];
-  update(slot: number, collapse: number, active: boolean, terminal: boolean): boolean;
+  update(slot: number, collapse: number, active: boolean): boolean;
   readonly visited: readonly boolean[];
 }
 
-/** Page-load memory: one-way false -> true, with no persistence surface. */
+/**
+ * Page-load memory: one-way false -> true, with no persistence surface.
+ * Every chapter — including the last — collects through its own collapse;
+ * the anglerfish tail leaves the final chapter enough scroll room to reach
+ * collapse 1 before the document ends (pinned in descent.test.ts).
+ */
 export function createCollectionState(count: number): CollectionState {
   const flags = new Array<boolean>(count).fill(false);
   const visited = new Array<boolean>(count).fill(false);
 
   return {
     flags,
-    update(slot: number, collapse: number, active: boolean, terminal: boolean): boolean {
+    update(slot: number, collapse: number, active: boolean): boolean {
       if (slot < 0 || slot >= flags.length) {
         return false;
       }
@@ -52,7 +57,7 @@ export function createCollectionState(count: number): CollectionState {
         visited[slot] = true;
       }
 
-      if (visited[slot] && (collapse >= 1 || (terminal && active))) {
+      if (visited[slot] && collapse >= 1) {
         flags[slot] = true;
       }
 
@@ -159,8 +164,7 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
       }
 
       const wasCollected = docked[slot] ?? false;
-      const isTerminal = slot === sections.length - 1;
-      const isCollected = collection.update(slot, collapse, visited, isTerminal);
+      const isCollected = collection.update(slot, collapse, visited);
 
       if (!wasCollected && isCollected) {
         showCollected(slot);
@@ -168,15 +172,6 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
 
       if (slot === 0 && collapse >= 1) {
         revealRemainingSlots();
-      }
-
-      // The terminal slot — the last chapter, the subway platform — cannot
-      // accumulate enough depth to reach collapse=1 before the document
-      // ends. Reaching its active sticky frame is its literal collection
-      // point, resolving all seven without fake scroll.
-      if (isTerminal && visited) {
-        traveler.style.display = "none";
-        return;
       }
 
       if (collapse <= 0) {

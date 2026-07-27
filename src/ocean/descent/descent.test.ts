@@ -78,6 +78,24 @@ describe("scene order", () => {
     expect(SECTIONS.filter((section) => section.shelfSlot === null).map((section) => section.scene.id)).toEqual(["beach", "anglerfish"]);
   });
 
+  test("every shelf chapter reaches full collapse before the document ends", () => {
+    // The dock animation is real for every chapter, including the last: the
+    // content after a chapter must leave it enough scroll room for collapse
+    // to reach 1. Trim the anglerfish tail below ~110vh and this fails —
+    // the final chip would silently become undockable.
+    const vh = 100;
+    const docVh = SECTIONS.reduce((sum, section) => sum + section.heightVh, 0);
+    const maxScrollVh = docVh - vh;
+
+    for (const section of SHELF_SECTIONS) {
+      const index = SECTIONS.indexOf(section);
+      const topVh = SECTIONS.slice(0, index).reduce((sum, s) => sum + s.heightVh, 0);
+      const depthAtBottom = depthForSectionTop(topVh - maxScrollVh, vh);
+      const resolution = resolutionForDepth(depthAtBottom, section.scene.tuning.resolution ?? {});
+      expect(resolution.collapse).toBe(1);
+    }
+  });
+
   test("the static shelf list is exactly the seven chapters with year labels", () => {
     const staticList = /<nav id="shelf"[^>]*>[\s\S]*?<ul>([\s\S]*?)<\/ul>/.exec(pageHtml)?.[1] ?? "missing";
     const items = [...staticList.matchAll(/<li><a href="#scene-([a-z-]+)">([^<]+)<\/a><\/li>/g)].map((m) => [m[1], m[2]]);
@@ -280,8 +298,10 @@ describe("single-layout / a11y invariants in the static page", () => {
     expect(pageHtml).toContain('<li><a href="#scene-stage">2016-2019</a></li>');
     expect(shelfSource).toContain('item.className = "shelf-item"');
     expect(shelfSource).toContain("slot === 0 && collapse >= 1");
-    expect(shelfSource).toContain("const isTerminal = slot === sections.length - 1");
-    expect(shelfSource).toContain("collection.update(slot, collapse, visited, isTerminal)");
+    // No terminal shortcut: every chapter, including the last, docks through
+    // its own collapse (the tail after it guarantees the scroll room).
+    expect(shelfSource).toContain("collection.update(slot, collapse, visited)");
+    expect(shelfSource).not.toContain("isTerminal");
     expect(shelfSource).toContain('nav.classList.add("shelf-expanded")');
     expect(shelfSource).not.toContain("sessionStorage");
     expect(shelfSource).not.toContain("localStorage");
@@ -297,20 +317,22 @@ describe("single-layout / a11y invariants in the static page", () => {
     expect(firstLoad.flags).toEqual([false, false, false, false, false, false, false]);
 
     // Passing a scene without ever making it the active frame is not a visit.
-    firstLoad.update(0, 1, false, false);
+    firstLoad.update(0, 1, false);
     expect(firstLoad.flags[0]).toBe(false);
 
-    firstLoad.update(0, 0, true, false);
-    firstLoad.update(0, 1, false, false);
-    firstLoad.update(3, 0, true, false);
-    firstLoad.update(3, 1, false, false);
-    firstLoad.update(0, 0, false, false);
+    firstLoad.update(0, 0, true);
+    firstLoad.update(0, 1, false);
+    firstLoad.update(3, 0, true);
+    firstLoad.update(3, 1, false);
+    firstLoad.update(0, 0, false);
     expect(firstLoad.flags).toEqual([true, false, false, true, false, false, false]);
     expect(firstLoad.visited).toEqual([true, false, false, true, false, false, false]);
 
-    // The terminal chapter (subway platform) collects as soon as its active
-    // sticky frame is reached.
-    firstLoad.update(6, 0, true, true);
+    // No terminal shortcut: visiting the last chapter alone does not collect
+    // it — it docks through its own collapse like every other chapter.
+    firstLoad.update(6, 0, true);
+    expect(firstLoad.flags[6]).toBe(false);
+    firstLoad.update(6, 1, false);
     expect(firstLoad.flags[6]).toBe(true);
 
     const reload = createCollectionState(7);
