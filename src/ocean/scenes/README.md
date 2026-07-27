@@ -1,6 +1,6 @@
 # Scene directories (Phase B fan-out)
 
-One directory per scene, named by its reserved id: `beach`, `stage`, `classroom`, `corridor`, `trading-floor`, `airport-gate`, `subway-platform`, `ocean-floor`, `anglerfish`, `deep-shape`.
+One directory per scene, named by its reserved id: `stage`, `classroom`, `corridor`, `kitchen-table`, `trading-floor`, `airport-gate`, `subway-platform`, `anglerfish`.
 
 A scene agent owns exactly:
 

@@ -9,7 +9,6 @@ import {
   resolutionForDepth,
 } from "../../sdk/index.ts";
 import type { SceneContext } from "../../sdk/index.ts";
-import { CONTACT_REGION } from "./contact-links.ts";
 import { beachDebug, scene } from "./scene.ts";
 
 function makeContext(): SceneContext {
@@ -123,17 +122,6 @@ test("the quiet band keeps the name 2+ ramp steps above its sand", () => {
   }
 
   expect(minName - maxSand).toBeGreaterThanOrEqual(2);
-});
-
-test("the contact block region stays above the tide at depth 0", () => {
-  const context = makeContext();
-  scene.init(context);
-
-  const regionBottomRow = Math.round((CONTACT_REGION.yFrac + CONTACT_REGION.hFrac) * scene.tuning.rows);
-
-  run(context, 30, 0.05, () => {
-    expect(beachDebug.minEdgeRowLastFrame()).toBeGreaterThan(regionBottomRow + 4);
-  });
 });
 
 test("the tide never floods the quiet band's top edge at depth 0", () => {

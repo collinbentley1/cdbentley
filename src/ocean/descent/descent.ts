@@ -1,9 +1,10 @@
 /**
- * The descent (WS-C Phase C integrator) — assembles "The Ocean Remembers":
- * scenes 1-8 in order with the deep register between subway and floor, the
- * always-on ocean field, the memory-line depth mapping (pure, bidirectional),
- * scroll-velocity -> turbulence coupling, the shelf, and a reduced-motion
- * path that keeps the same document and spatial context.
+ * The descent (WS-C Phase C integrator) — assembles the page: the seven
+ * chronological chapters (2016 -> 2026) in order with the anglerfish deep
+ * register at the end, the always-on ocean field, the memory-line depth
+ * mapping (pure, bidirectional), scroll-velocity -> turbulence coupling,
+ * the shelf, and a reduced-motion path that keeps the same document and
+ * spatial context.
  *
  * Grammar: depth = viewport-heights past the memory line (FROZEN unit).
  * Everything resolution-related is a pure function of scroll position; the
@@ -11,7 +12,6 @@
  */
 
 import { bindSleepWake, createGlyphRenderer, createSceneRunner, resolutionForDepth, type Rect, type SceneRunner } from "../sdk/index.ts";
-import { createBridgeLayer } from "../scenes/beach/bridge-layer.ts";
 import { depthForSectionTop, SECTIONS, TURBULENCE } from "./content.ts";
 import { createOceanField } from "./field.ts";
 import { createShelf } from "./shelf.ts";
@@ -49,33 +49,13 @@ const params = new URLSearchParams(location.search);
 const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || params.has("reduced");
 const shelfNav = document.getElementById("shelf");
 const fieldCanvas = document.getElementById("ocean-field");
-const bridgeCue = document.querySelector<HTMLElement>(".bridge-cue");
-const bridgeCanvas = bridgeCue?.querySelector<HTMLCanvasElement>(".bridge-canvas") ?? null;
-const bridgeLayer = bridgeCanvas ? createBridgeLayer(bridgeCanvas) : null;
-
-// Paint immediately so reduced-motion and a briefly paused first frame both
-// retain the bridge cue. Normal motion is driven by the shared frame below.
-bridgeLayer?.draw(0);
 
 // --- Mount every scene against its static section ------------------------
-// Staggered one-per-frame so page load never queues 10 renderer+atlas+init
-// tasks in one long block (TBT): the beach mounts in the first task, the
-// rest arrive over the next few frames, well before they can scroll on.
+// Staggered one-per-frame so page load never queues 8 renderer+atlas+init
+// tasks in one long block (TBT): the first chapter mounts in the first task,
+// the rest arrive over the next few frames, well before they can scroll on.
 
 const mounted: MountedScene[] = [];
-let deepShape: MountedScene | null = null;
-
-function summonDeepShape(): void {
-  if (!deepShape || prefersReduced) {
-    return;
-  }
-
-  deepShape.runner.scene.tuning.motion["summon"] = 1;
-  const target = deepShape;
-  window.setTimeout(() => {
-    target.runner.scene.tuning.motion["summon"] = 0;
-  }, 120);
-}
 
 function mountSection(entry: (typeof SECTIONS)[number]): void {
   const section = document.querySelector<HTMLElement>(`section[data-scene="${entry.scene.id}"]`);
@@ -117,20 +97,6 @@ function mountSection(entry: (typeof SECTIONS)[number]): void {
 
   const mount: MountedScene = { canvas, lastReducedDepth: Number.NaN, runner, section, slot: entry.shelfSlot, stage };
   mounted.push(mount);
-
-  if (entry.scene.id === "beach") {
-    // The beach contact block is real DOM (never washed, never compacted) —
-    // the in-buffer placeholder marker goes off now that the DOM overlays it.
-    runner.scene.tuning.motion["contactMarker"] = 0;
-  }
-
-  if (entry.scene.id === "deep-shape") {
-    // The deep register's discoverable gesture: double-click (or the ~ key
-    // while it is on screen) summons one pass. Never named; motion.summon is
-    // the hook.
-    deepShape = mount;
-    stage.addEventListener("dblclick", summonDeepShape);
-  }
 }
 
 // Section heights land in ONE style pass before first paint (zero CLS from
@@ -156,15 +122,6 @@ function mountNext(): void {
 }
 
 mountNext();
-document.addEventListener("keydown", (event) => {
-  if (event.key === "~" && deepShape) {
-    const rect = deepShape.section.getBoundingClientRect();
-
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      summonDeepShape();
-    }
-  }
-});
 
 // --- Shelf ----------------------------------------------------------------
 
@@ -275,14 +232,6 @@ function frame(now: number): void {
 
   if (field && !prefersReduced) {
     benchCpuAccum += field.step(dt, turbulence);
-  }
-
-  if (bridgeLayer && bridgeCue && !prefersReduced) {
-    const bridgeRect = bridgeCue.getBoundingClientRect();
-
-    if (bridgeRect.top < vh && bridgeRect.bottom > 0) {
-      benchCpuAccum += bridgeLayer.draw(now / 1000);
-    }
   }
 
   for (const m of mounted) {

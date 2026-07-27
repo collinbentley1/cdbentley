@@ -1,6 +1,6 @@
 /**
  * The shelf (WS-C Phase C) — persistent compressed memory of the descent,
- * doubling as nav. Eight slots; each scene's ~12x6 dock glyph drifts here
+ * doubling as nav. Seven slots; each scene's ~12x6 dock glyph drifts here
  * along the SDK's spring-on-bezier path as its section collapses. Once a
  * frame reaches the shelf it stays collected for the lifetime of this page
  * load, even when the visitor scrolls back up.
@@ -32,18 +32,23 @@ export interface ShelfCallbacks {
 
 export interface CollectionState {
   readonly flags: readonly boolean[];
-  update(slot: number, collapse: number, active: boolean, terminal: boolean): boolean;
+  update(slot: number, collapse: number, active: boolean): boolean;
   readonly visited: readonly boolean[];
 }
 
-/** Page-load memory: one-way false -> true, with no persistence surface. */
+/**
+ * Page-load memory: one-way false -> true, with no persistence surface.
+ * Every chapter — including the last — collects through its own collapse;
+ * the anglerfish tail leaves the final chapter enough scroll room to reach
+ * collapse 1 before the document ends (pinned in descent.test.ts).
+ */
 export function createCollectionState(count: number): CollectionState {
   const flags = new Array<boolean>(count).fill(false);
   const visited = new Array<boolean>(count).fill(false);
 
   return {
     flags,
-    update(slot: number, collapse: number, active: boolean, terminal: boolean): boolean {
+    update(slot: number, collapse: number, active: boolean): boolean {
       if (slot < 0 || slot >= flags.length) {
         return false;
       }
@@ -52,7 +57,7 @@ export function createCollectionState(count: number): CollectionState {
         visited[slot] = true;
       }
 
-      if (visited[slot] && (collapse >= 1 || (terminal && active))) {
+      if (visited[slot] && collapse >= 1) {
         flags[slot] = true;
       }
 
@@ -159,8 +164,7 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
       }
 
       const wasCollected = docked[slot] ?? false;
-      const isTerminal = slot === sections.length - 1;
-      const isCollected = collection.update(slot, collapse, visited, isTerminal);
+      const isCollected = collection.update(slot, collapse, visited);
 
       if (!wasCollected && isCollected) {
         showCollected(slot);
@@ -168,14 +172,6 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
 
       if (slot === 0 && collapse >= 1) {
         revealRemainingSlots();
-      }
-
-      // The final floor cannot accumulate enough depth to reach collapse=1
-      // before the document ends. Reaching its active sticky frame is its
-      // literal collection point, resolving all eight without fake scroll.
-      if (isTerminal && visited) {
-        traveler.style.display = "none";
-        return;
       }
 
       if (collapse <= 0) {
@@ -213,10 +209,10 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
       traveler.style.transform = `translate(${frame.x.toFixed(1)}px, ${frame.y.toFixed(1)}px) scale(${sx.toFixed(4)})`;
       // Ink follows condensation: near the start of the flight the traveler is
       // scaled to nearly the whole canvas, and at that size even low-opacity
-      // glyphs read as a giant overlay across the next scene (the beach's wave
-      // rows mushed the stage rigging). Squaring the shrink progress keeps the
-      // glyph a ghost while it is huge and lets it ink in as it approaches
-      // slot size — the dock moment itself is unchanged.
+      // glyphs read as a giant overlay mushed across the next scene. Squaring
+      // the shrink progress keeps the glyph a ghost while it is huge and lets
+      // it ink in as it approaches slot size — the dock moment itself is
+      // unchanged.
       const span = Math.max(1, canvasRect.w - to.w);
       const shrink = Math.min(1, Math.max(0, (canvasRect.w - frame.w) / span));
       traveler.style.opacity = (Math.min(1, collapse * 1.4) * shrink * shrink).toFixed(3);
