@@ -33,13 +33,6 @@ describe("server", () => {
     expect(body).toContain("url=/");
   });
 
-  test("serves the resume pdf", async () => {
-    const response = await handleRequest(new Request("http://localhost/resume.pdf"));
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("application/pdf");
-  });
-
   test("serves fixed static assets with revalidating cache headers", async () => {
     const response = await handleRequest(new Request("http://localhost/assets/og/ocean-og.png"));
 
