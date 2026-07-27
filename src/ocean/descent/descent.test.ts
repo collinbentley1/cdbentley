@@ -1,8 +1,9 @@
 /**
  * Descent integration wiring tests (WS-C Phase C) — DOM-free checks of the
- * scene order, depth mapping, shelf wiring, contact links, and the chapter
- * copy in the static page markup. The descent is seven chronological
- * chapters (2016 -> 2026) plus the anglerfish deep register at the end.
+ * scene order, depth mapping, shelf wiring, and the chapter copy in the
+ * static page markup. The descent is the beach hero (the name in the sand),
+ * seven chronological chapters (2016 -> 2026), then the anglerfish deep
+ * register at the end.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -52,8 +53,9 @@ const BANNED_USER_FACING = [
 ] as const;
 
 describe("scene order", () => {
-  test("chronological chapters 2016 -> 2026, then the deep register", () => {
+  test("the beach hero, chronological chapters 2016 -> 2026, then the deep register", () => {
     expect(SECTIONS.map((section) => section.scene.id)).toEqual([
+      "beach",
       "stage",
       "classroom",
       "corridor",
@@ -65,15 +67,15 @@ describe("scene order", () => {
     ]);
   });
 
-  test("chapters carry year labels and contract heights; the deep register stays unnamed", () => {
-    expect(SECTIONS.map((section) => section.label)).toEqual(["2016-2019", "2019-2020", "2020-2024", "2024-2025", "2025", "2026", "2026", "The deep"]);
-    expect(SECTIONS.map((section) => section.heightVh)).toEqual([180, 180, 180, 180, 180, 190, 190, 150]);
+  test("chapters carry year labels and contract heights; the hero and deep register stay unnamed", () => {
+    expect(SECTIONS.map((section) => section.label)).toEqual(["Collin Bentley", "2016-2019", "2019-2020", "2020-2024", "2024-2025", "2025", "2026", "2026", "The deep"]);
+    expect(SECTIONS.map((section) => section.heightVh)).toEqual([150, 180, 180, 180, 180, 180, 190, 190, 150]);
   });
 
-  test("exactly seven shelf slots, 0..6, only the anglerfish excluded", () => {
+  test("exactly seven shelf slots, 0..6; the hero and the anglerfish excluded", () => {
     expect(SHELF_SECTIONS.map((section) => section.shelfSlot)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(SHELF_SECTIONS.map((section) => section.scene.id)).toEqual(CHAPTER_NAV.map(([id]) => id));
-    expect(SECTIONS.filter((section) => section.shelfSlot === null).map((section) => section.scene.id)).toEqual(["anglerfish"]);
+    expect(SECTIONS.filter((section) => section.shelfSlot === null).map((section) => section.scene.id)).toEqual(["beach", "anglerfish"]);
   });
 
   test("the static shelf list is exactly the seven chapters with year labels", () => {
@@ -102,14 +104,21 @@ describe("scene order", () => {
     }
   });
 
-  test("the removed scenes are gone from the page", () => {
-    for (const id of ["beach", "deep-shape", "ocean-floor"]) {
+  test("the removed scenes are gone from the page; the bridge cue stays gone", () => {
+    for (const id of ["deep-shape", "ocean-floor"]) {
       expect(pageHtml).not.toContain(`data-scene="${id}"`);
       expect(pageHtml).not.toContain(`#scene-${id}`);
     }
 
     expect(pageHtml).not.toContain("bridge-cue");
     expect(pageHtml).not.toContain("bridge-canvas");
+  });
+
+  test("the beach hero is canvas-only: no heading, no prose, no shelf entry", () => {
+    const beachSection = /<section data-scene="beach"[^>]*>([\s\S]*?)<\/section>/.exec(pageHtml)?.[1] ?? "missing";
+    expect(beachSection).not.toBe("missing");
+    expect(beachSection.replace(/<[^>]+>/g, "").trim()).toBe("");
+    expect(pageHtml).not.toContain('<li><a href="#scene-beach">');
   });
 });
 
@@ -136,15 +145,10 @@ describe("memory line / depth mapping", () => {
   });
 });
 
-describe("contact links", () => {
-  test("the contact footer is the exact minimal block and holds the only email", () => {
-    const flat = pageHtml.replace(/\s+/g, " ").replace(/> </g, "><");
-    expect(flat).toContain(
-      '<footer class="site" aria-label="Contact"><p>Collin Bentley — <a href="mailto:collin.bentley@me.com">Email</a> · <a href="/resume.pdf">Resume</a></p></footer>',
-    );
-
-    const occurrences = pageHtml.split("mailto:collin.bentley@me.com").length - 1;
-    expect(occurrences).toBe(1);
+describe("contact surface", () => {
+  test("no footer and no email link anywhere — the rails and the header resume link are the only contacts", () => {
+    expect(pageHtml).not.toContain("<footer");
+    expect(pageHtml).not.toContain("mailto:");
   });
 
   test("the colophon footer and the /v1 site are gone", () => {
@@ -170,7 +174,8 @@ describe("final copy (the chapters are plain prose — no grading system)", () =
     for (const section of SECTIONS) {
       const opener = CHAPTER_OPENERS[section.scene.id];
 
-      if (section.scene.id === "anglerfish") {
+      if (section.shelfSlot === null) {
+        // The hero and the deep register carry no chapter copy.
         expect(opener).toBeUndefined();
         continue;
       }

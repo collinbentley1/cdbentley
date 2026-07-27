@@ -1,11 +1,12 @@
 /**
  * Descent content model (WS-C Phase C) — the scene order, per-section layout
- * constants, contact links, and the pure depth mapping. DOM-free so bun test
- * can exercise the wiring; descent.ts does the DOM assembly.
+ * constants, and the pure depth mapping. DOM-free so bun test can exercise
+ * the wiring; descent.ts does the DOM assembly.
  */
 
 import { scene as airportGateScene } from "../scenes/airport-gate/scene.ts";
 import { anglerfishScene } from "../scenes/anglerfish/scene.ts";
+import { scene as beachScene } from "../scenes/beach/scene.ts";
 import { scene as classroomScene } from "../scenes/classroom/scene.ts";
 import { scene as corridorScene } from "../scenes/corridor/scene.ts";
 import { scene as kitchenTableScene } from "../scenes/kitchen-table/scene.ts";
@@ -32,14 +33,16 @@ export interface DescentSection {
 export const MEMORY_LINE_VH = 0.5;
 
 /**
- * Scene order, strictly chronological: seven chapters from the Yale stage
- * (2016-2019) through the Beijing classroom, Humana corridor, Healthyr
- * kitchen table, OTseek trading floor, OTseek airport gate, and the subway
- * platform (2026, now), then the deep register (anglerfish) closing the
- * descent. Chapters are labeled by their years; the deep register stays
- * unlabeled in the nav and never docks.
+ * Scene order: the beach hero opens (the name in the sand — no chapter, no
+ * shelf slot, no prose), then seven strictly chronological chapters from the
+ * Yale stage (2016-2019) through the Beijing classroom, Humana corridor,
+ * Healthyr kitchen table, OTseek trading floor, OTseek airport gate, and the
+ * subway platform (2026, now), then the deep register (anglerfish) closing
+ * the descent. Chapters are labeled by their years; the hero and the deep
+ * register stay out of the nav and never dock.
  */
 export const SECTIONS: readonly DescentSection[] = [
+  { heightVh: 150, label: "Collin Bentley", scene: beachScene, shelfSlot: null },
   { heightVh: 180, label: "2016-2019", scene: stageScene, shelfSlot: 0 },
   { heightVh: 180, label: "2019-2020", scene: classroomScene, shelfSlot: 1 },
   { heightVh: 180, label: "2020-2024", scene: corridorScene, shelfSlot: 2 },

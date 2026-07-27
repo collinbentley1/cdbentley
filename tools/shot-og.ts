@@ -1,4 +1,4 @@
-/** Re-capture the 1200x630 OG image from the trading-floor scene. */
+/** Re-capture the 1200x630 OG image from the beach hero (the name in the sand). */
 import { chromium } from "playwright-core";
 
 import { handleRequest } from "../src/server.ts";
@@ -16,11 +16,11 @@ try {
   await page.goto(`${base}/`, { waitUntil: "load" });
   await page.waitForTimeout(700);
 
-  // Pin the trading floor so its sticky stage fills the frame, and hide the
+  // Pin the beach hero so its sticky stage fills the frame, and hide the
   // fixed chrome (shelf rail, social icons, any mid-flight dock traveler) so
   // the capture is the scene alone.
   await page.evaluate(() => {
-    const sec = document.querySelector('section[data-scene="trading-floor"]') as HTMLElement | null;
+    const sec = document.querySelector('section[data-scene="beach"]') as HTMLElement | null;
     if (!sec) return;
     const top = window.scrollY + sec.getBoundingClientRect().top;
     window.scrollTo(0, top);

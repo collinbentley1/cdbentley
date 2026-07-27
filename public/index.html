@@ -420,14 +420,6 @@
         will-change: transform, opacity;
       }
 
-      footer.site {
-        max-width: 68ch;
-        margin: 0 auto;
-        padding: 1.25rem 1.25rem 5rem;
-        position: relative;
-        z-index: 2;
-      }
-
       @media (prefers-reduced-motion: reduce) {
         .shelf-item {
           transition: none !important;
@@ -493,6 +485,12 @@
     </header>
 
     <main id="main">
+      <section data-scene="beach" id="scene-beach" aria-label="Collin Bentley — the name in the sand">
+        <div class="scene-stage">
+          <div class="canvas-box"></div>
+        </div>
+      </section>
+
       <section data-scene="stage" id="scene-stage" aria-labelledby="h-stage">
         <div class="scene-stage">
           <div class="canvas-box"></div>
@@ -611,10 +609,6 @@
       </section>
 
     </main>
-
-    <footer class="site" aria-label="Contact">
-      <p>Collin Bentley — <a href="mailto:collin.bentley@me.com">Email</a> · <a href="/resume.pdf">Resume</a></p>
-    </footer>
 
     <script type="module" src="/assets/ocean/descent.js?v=20260727"></script>
   </body>
