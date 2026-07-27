@@ -19,21 +19,8 @@ describe("server", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
     expect(response.headers.get("Cache-Control")).toBe("no-cache");
-    expect(body).toContain("The Ocean Remembers");
+    expect(body).toContain("<title>Collin Bentley</title>");
     expect(body).toContain("/assets/ocean/descent.js");
-  });
-
-  test("serves the previous site intact at /v1/", async () => {
-    const response = await handleRequest(new Request("http://localhost/v1/"));
-    const body = await response.text();
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
-    expect(response.headers.get("Cache-Control")).toBe("no-cache");
-    expect(body).toContain("A WILD PORTFOLIO APPEARED");
-    expect(body).toContain("fonts.googleapis.com");
-    expect(body).toContain("family=Press+Start+2P&family=Caveat");
-    expect(body).toContain("/assets/client.js");
   });
 
   test("redirect stub keeps /ocean/ links alive", async () => {
@@ -54,27 +41,27 @@ describe("server", () => {
   });
 
   test("serves fixed static assets with revalidating cache headers", async () => {
-    const response = await handleRequest(new Request("http://localhost/assets/styles.css"));
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300");
-  });
-
-  test("serves sprite assets as png images", async () => {
-    const response = await handleRequest(new Request("http://localhost/assets/sprites/trainer.png"));
+    const response = await handleRequest(new Request("http://localhost/assets/og/ocean-og.png"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("image/png");
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300");
+  });
+
+  test("serves the ico favicon", async () => {
+    const response = await handleRequest(new Request("http://localhost/favicon.ico"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("image/x-icon");
   });
 
   test("serves a crisp svg favicon", async () => {
-    const response = await handleRequest(new Request("http://localhost/favicon.ico"));
+    const response = await handleRequest(new Request("http://localhost/favicon.svg"));
     const body = await response.text();
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("image/svg+xml");
-    expect(body).toContain("<svg");
-    expect(body).toContain("shape-rendering=\"crispEdges\"");
+    expect(body).toContain("crispEdges");
   });
 
   test("rejects unsafe static paths", async () => {

@@ -1,6 +1,6 @@
 /**
  * The shelf (WS-C Phase C) — persistent compressed memory of the descent,
- * doubling as nav. Eight slots; each scene's ~12x6 dock glyph drifts here
+ * doubling as nav. Seven slots; each scene's ~12x6 dock glyph drifts here
  * along the SDK's spring-on-bezier path as its section collapses. Once a
  * frame reaches the shelf it stays collected for the lifetime of this page
  * load, even when the visitor scrolls back up.
@@ -170,9 +170,10 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
         revealRemainingSlots();
       }
 
-      // The final floor cannot accumulate enough depth to reach collapse=1
-      // before the document ends. Reaching its active sticky frame is its
-      // literal collection point, resolving all eight without fake scroll.
+      // The terminal slot — the last chapter, the subway platform — cannot
+      // accumulate enough depth to reach collapse=1 before the document
+      // ends. Reaching its active sticky frame is its literal collection
+      // point, resolving all seven without fake scroll.
       if (isTerminal && visited) {
         traveler.style.display = "none";
         return;
@@ -213,10 +214,10 @@ export function createShelf(nav: HTMLElement, sections: readonly DescentSection[
       traveler.style.transform = `translate(${frame.x.toFixed(1)}px, ${frame.y.toFixed(1)}px) scale(${sx.toFixed(4)})`;
       // Ink follows condensation: near the start of the flight the traveler is
       // scaled to nearly the whole canvas, and at that size even low-opacity
-      // glyphs read as a giant overlay across the next scene (the beach's wave
-      // rows mushed the stage rigging). Squaring the shrink progress keeps the
-      // glyph a ghost while it is huge and lets it ink in as it approaches
-      // slot size — the dock moment itself is unchanged.
+      // glyphs read as a giant overlay mushed across the next scene. Squaring
+      // the shrink progress keeps the glyph a ghost while it is huge and lets
+      // it ink in as it approaches slot size — the dock moment itself is
+      // unchanged.
       const span = Math.max(1, canvasRect.w - to.w);
       const shrink = Math.min(1, Math.max(0, (canvasRect.w - frame.w) / span));
       traveler.style.opacity = (Math.min(1, collapse * 1.4) * shrink * shrink).toFixed(3);

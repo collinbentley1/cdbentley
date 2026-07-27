@@ -9,17 +9,6 @@ const distPublicDir = join(distDir, "public");
 await rm(distDir, { force: true, recursive: true });
 await mkdir(distPublicDir, { recursive: true });
 
-const clientBuild = await Bun.build({
-  entrypoints: [join(import.meta.dir, "..", "src", "client.ts")],
-  minify: true,
-  naming: "assets/client.js",
-  outdir: distPublicDir,
-  sourcemap: "external",
-  target: "browser",
-});
-
-assertBuild(clientBuild, "client");
-
 // Ocean (WS-C): spike pages, the SDK demo harness, and any scene harness
 // found at src/ocean/scenes/<sceneId>/harness.ts. Scene agents add their
 // scene directory + a public/ocean/harness/<sceneId>.html page and this
@@ -85,11 +74,13 @@ assertBuild(serverBuild, "server");
 
 await Bun.write(join(distPublicDir, "index.html"), Bun.file(join(publicDir, "index.html")));
 await Bun.write(join(distPublicDir, "favicon.svg"), Bun.file(join(publicDir, "favicon.svg")));
+await Bun.write(join(distPublicDir, "favicon.ico"), Bun.file(join(publicDir, "favicon.ico")));
+await Bun.write(join(distPublicDir, "favicon-128.png"), Bun.file(join(publicDir, "favicon-128.png")));
+await Bun.write(join(distPublicDir, "apple-touch-icon.png"), Bun.file(join(publicDir, "apple-touch-icon.png")));
 
 await Bun.write(join(distPublicDir, "resume.pdf"), Bun.file(join(publicDir, "resume.pdf")));
 await cp(join(publicDir, "assets"), join(distPublicDir, "assets"), { recursive: true });
 await cp(join(publicDir, "ocean"), join(distPublicDir, "ocean"), { recursive: true });
-await cp(join(publicDir, "v1"), join(distPublicDir, "v1"), { recursive: true });
 
 function assertBuild(result: Bun.BuildOutput, label: string): void {
   if (!result.success) {

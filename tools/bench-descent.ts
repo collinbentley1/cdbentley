@@ -5,7 +5,7 @@
  * deviceScaleFactor 2 (the dpr cap). The page's ?bench=1 hook scripts a
  * constant-speed scroll top -> bottom -> top (compaction BOTH directions,
  * every scene crossing sleep/wake and one-load shelf collection) and records
- * rAF frame deltas plus the summed scene+field+bridge CPU per frame.
+ * rAF frame deltas plus the summed scene+field CPU per frame.
  *
  * Run: bun run build && bun tools/bench-descent.ts
  * Emits a markdown table; paste into reports/descent-benchmark.md.
@@ -64,7 +64,7 @@ try {
 
 console.log(`Chrome headless, CDP cpuThrottlingRate=${THROTTLE}, deviceScaleFactor=2, full-run scroll top->bottom->top over ${SECONDS}s.`);
 console.log("");
-console.log("| profile | avg fps | avg frame ms | p95 frame ms | avg scene+field+bridge cpu ms | p95 cpu ms | frames >17ms | frames |");
+console.log("| profile | avg fps | avg frame ms | p95 frame ms | avg scene+field cpu ms | p95 cpu ms | frames >17ms | frames |");
 console.log("| --- | --- | --- | --- | --- | --- | --- | --- |");
 
 for (const row of rows) {
