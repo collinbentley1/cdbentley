@@ -78,7 +78,6 @@ await Bun.write(join(distPublicDir, "favicon.ico"), Bun.file(join(publicDir, "fa
 await Bun.write(join(distPublicDir, "favicon-128.png"), Bun.file(join(publicDir, "favicon-128.png")));
 await Bun.write(join(distPublicDir, "apple-touch-icon.png"), Bun.file(join(publicDir, "apple-touch-icon.png")));
 
-await Bun.write(join(distPublicDir, "resume.pdf"), Bun.file(join(publicDir, "resume.pdf")));
 await cp(join(publicDir, "assets"), join(distPublicDir, "assets"), { recursive: true });
 await cp(join(publicDir, "ocean"), join(distPublicDir, "ocean"), { recursive: true });
 
