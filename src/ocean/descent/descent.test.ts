@@ -20,7 +20,7 @@ const CHAPTER_OPENERS: Record<string, string> = {
   "airport-gate": "In 2026 we went zero to one a second time, with US local government customers",
   classroom: "After Yale I moved to Beijing and taught STEM at AndKids",
   corridor: "From 2020 to 2024 I was a senior product manager in Humana's incubation lab",
-  "kitchen-table": "From 2024 to 2025 I was the principal product engineer at Healthyr",
+  "kitchen-table": "From 2024 to 2025 I was the principal product manager at Healthyr",
   stage: "I studied computer science at Yale and produced mainstage musicals there from 2016 to 2019",
   "subway-platform": "It's July 2026 and I'm between things, building.",
   "trading-floor": "In November 2025 I co-founded OTseek in Pear's PearX W26 batch",
@@ -164,7 +164,7 @@ describe("memory line / depth mapping", () => {
 });
 
 describe("contact surface", () => {
-  test("no footer and no email link anywhere — the rails and the header resume link are the only contacts", () => {
+  test("no footer and no email link anywhere — the rails are the only contacts", () => {
     expect(pageHtml).not.toContain("<footer");
     expect(pageHtml).not.toContain("mailto:");
   });
