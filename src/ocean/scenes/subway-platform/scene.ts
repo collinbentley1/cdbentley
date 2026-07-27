@@ -64,16 +64,38 @@ const V = {
   floorFront: 0.14,
   gap: 0.05,
   grout: 0.05,
-  poolAdd: 0.08,
+  groutTick: 0.12,
+  poolAdd: 0.16,
   railBase: 0.4,
   sign: 0.13,
   signFrame: 0.68,
   stripe: 0.5,
-  tactileHigh: 0.26,
-  tactileLow: 0.06,
+  tactileFar: 0.15,
+  tactileGap: 0.06,
+  tactileNear: 0.26,
   trench: 0.05,
   wall: 0.34,
+  wallGloss: 0.4,
+  wallStain: 0.23,
 } as const;
+
+/**
+ * Fixture pools on the platform floor: closed ellipses (light falls, it does
+ * not stamp). Center sits ~58% into the floor's depth; radii are in cells.
+ * Values chosen against the bins: ':' core, '·' skirt, closed before the
+ * frame's bottom edge.
+ */
+const POOL_CENTER_FRAC = 0.58;
+const POOL_RX = 5.8;
+const POOL_RY = 3.4;
+
+/**
+ * Steel saturates: rail cells under the reflection cap at the '=' bin, so a
+ * bright glint thickens the rail instead of hashing it with vertical glyphs.
+ * (The headlight's own stamp still blooms over the cap — that is the light,
+ * not the steel.)
+ */
+const RAIL_GLINT_MAX = 0.53;
 
 /**
  * Tile grid: lit faces separated by empty grout. Vertical grout is 2 cells
@@ -179,12 +201,32 @@ function buildStatic(width: number, height: number, columnSpacing: number, fixtu
       } else if (y >= wallTop && y < wallBottom) {
         // Lit tile faces with empty grout lines: the wall's grid reads as
         // dark mortar between light tiles (figure/ground, not a solid field).
-        v = x % TILE_W < GROUT_W || (y - wallTop) % TILE_H === 0 ? V.grout : V.wall;
+        const onGrout = x % TILE_W < GROUT_W || (y - wallTop) % TILE_H === 0;
+        v = onGrout ? V.grout : V.wall;
+        // Age on the grid, all static: a grime field (clustered, heavier low
+        // on the wall) dims a few tiles a bin; a rare tile carries a glaze
+        // that catches the fixtures a bin brighter; where grime crosses the
+        // mortar, a faint tick keeps the stain continuous across the grout.
+        const tileCol = Math.floor(x / TILE_W);
+        const tileRow = Math.floor((y - wallTop) / TILE_H);
+        const grime = fbm2(wallNoise, tileCol * 0.71 + 5.7, tileRow * 0.47 + 2.9, 2);
+        const lowWall = (y - wallTop) / Math.max(1, wallBottom - wallTop);
+        const stained = grime + 0.15 * lowWall > 0.82;
+        if (onGrout) {
+          if (stained && wallNoise(x * 3.7 + 0.51, y * 5.3 + 7.9) < 0.3) {
+            v = V.groutTick;
+          }
+        } else if (stained) {
+          v = V.wallStain;
+        } else if (wallNoise(tileCol * 7.31 + 3.1, tileRow * 9.17 + 1.7) > 0.94) {
+          v = V.wallGloss;
+        }
         // A single bright trim line — the station's tile band, one row only.
         if (y >= stripeTop && y < stripeBottom) {
           v = V.stripe;
         }
         // The sign slab: a framed panel that gives the DOM sign text a home.
+        // The slab stays pristine — no staining under the copy.
         if (x >= signLeft && x < signRight && y >= signTop && y < signBottom) {
           const onFrame = x === signLeft || x === signRight - 1 || y === signTop || y === signBottom - 1;
           v = onFrame ? V.signFrame : V.sign;
@@ -197,18 +239,25 @@ function buildStatic(width: number, height: number, columnSpacing: number, fixtu
       } else if (y >= edgeTop && y < edgeBottom) {
         v = V.edge;
       } else if (y >= edgeBottom && y < tactileBottom) {
-        // Thinned warning strip: a low-contrast dashed line, not a bright bar,
-        // so it doesn't fight the sign for attention.
-        v = Math.floor(x / 2) % 2 === 0 ? V.tactileHigh : V.tactileLow;
+        // Tactile strip: two staggered rows of raised domes — a woven dot
+        // mat, dimmer on the far row — not a perforation line. Low contrast;
+        // it stands next to the edge line without fighting it.
+        const near = (y - edgeBottom) % 2 === 1;
+        const phase = Math.floor(x / 2) % 2 === (near ? 0 : 1);
+        v = phase ? (near ? V.tactileNear : V.tactileFar) : V.tactileGap;
       } else if (y >= tactileBottom) {
         // Platform floor: one calm mid plane that gradients from near-black at
         // the pit edge (a rest band) up to '·'/':' toward the viewer.
         const frac = (y - tactileBottom) / Math.max(1, height - 1 - tactileBottom);
         v = V.floorBack + (V.floorFront - V.floorBack) * frac;
-        // Fixture light pools on the lit near floor.
+        // Fixture light falls in closed elliptical pools mid-floor: a ':'
+        // core inside a soft '·' skirt, fully contained before the frame's
+        // bottom edge (no stamped stripes).
+        const poolCenterY = tactileBottom + POOL_CENTER_FRAC * Math.max(1, height - 1 - tactileBottom);
+        const dyp = (y - poolCenterY) / POOL_RY;
         for (const fx of fixtureXs) {
-          const dx = x - fx;
-          v += V.poolAdd * Math.exp(-(dx * dx) / 40) * frac;
+          const dxp = (x - fx) / POOL_RX;
+          v += V.poolAdd * Math.exp(-(dxp * dxp + dyp * dyp));
         }
       }
 
@@ -293,9 +342,11 @@ export const subwayPlatformScene: SceneModule = {
       headlightRadius: 8,
       headlightReach: 0.12,
       headlightRecede: 7,
+      mouthWash: 0.3,
       noiseScale: 0.11,
       railFalloff: 0.12,
       railGlow: 0.22,
+      railLead: 3,
       tileBreath: 0.015,
     },
     ramp: " ·:~-=|+*#@",
@@ -316,9 +367,11 @@ export const subwayPlatformScene: SceneModule = {
       headlightRadius = 8,
       headlightReach = 0.12,
       headlightRecede = 7,
+      mouthWash = 0.3,
       noiseScale = 0.11,
       railFalloff = 0.12,
       railGlow = 0.22,
+      railLead = 3,
       tileBreath = 0.015,
     } = this.tuning.motion;
     const width = buffer.width;
@@ -346,20 +399,28 @@ export const subwayPlatformScene: SceneModule = {
     const delay = Math.min(period * 0.3, Math.max(0, period - active)) * jitterA;
     const s = time - cycle * period - delay;
 
-    let envelope = 0;
-    let travel = 0;
-    if (s > 0 && s < active) {
-      if (s < approach) {
-        travel = smooth01(s / approach);
-        envelope = travel;
-      } else if (s < approach + hold) {
-        travel = 1;
-        envelope = 1;
-      } else {
-        travel = 1;
-        envelope = smooth01(1 - (s - approach - hold) / recede);
+    const phaseAt = (sv: number): [envelope: number, travel: number] => {
+      if (sv <= 0 || sv >= active) {
+        return [0, 0];
       }
-    }
+      if (sv < approach) {
+        const t = smooth01(sv / approach);
+        return [t, t];
+      }
+      if (sv < approach + hold) {
+        return [1, 1];
+      }
+      return [smooth01(1 - (sv - approach - hold) / recede), 1];
+    };
+
+    // Anticipation is the scene's emotion: the rails run ahead of the light.
+    // Their reflection follows a phase led by railLead seconds, so the glint
+    // creeps down the steel a beat before the tunnel mouth brightens — and
+    // stays (max of both phases) until the light itself dies.
+    const [envelope, travel] = phaseAt(s);
+    const [leadEnvelope, leadTravel] = phaseAt(s + railLead);
+    const railEnvelope = Math.max(envelope, leadEnvelope);
+    const railTravel = Math.max(travel, leadTravel);
     const peak = clamp01(headlightIntensity * (0.8 + 0.25 * jitterB));
 
     // --- Air movement: the breeze a train pushes ahead of itself. The drift
@@ -410,15 +471,39 @@ export const subwayPlatformScene: SceneModule = {
     // The platform floor stays a still rest plane (no dither): the only air
     // that moves is in the track trench, where the train pushes it.
 
-    // Rails catch the headlight: a reflection spreading from the light.
+    // Rails catch the headlight first: the reflection spreads from where the
+    // led phase puts the light, one beat ahead of the visible bloom.
     const lightX = -4 + travel * (headlightReach * width + 4);
-    if (envelope > 0) {
+    const railLightX = -4 + railTravel * (headlightReach * width + 4);
+    if (railEnvelope > 0) {
       const fall = Math.max(1, width * railFalloff);
       for (const y of [railA, railB]) {
         const base = y * width;
         for (let x = 0; x < width; x++) {
-          const add = envelope * railGlow * Math.exp(-Math.abs(x - lightX) / fall);
-          data[base + x] = clamp01((data[base + x] ?? 0) + add);
+          const add = railEnvelope * railGlow * Math.exp(-Math.abs(x - railLightX) / fall);
+          const lit = clamp01((data[base + x] ?? 0) + add);
+          data[base + x] = lit > RAIL_GLINT_MAX ? RAIL_GLINT_MAX : lit;
+        }
+      }
+    }
+
+    // Then the tunnel mouth brightens: the portal fills with a faint wash as
+    // the light nears, resolving out of black behind the already-lit rails.
+    if (envelope > 0) {
+      const mouthRight = Math.max(4, Math.round(width * F.tunnelMouth));
+      const wallTopRow = wallTop + 2;
+      const wash = envelope * peak * mouthWash;
+      for (let y = wallTopRow; y < edgeTop; y++) {
+        if (y === railA || y === railB) {
+          continue;
+        }
+        // The wash hugs the ground — a low headlight lights the portal from
+        // the rails up, so the top of the mouth stays dark longest.
+        const rise = (y - wallTopRow) / Math.max(1, edgeTop - 1 - wallTopRow);
+        const washHere = wash * (0.25 + 0.75 * rise);
+        const base = y * width;
+        for (let x = 0; x < mouthRight; x++) {
+          data[base + x] = clamp01((data[base + x] ?? 0) + washHere);
         }
       }
     }
