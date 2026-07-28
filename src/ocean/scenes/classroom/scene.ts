@@ -1,576 +1,557 @@
 /**
- * Scene 3 — "A classroom at night, chairs on desks: chalk ghosts animating
- * faintly." (design-brief-ocean.md)
+ * Scene 3 — "classroom": the learning hall (AndKids, Beijing).
  *
- * A dark room built once into static luminance bases at init: chalkboard
- * with frame and tray, a mullioned window with the moon in its upper pane,
- * a door on the far-left wall, desks with chairs stacked upside down on
- * top plus one larger offset teacher's desk, and a moonlight shaft that
- * falls visibly FROM the window onto the floor (a faint mullion shadow
- * seams the pool). The board says chalkboard: four rows of faint
- * dash-writing — word-length runs with gaps, never letters or words, so
- * nothing reads as copy — and one recognizable chalk figure, a circle
- * with a chord. The one quiet idiomatic motion is those chalk marks
- * breathing: each surfaces a little brighter out of the board dust and
- * settles again on slow staggered cycles, over a barely-there chalk-dust
- * shimmer, while one SDK light source sways imperceptibly over the
- * moonlight pool.
+ * Not a classroom at all: a great hall of books. The architecture is a
+ * full-bleed floor-to-ceiling shelf wall framed like a proscenium — two
+ * massive jambs at the canvas edges, a heavy cornice crowning the wall, a
+ * colonnade of thick bay uprights, and a solid gallery band dividing the
+ * bright eye-level courses from the dark attic rows. Books are short
+ * vertical strokes of varied height and band; the four lowest courses sit
+ * on continuous bright shelf rules, densest at eye level, thinning and
+ * dimming toward the attic so the wall has tonal hierarchy instead of
+ * wallpaper. Below, the polished floor recedes: a dense baseline shadow,
+ * perspective seams spreading from the bay rhythm, and a dot gradient
+ * fading with distance. THE centerpiece and the ONE motion: a Sphero — a
+ * compact max-density pearl — glides slowly across the floor on a
+ * figure-eight, towing a comet trail that ramps up toward it, drawn
+ * parametrically from context.time so the scene is pure and flicker-free.
+ * A slow breathing haze confined to the floor air is the only secondary.
  *
- * Compaction legibility: the room is line art, and 1-cell strokes average
- * away to black under bin-4 pooling. So init bakes THREE bases with stroke
- * thickness matched to the bin stride (1/2/4, small gain), and update picks
- * one via resolutionForDepth(context.depth) — a pure function of depth, so
- * scroll-up re-blooms along the exact same path. As the scene forgets
- * itself the dust and chalk marks drain away first; the thickened skeleton
- * (board frame, desks, window, door) is what survives into the residue.
- *
- * No human-readable text is rendered by this sim; the chalk marks are
- * deliberately non-lexical. The chapter prose beside this scene is DOM.
+ * Nothing human-readable is rendered here; the book spines are abstract
+ * strokes. The chapter prose beside this scene is DOM.
  */
 
-import { createValueNoise, fbm2, resolutionForDepth } from "../../sdk/index.ts";
-import type { LuminanceBuffer, SceneContext, SceneModule } from "../../sdk/index.ts";
+import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
 
-const noise = createValueNoise(31);
+const hazeNoise = createValueNoise(23);
 
-/** Deterministic hash -> [0,1), used to cut the writing into word runs. */
+/** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
+const CORNICE_EDGE_LUM = 0.74; // '+' — cornice crown and base courses
+const CORNICE_FILL_LUM = 0.6; // '=' — cornice body row
+const DENTIL_LUM = 0.56; // '|' — dentil blocks inside the cornice
+const DENTIL_GAP_LUM = 0.16; // '·' — gaps between dentils
+const JAMB_LOW_LUM = 0.76; // '+' — proscenium jambs nearest the floor
+const JAMB_HIGH_LUM = 0.72; // '+' — proscenium jambs, upper
+const JAMB_GROOVE_LUM = 0.4; // '-' — grooves carved down each jamb face
+const UPRIGHT_LOW_LUM = 0.72; // '+' — colonnade bay uprights, lower
+const UPRIGHT_HIGH_LUM = 0.7; // '+' — colonnade bay uprights, upper
+const GALLERY_LUM = 0.7; // '+' — the solid mid-wall gallery band
+const RULE_EYE_LUM = 0.72; // '+' — continuous rules under the low courses
+const RULE_EYE_UNDER_LUM = 0.54; // '|' — their under-edge shadow row
+const RULE_MID_LUM = 0.62; // '=' — mid-wall course rules
+const RULE_ATTIC_LUM = 0.5; // '|' — attic course rules
+const FLOOR_LUM = 0.72; // '+' — the baseline shadow row, full width
+const FLOOR_UNDER_LUM = 0.5; // '|' — its under-edge
+const PLINTH_LUM = 0.56; // '|' — closed cabinet course under the shelves
+const PLINTH_RAIL_LUM = 0.62; // '=' — its kick rail nearest the floor
+const PLINTH_SEAM_LUM = 0.22; // ':' — cabinet door seams
+const BOOK_LUMS = [0.34, 0.44, 0.56, 0.66] as const; // ':' '-' '|' '=' spines
+const SEAM_LUM = 0.26; // ':' — perspective floor seams at the baseline
+const SEAM_SPREAD = 0.02; // how fast seams fan outward per row of depth
+const BOARD_LUM = 0.24; // ':' — floorboard joints nearest the baseline
+const DOT_DENSITY = 0.07; // sparse floor grain density at the baseline
+const DOT_LUM_LO = 0.12; // '·' — floor grain at the far fade
+const DOT_LUM_HI = 0.2; // '·' — floor grain nearest the baseline
+
+/** Course tier thresholds on t = (shelfY - shelfTop) / wallSpan. */
+const EYE_T = 0.55; // at/below: bright eye-level courses on solid rules
+const MID_T = 0.38; // between: mid courses; above: dim attic courses
+const EYE_GAIN = 0.92;
+const MID_GAIN = 0.75;
+const ATTIC_GAIN = 0.55;
+const EYE_GAP = 0.14;
+const MID_GAP = 0.2;
+const ATTIC_GAP = 0.3;
+
+/** Books must clear the cornice by this many rows to hang a shelf course. */
+const SHELF_HEADROOM = 5;
+
+interface HallGeometry {
+  bayW: number;
+  cornBot: number;
+  cornTop: number;
+  cx: number;
+  floorRow: number;
+  galleryY: number;
+  innerL: number;
+  innerR: number;
+  jambW: number;
+  shelfPitch: number;
+  shelfTop: number;
+  uprightW: number;
+}
+
+let base = new Float32Array(0);
+let baseCols = 0;
+let baseRows = 0;
+let hazeLattice = new Float32Array(0);
+
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) {
+    return 0;
+  }
+
+  return v <= 0 ? 0 : v >= 1 ? 1 : v;
+}
+
+/** Deterministic hash -> [0,1), used to cut the wall into individual books. */
 function hash01(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
 
   return s - Math.floor(s);
 }
 
-function clamp01(v: number): number {
-  return v <= 0 ? 0 : v >= 1 ? 1 : v;
-}
+/**
+ * Landmarks from proportions. The wall is full-bleed: the cornice spans
+ * every column, the massive jambs rise at the canvas edges, and the floor
+ * line crosses the entire width. The gallery band is the shelf course
+ * nearest the wall's vertical midpoint. Vertical offsets scale with rows
+ * so small harness grids stay in-bounds.
+ */
+function geometry(cols: number, rows: number): HallGeometry {
+  const jambW = Math.max(4, Math.round(cols * 0.08));
+  const cornTop = Math.max(1, Math.round(rows * 0.04));
+  const cornBot = cornTop + 3;
+  const shelfTop = cornBot + 1;
+  const floorRow = Math.round(rows * 0.66);
+  const shelfPitch = Math.max(4, Math.round(rows * 0.058));
+  const wallSpan = Math.max(1, floorRow - shelfTop);
+  let galleryY = -1;
+  let galleryDist = Infinity;
 
-interface MarkSample {
-  readonly index: number;
-  readonly weight: number;
-}
+  for (let y = floorRow - shelfPitch; y >= cornBot + SHELF_HEADROOM; y -= shelfPitch) {
+    const d = Math.abs((y - shelfTop) / wallSpan - 0.5);
 
-/** One breathing chalk mark: baked samples plus its apply-time gain. */
-interface Mark {
-  readonly samples: MarkSample[];
-  readonly gain: number;
-}
-
-interface Rect {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
-
-/** Max-blend drawing pen over a Float32Array, with stroke width and gain. */
-interface Pen {
-  cell(x: number, y: number, v: number): void;
-  rect(r: Rect, v: number): void;
-  h(x0: number, x1: number, y: number, v: number): void;
-  v(x: number, y0: number, y1: number, v: number): void;
-}
-
-/** Static room luminance, one base per bin stride (strokes thicken with bin). */
-let bases: Partial<Record<1 | 2 | 4, Float32Array>> = {};
-/** Breathing chalk marks (writing rows + the circle figure). */
-let marks: Mark[] = [];
-/** Board interior (dust shimmer + mark region), buffer cell coords. */
-let board: Rect = { x0: 0, x1: 0, y0: 0, y1: 0 };
-/** Resting position of the moonlight pool light. */
-let moonX = 0;
-let moonY = 0;
-
-function makePen(target: Float32Array, w: number, h: number, stroke: number, gain: number): Pen {
-  const put = (x: number, y: number, v: number): void => {
-    if (x < 0 || y < 0 || x >= w || y >= h) {
-      return;
+    if (d < galleryDist) {
+      galleryDist = d;
+      galleryY = y;
     }
-
-    const i = y * w + x;
-    target[i] = Math.max(target[i] ?? 0, clamp01(v * gain));
-  };
-  const rect = (r: Rect, v: number): void => {
-    for (let y = r.y0; y <= r.y1; y++) {
-      for (let x = r.x0; x <= r.x1; x++) {
-        put(x, y, v);
-      }
-    }
-  };
+  }
 
   return {
-    cell: put,
-    h: (x0, x1, y, v) => {
-      rect({ x0, x1, y0: y, y1: y + stroke - 1 }, v);
-    },
-    rect,
-    v: (x, y0, y1, v) => {
-      rect({ x0: x, x1: x + stroke - 1, y0, y1 }, v);
-    },
+    bayW: Math.max(7, Math.round(cols * 0.088)),
+    cornBot,
+    cornTop,
+    cx: Math.round(cols * 0.5),
+    floorRow,
+    galleryY,
+    innerL: jambW,
+    innerR: cols - 1 - jambW,
+    jambW,
+    shelfPitch,
+    shelfTop,
+    uprightW: Math.max(2, Math.round(cols * 0.022)),
   };
 }
 
-/** One desk with an upside-down chair on top (seat down, legs up). */
-function drawDeskWithChair(
-  pen: Pen,
-  cx: number,
-  deskTopY: number,
-  deskW: number,
-  legDrop: number,
-  chairLegH: number,
-  dim: number,
-): void {
-  const half = Math.floor(deskW / 2);
-  const x0 = cx - half;
-  const x1 = cx + half;
-
-  // Desk slab: bright top edge, dimmer underside, legs down to the floor.
-  pen.h(x0, x1, deskTopY, 0.56 * dim);
-  pen.h(x0 + 1, x1 - 1, deskTopY + 1, 0.3 * dim);
-  pen.v(x0 + 1, deskTopY + 2, deskTopY + legDrop, 0.6 * dim);
-  pen.v(x1 - 1, deskTopY + 2, deskTopY + legDrop, 0.6 * dim);
-
-  // Inverted chair: seat slab resting on the desk, legs up, a crossbar.
-  const seatY = deskTopY - 1;
-  const seatHalf = Math.max(2, Math.floor(deskW * 0.3));
-  pen.h(cx - seatHalf, cx + seatHalf, seatY, 0.44 * dim);
-  const legTopY = seatY - chairLegH;
-  pen.v(cx - seatHalf + 1, legTopY, seatY - 1, 0.64 * dim);
-  pen.v(cx + seatHalf - 1, legTopY, seatY - 1, 0.64 * dim);
-  pen.h(cx - seatHalf + 1, cx + seatHalf - 1, legTopY, 0.4 * dim);
+/** Bounds-checked assignment (buildBase writes never wrap on small grids). */
+function putSet(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    data[y * w + x] = clamp01(v);
+  }
 }
 
-/** The larger offset teacher's desk: wide slab, modesty panel, no chair. */
-function drawTeacherDesk(pen: Pen, cx: number, topY: number, deskW: number, legDrop: number): void {
-  const half = Math.floor(deskW / 2);
-  const x0 = cx - half;
-  const x1 = cx + half;
-
-  pen.h(x0, x1, topY, 0.62);
-  pen.h(x0 + 1, x1 - 1, topY + 1, 0.32);
-  pen.v(x0 + 1, topY + 2, topY + legDrop, 0.62);
-  pen.v(x1 - 1, topY + 2, topY + legDrop, 0.62);
-
-  // Modesty panel between the legs: a faint mottled face, unlike the open
-  // student desks — some cells fall below the first ramp step on purpose.
-  for (let y = topY + 2; y <= topY + legDrop - 1; y++) {
-    for (let x = x0 + 3; x <= x1 - 3; x++) {
-      pen.cell(x, y, 0.07 + 0.08 * fbm2(noise, x * 0.5, y * 0.7, 2));
-    }
+/** Max-write with bounds check. */
+function putMax(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x < 0 || x >= w || y < 0 || y >= h) {
+    return;
   }
 
-  // Something left on top: a short stack and one small mug-like dot.
-  const stackX = x0 + Math.max(3, Math.floor(deskW * 0.22));
-  pen.h(stackX, stackX + 3, topY - 1, 0.5);
-  pen.cell(x1 - Math.max(3, Math.floor(deskW * 0.2)), topY - 1, 0.46);
+  const i = y * w + x;
+
+  if ((data[i] ?? 0) < v) {
+    data[i] = clamp01(v);
+  }
 }
 
-/** Draw the whole room through a pen; returns the board interior rect. */
-function drawRoom(pen: Pen, w: number, h: number): Rect {
-  const X = (f: number): number => Math.round(f * (w - 1));
-  const Y = (f: number): number => Math.round(f * (h - 1));
+/**
+ * Static architecture: the heavy cornice crowning every column, tiered
+ * shelf courses (bright continuous rules and packed spines at eye level,
+ * dimmer and airier toward the attic), the solid mid-wall gallery band,
+ * the plinth cabinets, the thick bay-upright colonnade, the massive edge
+ * jambs, and the receding floor — baseline shadow, perspective seams,
+ * dot gradient. Everything here survives as the wall's skeleton at bin-4
+ * pooling: jambs, uprights, cornice, gallery, and plinth all pool >= 0.5.
+ */
+function buildBase(cols: number, rows: number): void {
+  base = new Float32Array(cols * rows);
+  baseCols = cols;
+  baseRows = rows;
 
-  // Chalkboard: frame (= top/bottom, | sides, # corners), dusty interior.
-  const frame: Rect = { x0: X(0.16), x1: X(0.72), y0: Y(0.1), y1: Y(0.48) };
-  const interior: Rect = { x0: frame.x0 + 1, x1: frame.x1 - 1, y0: frame.y0 + 1, y1: frame.y1 - 1 };
-  pen.h(frame.x0, frame.x1, frame.y0, 0.56);
-  pen.h(frame.x0, frame.x1, frame.y1, 0.56);
-  pen.v(frame.x0, frame.y0, frame.y1, 0.69);
-  pen.v(frame.x1, frame.y0, frame.y1, 0.69);
-  pen.cell(frame.x0, frame.y0, 0.81);
-  pen.cell(frame.x1, frame.y0, 0.81);
-  pen.cell(frame.x0, frame.y1, 0.81);
-  pen.cell(frame.x1, frame.y1, 0.81);
+  const geo = geometry(cols, rows);
+  const wallSpan = Math.max(1, geo.floorRow - geo.shelfTop);
 
-  // Board interior: uneven chalk-dust residue (static component). Fine-grain
-  // and mostly below the first ramp step, so the board reads as near-black
-  // slate with sparse dust — the writing must be the visible event.
-  for (let y = interior.y0; y <= interior.y1; y++) {
-    for (let x = interior.x0; x <= interior.x1; x++) {
-      const n = fbm2(noise, x * 0.33, y * 0.61, 2);
-      pen.cell(x, y, 0.05 + 0.05 * n);
+  // Cornice, full width: '+' crown and base courses around a body row and
+  // a dentil row — four rows deep, dense enough to pool solid at bin 4.
+  for (let y = geo.cornTop; y <= geo.cornBot; y++) {
+    const dentil = y === geo.cornTop + 2;
+    const edge = y === geo.cornTop || y === geo.cornBot;
+
+    for (let x = 0; x < cols; x++) {
+      if (dentil) {
+        putSet(base, cols, rows, x, y, x % 3 === 2 ? DENTIL_GAP_LUM : DENTIL_LUM);
+        continue;
+      }
+
+      putSet(base, cols, rows, x, y, edge ? CORNICE_EDGE_LUM : CORNICE_FILL_LUM);
     }
   }
 
-  // Chalk tray under the board, with a couple of brighter chalk stubs.
-  const trayY = Math.min(h - 1, frame.y1 + 2);
-  pen.h(frame.x0 + 2, frame.x1 - 2, trayY, 0.44);
-  pen.h(X(0.3), X(0.32), trayY - 1, 0.62);
-  pen.h(X(0.55), X(0.56), trayY - 1, 0.62);
+  // Shelf courses and their books, in three tiers. Eye-level courses (the
+  // lowest four) sit on continuous '+' rules with an under-edge shadow so
+  // books visibly stand on shelves; mid courses on '=' rules; attic
+  // courses on thin '|' rules with airier, dimmer spines — the tonal
+  // hierarchy that keeps the wall from reading as wallpaper.
+  for (let shelfY = geo.floorRow - geo.shelfPitch; shelfY >= geo.cornBot + SHELF_HEADROOM; shelfY -= geo.shelfPitch) {
+    const t = (shelfY - geo.shelfTop) / wallSpan; // 0 top of wall, 1 floor
+    const eye = t >= EYE_T;
+    const mid = !eye && t >= MID_T;
+    const gain = eye ? EYE_GAIN : mid ? MID_GAIN : ATTIC_GAIN;
+    const gapChance = eye ? EYE_GAP : mid ? MID_GAP : ATTIC_GAP;
+    const minHeight = 2;
+    const ruleLum = eye ? RULE_EYE_LUM : mid ? RULE_MID_LUM : RULE_ATTIC_LUM;
 
-  // Window, right wall: frame, mullion cross, the moon in the upper-left
-  // pane, faint night panes, a sill.
-  const win: Rect = { x0: X(0.8), x1: X(0.94), y0: Y(0.08), y1: Y(0.46) };
-  const midX = Math.round((win.x0 + win.x1) / 2);
-  const midY = Math.round((win.y0 + win.y1) / 2);
+    for (let x = geo.innerL; x <= geo.innerR; x++) {
+      putSet(base, cols, rows, x, shelfY, ruleLum);
 
-  // Night panes: near-black with the faintest noise, plus a soft gradient
-  // fading down and away from the moon.
-  for (let y = win.y0 + 1; y <= win.y1 - 1; y++) {
-    for (let x = win.x0 + 1; x <= win.x1 - 1; x++) {
-      const n = fbm2(noise, x * 0.41, y * 0.53, 2);
-      const down = (y - win.y0) / (win.y1 - win.y0);
-      pen.cell(x, y, 0.03 + 0.03 * n + 0.05 * (1 - down));
+      if (eye) {
+        putSet(base, cols, rows, x, shelfY + 1, RULE_EYE_UNDER_LUM);
+      }
     }
-  }
 
-  // The moon: a bright disc with a soft halo, clipped to the upper-left
-  // pane so the mullion cross stays legible in front of the glow.
-  const moonCX = win.x0 + (midX - win.x0) * 0.55;
-  const moonCY = win.y0 + (midY - win.y0) * 0.45;
-  const moonR = Math.max(2.4, (midX - win.x0) * 0.36);
+    if (shelfY === geo.galleryY) {
+      continue; // the gallery band replaces this course's books
+    }
 
-  for (let y = win.y0 + 1; y <= midY - 1; y++) {
-    for (let x = win.x0 + 1; x <= midX - 1; x++) {
-      const d = Math.hypot(x - moonCX, y - moonCY) / moonR;
+    for (let x = geo.innerL + 1; x <= geo.innerR - 1; x++) {
+      if (hash01(shelfY * 91.7 + x * 3.7) < gapChance) {
+        continue; // a pulled book — slot gap
+      }
 
-      if (d <= 1) {
-        pen.cell(x, y, 0.8 + 0.08 * (1 - d * d));
-      } else {
-        pen.cell(x, y, 0.22 * Math.exp(-(d - 1) * 2.6));
+      const run = Math.floor(x / 3); // heights change in short runs
+      const height = minHeight + Math.floor(hash01(shelfY * 57.3 + run * 7.1) * (5 - minHeight));
+      const pick = hash01(shelfY * 13.9 + x * 1.31);
+      const lum = (pick < 0.3 ? BOOK_LUMS[0] : pick < 0.6 ? BOOK_LUMS[1] : pick < 0.85 ? BOOK_LUMS[2] : BOOK_LUMS[3]) * gain;
+
+      for (let dy = 1; dy <= height; dy++) {
+        putSet(base, cols, rows, x, shelfY - dy, lum);
       }
     }
   }
 
-  // Two faint stars in the other panes.
-  pen.cell(win.x1 - 3, win.y0 + 3, 0.3);
-  pen.cell(midX + 3, midY + 5, 0.26);
-
-  // Frame, mullion cross, sill — drawn after the panes so they stay crisp.
-  pen.h(win.x0, win.x1, win.y0, 0.56);
-  pen.h(win.x0, win.x1, win.y1, 0.56);
-  pen.v(win.x0, win.y0, win.y1, 0.69);
-  pen.v(win.x1, win.y0, win.y1, 0.69);
-  pen.h(win.x0 + 1, win.x1 - 1, midY, 0.5);
-  pen.v(midX, win.y0 + 1, win.y1 - 1, 0.5);
-  pen.h(win.x0 - 1, win.x1 + 1, Math.min(h - 1, win.y1 + 1), 0.44);
-
-  // Moonlight shaft: a diagonal band falling FROM the window down-left to
-  // the floor. Barely-there in the air, brighter where it pools on the
-  // floor, with a dark seam where the vertical mullion shadows the pool.
-  const shaftTop = win.y1 + 2;
-  const shaftBottom = Y(0.95);
-  const floorStart = Y(0.74);
-  const drop = Math.max(1, shaftBottom - shaftTop);
-  const slide = (win.x1 - win.x0) * 1.35;
-
-  for (let y = shaftTop; y <= shaftBottom; y++) {
-    const t = (y - shaftTop) / drop;
-    const xL = win.x0 + 1 - slide * t - 2 * t;
-    const xR = win.x1 - 1 - slide * t + 3 * t;
-
-    for (let x = Math.max(0, Math.round(xL)); x <= Math.min(w - 1, Math.round(xR)); x++) {
-      const u = (x - xL) / Math.max(1, xR - xL);
-      const soft = Math.sin(Math.PI * clamp01(u));
-      const n = fbm2(noise, x * 0.21, y * 0.37, 2);
-      // The mullion's shadow runs down the middle of the shaft.
-      const seam = Math.abs(u - 0.5) < 0.055 ? 0.35 : 1;
-
-      if (y < floorStart) {
-        pen.cell(x, y, (0.04 + 0.045 * soft + 0.02 * n) * seam);
-      } else {
-        pen.cell(x, y, (0.08 + 0.1 * soft + 0.03 * n) * seam);
+  // The gallery band: a solid three-row '+' course at the wall's vertical
+  // midpoint — the horizontal rail that (with cornice and plinth) frames
+  // the colonnade in the bin-4 skeleton and gives the eye a place to land.
+  if (geo.galleryY > 0) {
+    for (let y = geo.galleryY - 2; y <= geo.galleryY; y++) {
+      for (let x = geo.innerL; x <= geo.innerR; x++) {
+        putSet(base, cols, rows, x, y, GALLERY_LUM);
       }
     }
   }
 
-  // Door, far left: lintel + jambs down to the floor line, one bright
-  // handle. Jamb columns land on even x so both pool identically at bin 2
-  // (the board and window frames pool the same way).
-  const door: Rect = { x0: X(0.045), x1: X(0.105), y0: Y(0.18), y1: Y(0.7) };
-  pen.h(door.x0, door.x1, door.y0, 0.56);
-  pen.v(door.x0, door.y0, door.y1, 0.69);
-  pen.v(door.x1, door.y0, door.y1, 0.69);
-  pen.cell(door.x1 - 2, Y(0.43), 0.85); // handle dot
+  // Plinth: a closed cabinet course between the lowest shelf and the
+  // floor — seamed doors, a brighter kick rail — a solid base that both
+  // grounds the wall and survives bin-4 pooling as a full-width band.
+  const seamOffset = Math.floor(geo.bayW / 2);
 
-  // Desks with stacked chairs: back row (dimmer, higher), then front row.
-  // The front-left slot belongs to the larger, offset teacher's desk.
-  const backW = Math.max(6, Math.round(w * 0.09));
-  const frontW = Math.max(8, Math.round(w * 0.13));
+  for (let y = geo.floorRow - geo.shelfPitch + 1; y < geo.floorRow; y++) {
+    const rail = y === geo.floorRow - 1;
 
-  for (const cx of [0.16, 0.38, 0.62, 0.86]) {
-    drawDeskWithChair(pen, X(cx), Y(0.66), backW, Math.round(h * 0.07), Math.round(h * 0.07), 0.72);
+    for (let x = geo.innerL; x <= geo.innerR; x++) {
+      const seamed = !rail && (x - geo.innerL) % geo.bayW === seamOffset;
+      putSet(base, cols, rows, x, y, seamed ? PLINTH_SEAM_LUM : rail ? PLINTH_RAIL_LUM : PLINTH_LUM);
+    }
   }
 
-  for (const cx of [0.52, 0.8]) {
-    drawDeskWithChair(pen, X(cx), Y(0.82), frontW, Math.round(h * 0.1), Math.round(h * 0.09), 1);
+  // The colonnade: thick bay uprights on a steady rhythm, '+' the whole
+  // way down (five cells wide at the tuned grid so any 4-cell pooling
+  // window catches at least three cells — the columns survive bin 4).
+  for (let x = geo.innerL + geo.bayW; x <= geo.innerR - geo.uprightW - 1; x += geo.bayW) {
+    for (let y = geo.shelfTop; y < geo.floorRow; y++) {
+      const t = (y - geo.shelfTop) / wallSpan;
+      const lum = t > 0.5 ? UPRIGHT_LOW_LUM : UPRIGHT_HIGH_LUM;
+
+      for (let dx = 0; dx < geo.uprightW; dx++) {
+        putSet(base, cols, rows, x + dx, y, lum);
+      }
+    }
   }
 
-  drawTeacherDesk(pen, X(0.19), Y(0.8), Math.round(w * 0.17), Math.round(h * 0.12));
+  // Massive proscenium jambs at the canvas edges: solid '+' masonry, two
+  // grooves carved down each face, slightly hotter toward the floor.
+  for (let y = geo.shelfTop; y <= geo.floorRow; y++) {
+    const t = (y - geo.shelfTop) / wallSpan;
+    const fill = t > 0.6 ? JAMB_LOW_LUM : JAMB_HIGH_LUM;
 
-  return interior;
-}
+    for (let dx = 0; dx < geo.jambW; dx++) {
+      const carved = (geo.jambW >= 12 && dx === 5) || (geo.jambW >= 16 && dx === 11);
+      putSet(base, cols, rows, dx, y, carved ? JAMB_GROOVE_LUM : fill);
+      putSet(base, cols, rows, cols - 1 - dx, y, carved ? JAMB_GROOVE_LUM : fill);
+    }
+  }
 
-/**
- * Stamp a fractional point into a sample map with bilinear weights, so
- * strokes stay soft at grid scale.
- */
-function stamp(samples: Map<number, number>, w: number, h: number, px: number, py: number, weight: number): void {
-  const x0 = Math.floor(px);
-  const y0 = Math.floor(py);
-  const fx = px - x0;
-  const fy = py - y0;
-  const parts: [number, number, number][] = [
-    [x0, y0, (1 - fx) * (1 - fy)],
-    [x0 + 1, y0, fx * (1 - fy)],
-    [x0, y0 + 1, (1 - fx) * fy],
-    [x0 + 1, y0 + 1, fx * fy],
-  ];
+  // The floor: a dense baseline shadow row grounding the wall, then the
+  // receding plane — perspective seams fanning out from the bay rhythm
+  // toward the viewer, and a dot gradient thinning with distance — so the
+  // lower third reads as a deep polished floor instead of empty black.
+  for (let x = 0; x < cols; x++) {
+    putSet(base, cols, rows, x, geo.floorRow, FLOOR_LUM);
+    putSet(base, cols, rows, x, geo.floorRow + 1, FLOOR_UNDER_LUM);
+  }
 
-  for (const [x, y, k] of parts) {
-    if (x < 0 || y < 0 || x >= w || y >= h) {
-      continue;
+  const floorH = Math.max(1, rows - 1 - geo.floorRow);
+  const seeds: number[] = [geo.innerL, geo.innerR];
+
+  for (let x = geo.innerL + geo.bayW; x <= geo.innerR - geo.uprightW - 1; x += geo.bayW) {
+    seeds.push(x + Math.floor(geo.uprightW / 2));
+  }
+
+  for (const sx of seeds) {
+    for (let dy = 2; geo.floorRow + dy < rows; dy++) {
+      const lum = SEAM_LUM * (1 - dy / floorH);
+
+      if (lum < 0.05) {
+        break;
+      }
+
+      const x = Math.round(geo.cx + (sx - geo.cx) * (1 + SEAM_SPREAD * dy));
+      putMax(base, cols, rows, x, geo.floorRow + dy, lum);
+    }
+  }
+
+  // Floorboard joints: horizontal courses receding toward the viewer —
+  // tightly spaced at the wall's baseline, opening up toward the canvas
+  // bottom, fading as they go — crossed by the seams into a perspective
+  // grid. A sparse hashed grain fills the boards between the joints.
+  let boardDy = 2;
+  let boardGap = 3;
+
+  while (geo.floorRow + boardDy < rows) {
+    const lum = BOARD_LUM * (1 - boardDy / floorH);
+
+    if (lum < 0.05) {
+      break;
     }
 
-    const index = y * w + x;
-    samples.set(index, Math.min(1, (samples.get(index) ?? 0) + weight * k));
-  }
-}
-
-/**
- * Bake one row of dash-writing: word-length runs (2-5 cells) separated by
- * short gaps, pressure jittered per cell so it reads as erased handwriting,
- * never as glyphs.
- */
-function bakeWritingRow(u0: number, u1: number, v: number, seed: number, w: number, h: number): MarkSample[] {
-  const samples = new Map<number, number>();
-  const bw = board.x1 - board.x0;
-  const bh = board.y1 - board.y0;
-  const y = board.y0 + v * bh;
-  let x = board.x0 + u0 * bw;
-  const end = board.x0 + u1 * bw;
-  let word = 0;
-
-  while (x < end) {
-    const runLength = 2 + Math.floor(hash01(seed * 53 + word) * 4);
-    const gap = 1 + Math.floor(hash01(seed * 71 + word) * 2);
-
-    for (let k = 0; k < runLength && x < end; k++) {
-      const pressure = 0.7 + 0.3 * hash01(seed * 97 + word * 13 + k);
-      const jitterY = (hash01(seed * 41 + word * 7 + k) - 0.5) * 0.55;
-      stamp(samples, w, h, x, y + jitterY, pressure);
-      x += 1;
+    for (let x = 0; x < cols; x++) {
+      putMax(base, cols, rows, x, geo.floorRow + boardDy, lum);
     }
 
-    x += gap;
-    word++;
+    boardDy += boardGap;
+    boardGap += 1;
   }
 
-  return [...samples.entries()].map(([index, weight]) => ({ index, weight }));
-}
+  for (let y = geo.floorRow + 2; y < rows; y++) {
+    const depth = (y - geo.floorRow) / floorH;
+    const fade = (1 - depth) * (1 - depth); // quadratic falloff from the wall
+    const p = DOT_DENSITY * fade;
 
-/** Bake a parametric chalk stroke with mild fragmentation (chalk texture). */
-function bakeStroke(
-  path: (t: number) => readonly [number, number],
-  steps: number,
-  seed: number,
-  w: number,
-  h: number,
-  dropout = 0.1,
-): MarkSample[] {
-  const samples = new Map<number, number>();
-
-  for (let s = 0; s <= steps; s++) {
-    const t = s / steps;
-
-    // Mild chalk dropout — the figure must stay recognizable.
-    if (hash01(seed * 61 + s) < dropout) {
-      continue;
+    for (let x = 0; x < cols; x++) {
+      if (hash01(y * 78.233 + x * 12.9898) < p) {
+        putMax(base, cols, rows, x, y, DOT_LUM_LO + (DOT_LUM_HI - DOT_LUM_LO) * fade);
+      }
     }
-
-    const [px, py] = path(t);
-    const pressure = 0.62 + 0.38 * hash01(seed * 97 + s);
-    stamp(samples, w, h, px, py, pressure);
   }
-
-  return [...samples.entries()].map(([index, weight]) => ({ index, weight }));
-}
-
-function buildMarks(w: number, h: number): Mark[] {
-  const built: Mark[] = [];
-
-  // Four rows of dash-writing down the left side of the board, the last
-  // one shorter, like a trailing line of notes.
-  built.push({ gain: 1, samples: bakeWritingRow(0.05, 0.62, 0.16, 1, w, h) });
-  built.push({ gain: 1, samples: bakeWritingRow(0.05, 0.58, 0.36, 2, w, h) });
-  built.push({ gain: 1, samples: bakeWritingRow(0.05, 0.62, 0.56, 3, w, h) });
-  built.push({ gain: 1, samples: bakeWritingRow(0.05, 0.38, 0.76, 4, w, h) });
-
-  // One recognizable chalk figure: a circle with a chord, right of the
-  // writing. Drawn in cell space so it renders round (cells are square).
-  const bw = board.x1 - board.x0;
-  const bh = board.y1 - board.y0;
-  const cx = board.x0 + 0.8 * bw;
-  const cy = board.y0 + 0.5 * bh;
-  const r = Math.min(bh * 0.38, bw * 0.14);
-  const circle = bakeStroke(
-    (t) => {
-      const a = t * Math.PI * 2;
-
-      return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-    },
-    150,
-    6,
-    w,
-    h,
-  );
-  const a1 = (170 * Math.PI) / 180;
-  const a2 = (315 * Math.PI) / 180;
-  const x1 = cx + r * Math.cos(a1);
-  const y1 = cy + r * Math.sin(a1);
-  const x2 = cx + r * Math.cos(a2);
-  const y2 = cy + r * Math.sin(a2);
-  const chord = bakeStroke((t) => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], 80, 7, w, h, 0.04);
-  built.push({ gain: 1.2, samples: circle.concat(chord) });
-
-  return built;
-}
-
-function buildBases(buffer: LuminanceBuffer): void {
-  const w = buffer.width;
-  const h = buffer.height;
-  bases = {};
-
-  // Stroke thickness tracks the bin stride so line art survives average
-  // pooling; the small gain offsets partial block coverage at the edges.
-  for (const [stroke, gain] of [
-    [1, 1],
-    [2, 1.15],
-    [4, 1.35],
-  ] as const) {
-    const target = new Float32Array(w * h);
-    board = drawRoom(makePen(target, w, h, stroke, gain), w, h);
-    bases[stroke as 1 | 2 | 4] = target;
-  }
-
-  // The light rests over the floor pool, down-left of the window.
-  moonX = Math.round(0.69 * (w - 1));
-  moonY = Math.round(0.85 * (h - 1));
-  marks = buildMarks(w, h);
-}
-
-/**
- * Mark envelope: each chalk mark brightens once per period inside its duty
- * window, eased in and out; staggered so the board is never crowded.
- */
-function markEnvelope(time: number, index: number, period: number, stagger: number, duty: number): number {
-  const p = time / Math.max(0.001, period) + index * stagger;
-  const cycle = p - Math.floor(p);
-  const d = Math.min(0.95, Math.max(0.02, duty));
-
-  if (cycle >= d) {
-    return 0;
-  }
-
-  const s = Math.sin((Math.PI * cycle) / d);
-
-  return s * s;
 }
 
 export const scene: SceneModule = {
   dockGlyph: [
-    "#==========#",
-    "| --- -- · |",
-    "| -- ----  |",
-    "#==========#",
-    "  |·|  |·|  ",
-    " -========- ",
+    "++++++++++++",
+    "+:=-|=:-=|:+",
+    "++++++++++++",
+    "+=|:-=+-:=|+",
+    "============",
+    "  ·:-=+@    ",
   ],
   id: "classroom",
   init(context: SceneContext): void {
-    buildBases(context.buffer);
+    const { width, height } = context.buffer;
+
+    buildBase(width, height);
     context.lights.length = 0;
-    context.lights.push({
-      intensity: this.tuning.motion.moonIntensity ?? 0.07,
-      radius: Math.max(6, context.buffer.width * 0.1),
-      x: moonX,
-      y: moonY,
-    });
   },
   summaryChip: "Beijing, 2019–2020 — teaching STEM at AndKids.",
   tuning: {
-    cellH: 8,
-    cellW: 8,
-    cols: 176,
+    cellH: 6,
+    cellW: 6,
+    cols: 224,
     minimalGlyph: "·",
     motion: {
-      chalkBase: 0.24,
-      chalkBreathe: 0.14,
-      chalkDuty: 0.42,
-      chalkPeriod: 19,
-      chalkStagger: 0.23,
-      dustAmp: 0.03,
-      dustDrift: 0.05,
-      moonIntensity: 0.07,
-      moonSway: 0.02,
+      coreLum: 0.92,
+      hazeAmount: 0.08,
+      hazeFloor: 0.02,
+      hazeScale: 0.055,
+      hazeSpeed: 0.045,
+      orbCore: 0.96,
+      orbPeriod: 21,
+      orbPhaseY: 0.9,
+      orbSigma: 2.9,
+      pathSpanX: 0.8,
+      pathSpanY: 0.8,
+      sheenAmount: 0.2,
+      trailAge: 7.5,
+      trailPeak: 0.8,
+      trailPow: 1.4,
+      trailSteps: 220,
     },
-    ramp: " ·:-=|#@",
-    rows: 80,
+    ramp: " ·:-|=+#@",
+    rows: 104,
   },
-  update(dt: number, context: SceneContext): void {
-    const { buffer, lights, time } = context;
+  update(_dt: number, context: SceneContext): void {
+    const { buffer, time } = context;
     const {
-      chalkBase = 0.24,
-      chalkBreathe = 0.14,
-      chalkDuty = 0.42,
-      chalkPeriod = 19,
-      chalkStagger = 0.23,
-      dustAmp = 0.03,
-      dustDrift = 0.05,
-      moonIntensity = 0.07,
-      moonSway = 0.02,
+      coreLum = 0.92,
+      hazeAmount = 0.08,
+      hazeFloor = 0.02,
+      hazeScale = 0.055,
+      hazeSpeed = 0.045,
+      orbCore = 0.96,
+      orbPeriod = 21,
+      orbPhaseY = 0.9,
+      orbSigma = 2.9,
+      pathSpanX = 0.8,
+      pathSpanY = 0.8,
+      sheenAmount = 0.2,
+      trailAge = 7.5,
+      trailPeak = 0.8,
+      trailPow = 1.4,
+      trailSteps = 220,
     } = this.tuning.motion;
+    const w = buffer.width;
+    const h = buffer.height;
     const data = buffer.data;
 
-    if ((bases[1]?.length ?? 0) !== data.length) {
-      buildBases(buffer);
+    if (baseCols !== w || baseRows !== h) {
+      buildBase(w, h);
     }
 
-    // 1) Static room, stroke-matched to the current bin stride (pure in depth).
-    const resolution = resolutionForDepth(context.depth, this.tuning.resolution);
-    data.set(bases[resolution.bin] ?? bases[1] ?? data);
+    const geo = geometry(w, h);
 
-    // 2) Chalk-dust shimmer, board interior only: slow, barely-there.
-    const w = buffer.width;
+    // 1) Air: haze breathes only in the open floor zone (dust hanging over
+    // a polished floor), sampled on a coarse lattice, bilinearly upsampled.
+    const stride = 4;
+    const gw = Math.floor(w / stride) + 2;
+    const gh = Math.floor(h / stride) + 2;
 
-    for (let y = board.y0; y <= board.y1; y++) {
-      const ny = y * 0.47 - time * dustDrift * 0.6;
+    if (hazeLattice.length !== gw * gh) {
+      hazeLattice = new Float32Array(gw * gh);
+    }
 
-      for (let x = board.x0; x <= board.x1; x++) {
-        const n = fbm2(noise, x * 0.29 + time * dustDrift, ny, 2);
+    for (let gy = 0; gy < gh; gy++) {
+      const ny = gy * stride * hazeScale * 1.4 + time * hazeSpeed * 0.6;
+
+      for (let gx = 0; gx < gw; gx++) {
+        hazeLattice[gy * gw + gx] = fbm2(hazeNoise, gx * stride * hazeScale + time * hazeSpeed, ny, 2);
+      }
+    }
+
+    for (let y = 0; y < h; y++) {
+      const gy = y / stride;
+      const gy0 = Math.floor(gy);
+      const fy = gy - gy0;
+      const rowA = gy0 * gw;
+      const rowB = (gy0 + 1) * gw;
+      const inFloor = y > geo.floorRow + 1;
+
+      for (let x = 0; x < w; x++) {
         const i = y * w + x;
-        data[i] = clamp01((data[i] ?? 0) + (n - 0.5) * 2 * dustAmp);
+        const b = base[i] ?? 0;
+
+        if (!inFloor) {
+          data[i] = b;
+          continue;
+        }
+
+        const gx = x / stride;
+        const gx0 = Math.floor(gx);
+        const fx = gx - gx0;
+        const top = (hazeLattice[rowA + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowA + gx0 + 1] ?? 0) * fx;
+        const bottom = (hazeLattice[rowB + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowB + gx0 + 1] ?? 0) * fx;
+        const air = clamp01(hazeFloor + hazeAmount * (top * (1 - fy) + bottom * fy));
+        data[i] = air > b ? air : b;
       }
     }
 
-    // 3) The chalk marks: always faintly present, breathing brighter one
-    // at a time. Applied at cell resolution, so compaction pools them away
-    // before the room's skeleton — the writing is forgotten first.
-    for (let g = 0; g < marks.length; g++) {
-      const mark = marks[g];
+    // 2) The Sphero's path: a wide figure-eight across the open floor,
+    // pure in time. The same parametric curve serves the trail (sampled
+    // into the past) and the orb (evaluated at now).
+    const floorTop = geo.floorRow + 2;
+    const floorBot = h - 2;
+    const cy = (floorTop + floorBot) / 2;
+    const ax = Math.max(0, (geo.innerR - geo.innerL) / 2 - 2) * pathSpanX;
+    const ay = Math.max(0, (floorBot - floorTop) / 2 - 3) * pathSpanY;
+    const omega = (Math.PI * 2) / Math.max(0.5, orbPeriod);
+    const posX = (t: number): number => geo.cx + ax * Math.sin(omega * t);
+    const posY = (t: number): number => cy + ay * Math.sin(2 * omega * t + orbPhaseY);
 
-      if (!mark) {
-        continue;
+    // 3) The comet trail: the past trailAge seconds of the path, ramping
+    // up toward the robot — thick and bright at the head, thinning to
+    // single fading dots at the tail, so the motion reads as intentional.
+    const steps = Math.max(1, Math.floor(trailSteps));
+    const age = Math.max(0.1, trailAge);
+
+    for (let s = 1; s <= steps; s++) {
+      const u = s / steps;
+      const v = trailPeak * Math.pow(1 - u, trailPow);
+
+      if (v < 0.02) {
+        break; // monotone fade — nothing older is visible
       }
 
-      const breathe = markEnvelope(time, g, chalkPeriod, chalkStagger, chalkDuty) * chalkBreathe;
-      const a = (chalkBase + breathe) * mark.gain;
+      const t = time - u * age;
+      const px = Math.round(posX(t));
+      const py = Math.round(posY(t));
 
-      if (a <= 0.004) {
-        continue;
+      putMax(data, w, h, px, py, v);
+
+      if (v >= 0.22) {
+        putMax(data, w, h, px - 1, py, v * 0.55);
+        putMax(data, w, h, px + 1, py, v * 0.55);
+        putMax(data, w, h, px, py - 1, v * 0.55);
+        putMax(data, w, h, px, py + 1, v * 0.55);
       }
 
-      for (const { index, weight } of mark.samples) {
-        data[index] = clamp01((data[index] ?? 0) + weight * a);
+      if (v >= 0.45) {
+        putMax(data, w, h, px - 1, py - 1, v * 0.35);
+        putMax(data, w, h, px + 1, py - 1, v * 0.35);
+        putMax(data, w, h, px - 1, py + 1, v * 0.35);
+        putMax(data, w, h, px + 1, py + 1, v * 0.35);
       }
     }
 
-    // 4) Moonlight pool sways on a decades-slow arc.
-    const light = lights[0];
+    // 4) The orb itself: a compact 2x2 max-density core (one '@'-hot
+    // pearl, the scene's brightest light), a gaussian halo, and a wide,
+    // low floor sheen stretched along the boards.
+    const px = posX(time);
+    const py = posY(time);
+    const cxi = Math.round(px);
+    const cyi = Math.round(py);
+    const sigma = Math.max(0.6, orbSigma);
 
-    if (light) {
-      light.x = moonX + Math.sin(time * moonSway * Math.PI * 2) * 2;
-      light.y = moonY + Math.cos(time * moonSway * Math.PI * 2 * 0.7) * 1;
-      light.intensity = clamp01(moonIntensity);
+    for (let dy = -7; dy <= 7; dy++) {
+      for (let dx = -9; dx <= 9; dx++) {
+        const xi = cxi + dx;
+        const yi = cyi + dy;
+        const rx = xi - px;
+        const ry = yi - py;
+        const radial = orbCore * 0.9 * Math.exp(-(rx * rx + ry * ry) / (sigma * sigma));
+        const sheen = sheenAmount * Math.exp(-((rx * rx) / 49 + (ry * ry) / 5.76));
+        const v = radial > sheen ? radial : sheen;
+
+        if (v > 0.02) {
+          putMax(data, w, h, xi, yi, v);
+        }
+      }
     }
+
+    const bx = Math.round(px - 0.5);
+    const by = Math.round(py - 0.5);
+
+    putMax(data, w, h, bx, by, coreLum);
+    putMax(data, w, h, bx + 1, by, coreLum);
+    putMax(data, w, h, bx, by + 1, coreLum);
+    putMax(data, w, h, bx + 1, by + 1, coreLum);
+    putMax(data, w, h, cxi, cyi, orbCore);
   },
 };

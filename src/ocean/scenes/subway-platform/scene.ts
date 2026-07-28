@@ -1,519 +1,724 @@
 /**
- * Scene 7 — "subway-platform": a subway platform at 2 a.m. Between trains.
+ * Scene 8 — "subway-platform": The arrival (2026, now).
  *
- * The present tense. The brief's tone risk lives here: threshold, not stuck —
- * so the diorama's one quiet motion is a distant headlight that keeps
- * arriving (a LightSource creeping in from the tunnel mouth, rails catching
- * the reflection) plus the air it pushes ahead of it: dust drifting through
- * the track trench and across the platform floor. A diorama, not a
- * screensaver: everything else stands still — tiled wall, blank sign slab,
- * columns, platform edge, tactile strip, pooled fixture light.
+ * The train has arrived. An R160-style car stands stopped at the platform,
+ * its flat stainless face MONUMENTAL across the right half of the frame —
+ * two dark end windows flanking a center storm door, a lit route bullet
+ * over the door, anticlimber ribs across the base, and twin headlamps (the
+ * scene's only two '@' cells) blazing at the lower corners. The car's
+ * flank recedes left to a vanishing point buried in the tunnel portal it
+ * just cleared — lit window band and door rhythm compressing to nothing —
+ * while the frontal running-bond tile wall of the station fills the upper
+ * left, full-bleed, over a platform whose warning strip dives from the
+ * near corner to the portal's foot. THE LIGHT EVENT: the headlight beams
+ * fan down the track bed and across the platform corner toward the viewer,
+ * splashing the warning strip; a march of dark I-beam silhouettes stands
+ * in front of the glow. ONE MOTION, pure f(time): the beams breathe — the
+ * slow idle surge of a train holding at the platform — while a dust haze
+ * drifts low through the light.
  *
- * The sign slab and the calm floor region are the two copy slots; they
- * render as blank luminance and are exported below as integrator-facing
- * overlay hints (`subwayCopySlots`) carrying the final copy strings.
- *
- * View: standing on the platform, looking across the tracks at the far wall.
+ * Nothing human-readable is rendered here; the chapter prose is DOM.
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
 
-const airNoise = createValueNoise(72);
-const wallNoise = createValueNoise(19);
-const cycleNoise = createValueNoise(41);
+const hazeNoise = createValueNoise(29);
+const tileNoise = createValueNoise(83);
 
-/** Horizontal/vertical layout, as fractions of the buffer (top = 0). */
-const F = {
-  beamTop: 0.07,
-  edgeBottom: 0.64,
-  edgeTop: 0.62,
-  gapBottom: 0.44,
-  railA: 0.515,
-  railB: 0.555,
-  signBottom: 0.24,
-  signLeft: 0.4,
-  signRight: 0.6,
-  signTop: 0.13,
-  stripeBottom: 0.19,
-  stripeTop: 0.18,
-  tactileBottom: 0.67,
-  tunnelMouth: 0.05,
-  wallBottom: 0.42,
-  wallTop: 0.1,
-} as const;
-
-/**
- * Static luminance values against the ramp's 11 equal bins (width 1/11 ≈
- * 0.091). Three legible tiers, per the readability brief:
- *   - track pit near-black: gap/trench 0.05 sit BELOW bin 1 -> render as the
- *     empty rest band the whole frame settles into.
- *   - platform mid: the floor gradients 0.05 -> 0.17 (empty near the pit,
- *     '·'/':' toward the viewer), one calm plane, no dither.
- *   - tiled wall lightest: tile faces 0.34 land on '~', grout drops to 0.05
- *     (empty) so the grid reads as dark mortar lines, not a solid field.
- * Ink diet: grout lines and the emptied floor back turn ~40% of the old
- * field to rest.
- */
+/** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
 const V = {
-  beam: 0.1,
-  ceiling: 0.03,
-  column: 0.6,
-  edge: 0.5,
-  fixture: 0.9,
-  floorBack: 0.04,
-  floorFront: 0.14,
-  gap: 0.05,
-  grout: 0.05,
-  groutTick: 0.12,
-  poolAdd: 0.16,
-  railBase: 0.4,
-  sign: 0.13,
-  signFrame: 0.68,
-  stripe: 0.5,
-  tactileFar: 0.15,
-  tactileGap: 0.06,
-  tactileNear: 0.26,
-  trench: 0.05,
-  wall: 0.34,
-  wallGloss: 0.4,
-  wallStain: 0.23,
+  antiA: 0.6, // '=' — anticlimber rib, lit
+  antiB: 0.24, // ':' — anticlimber rib, shadow gap
+  beltTrim: 0.4, // '-' — trim band under the windshields
+  body: 0.3, // ':' — car-face stainless
+  bullet: 0.8, // '#' — the lit route bullet over the storm door
+  bulletRing: 0.12, // '·' — dark bezel around the bullet
+  doorEdge: 0.4, // '-' — storm-door frame
+  doorLeaf: 0.2, // '·' — storm-door leaf
+  doorWin: 0.08, // ' ' — storm-door porthole
+  edge: 0.64, // '=' — face outline (4 cells: survives bin 4 as a dotted frame)
+  flankBody: 0.24, // ':' — flank steel between roof and window band
+  flankDoor: 0.12, // '·' — the door pocket riding back toward the portal
+  flankPier: 0.2, // '·' — pier between flank windows
+  flankRoof: 0.48, // '|' — flank roofline ray
+  flankSkirt: 0.18, // '·' — flank below the window band
+  flankWin: 0.62, // '=' — the lit window band receding to the VP
+  glass: 0.07, // ' ' — windshield panes
+  glassFrame: 0.42, // '-' — windshield gasket
+  jambEdge: 0.63, // '=' — near I-beam flange edges
+  jambFill: 0.56, // '=' — near I-beam fill
+  jambSplice: 0.64, // '=' — splice-plate course
+  jambWeb: 0.4, // '-' — web shadow line
+  lamp: 0.95, // '@' — the two headlamp cores (scene maximum)
+  lampRing: 0.6, // '=' — static housing ring around each core
+  lampSeat: 0.7, // '+' — static seat under the core
+  lintel: 0.3, // ':' — portal lintel course
+  platFar: 0.08, // ' ' — platform floor at the wall foot
+  platNear: 0.17, // '·' — platform floor at the viewer's feet
+  portalDark: 0.02, // ' ' — the tunnel mouth
+  portalJamb: 0.34, // '-' — portal jamb line
+  rail: 0.26, // ':' — the near running rail in the trench
+  roofEdge: 0.66, // '=' — face top edge / roofline
+  wallCove: 0.24, // ':' — cove line where the frontal wall meets the ground
+  silEdge: 0.16, // '·' — silhouette column flange
+  silFill: 0.08, // ' ' — silhouette column web
+  stripOff: 0.2, // '·' — warning-strip gap
+  stripOn: 0.55, // '|' — warning-strip dash
+  tactile: 0.24, // ':' — tactile-dot rows on the platform side
+  trackBed: 0.05, // ' ' — track trench
+  trackShadow: 0.03, // ' ' — shadow under the car
+  wallFace: 0.18, // '·' — tile face
+  wallGrout: 0.05, // ' ' — mortar line
 } as const;
 
 /**
- * Fixture pools on the platform floor: closed ellipses (light falls, it does
- * not stamp). Center sits ~58% into the floor's depth; radii are in cells.
- * Values chosen against the bins: ':' core, '·' skirt, closed before the
- * frame's bottom edge.
+ * The silhouette-column march: center x and width as fractions of cols.
+ * They stand on the platform between the viewer and the beams — dark
+ * verticals in front of the headlight glow, bases on the warning strip.
  */
-const POOL_CENTER_FRAC = 0.58;
-const POOL_RX = 5.8;
-const POOL_RY = 3.4;
+const SIL_X = [0.17, 0.275, 0.335] as const;
+const SIL_W = [0.025, 0.014, 0.009] as const;
 
-/**
- * Steel saturates: rail cells under the reflection cap at the '=' bin, so a
- * bright glint thickens the rail instead of hashing it with vertical glyphs.
- * (The headlight's own stamp still blooms over the cap — that is the light,
- * not the steel.)
- */
-const RAIL_GLINT_MAX = 0.53;
+/** Flank door pockets behind the face, world units; world depth of the face. */
+const FLANK_DOORS = [4.5, 10.5, 16.5] as const;
+const FLANK_Z0 = 6;
 
-/**
- * Tile grid: lit faces separated by empty grout. Vertical grout is 2 cells
- * wide (GROUT_W) so the mortar reads and the wall's ink stays on a diet;
- * one empty row every TILE_H completes the grid.
- */
-const TILE_W = 9;
-const GROUT_W = 2;
-const TILE_H = 4;
-
-export interface SubwayCopySlot {
-  /** Stable id for the integrator's DOM overlay. */
-  readonly id: string;
-  /** The final copy string this slot carries (rendered as DOM, not glyphs). */
-  readonly text: string;
-  /** Overlay rect, normalized to the scene canvas (0..1, y down). */
-  readonly rect: { readonly h: number; readonly w: number; readonly x: number; readonly y: number };
+interface ArrivalGeometry {
+  cols: number;
+  rows: number;
+  /** Vanishing point (inside the tunnel portal, left of center). */
+  vx: number;
+  vy: number;
+  /** The stopped car's face rect. */
+  faceL: number;
+  faceR: number;
+  faceT: number;
+  faceB: number;
+  /** Frontal wall foot, tunnel portal band, tile trim course. */
+  wallFoot: number;
+  portalL: number;
+  portalR: number;
+  portalTop: number;
+  trimRow: number;
+  /** Platform-edge ray intercept at x = 0 (off-canvas below). */
+  edgeY0: number;
+  /** Near I-beam jamb width at the left canvas edge. */
+  jambW: number;
 }
 
-/**
- * The two copy slots this scene reserves. The sim keeps both regions calm
- * (the sign is a blank slab; the floor region gets only faint air) so DOM
- * prose can sit on them.
- */
-export const subwayCopySlots: readonly SubwayCopySlot[] = [
-  {
-    id: "subway-sign",
-    rect: { h: F.signBottom - F.signTop, w: F.signRight - F.signLeft, x: F.signLeft, y: F.signTop },
-    text: "Up Next > NYRR Midnight Run > NYE 2026",
-  },
-  {
-    id: "subway-body",
-    rect: { h: 0.26, w: 0.44, x: 0.3, y: 0.72 },
-    text: "It's July 2026 and I'm between things, building. I maintain a platform that is the infrastructure and guts of everything I build, and a CLI that makes maintenance, multi-agent collaboration, and building more enjoyable for me. I'm building HealthMCP to connect personal health data to AI with greater privacy and control, and incubating Runsetta to share the motivation and connectedness I feel through running. Making with AGI feels better to me when it's like sitting down for a bit to continue chiseling on marble, rather than never leaving my seat so I can be ready to pull the slot machine's lever.",
-  },
-];
+let base = new Float32Array(0);
+let baseCols = 0;
+let baseRows = 0;
+let hazeLattice = new Float32Array(0);
 
-let staticBase: Float32Array | null = null;
-let staticKey = "";
-let airPhase = 0;
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) {
+    return 0;
+  }
 
-function clamp01(value: number): number {
-  return value <= 0 ? 0 : value >= 1 ? 1 : value;
+  return v <= 0 ? 0 : v >= 1 ? 1 : v;
 }
 
-function smooth01(value: number): number {
-  const t = clamp01(value);
+function smooth01(v: number): number {
+  const t = v <= 0 ? 0 : v >= 1 ? 1 : v;
+
   return t * t * (3 - 2 * t);
 }
 
-function rowOf(height: number, fraction: number): number {
-  return Math.round(height * fraction);
+/** Landmarks from proportions; the flank and edge ray converge on the VP. */
+function geometry(cols: number, rows: number): ArrivalGeometry {
+  return {
+    cols,
+    edgeY0: rows * 1.5,
+    faceB: Math.round(rows * 0.92),
+    faceL: Math.round(cols * 0.52),
+    faceR: Math.min(cols - 2, Math.round(cols * 0.975)),
+    faceT: Math.round(rows * 0.1),
+    jambW: Math.max(2, Math.round(cols * 0.055)),
+    portalL: Math.round(cols * 0.315),
+    portalR: Math.round(cols * 0.445),
+    portalTop: Math.round(rows * 0.175),
+    rows,
+    trimRow: Math.round(rows * 0.08),
+    vx: Math.max(2, Math.round(cols * 0.36)),
+    vy: Math.round(rows * 0.37),
+    wallFoot: Math.round(rows * 0.52),
+  };
 }
 
-/** Precomputed still life: everything that does not move between trains. */
-function buildStatic(width: number, height: number, columnSpacing: number, fixtureSpacing: number): Float32Array {
-  const data = new Float32Array(width * height);
-  const beamTop = rowOf(height, F.beamTop);
-  const wallTop = rowOf(height, F.wallTop);
-  const wallBottom = rowOf(height, F.wallBottom);
-  const trenchTop = rowOf(height, F.gapBottom);
-  const railA = rowOf(height, F.railA);
-  const railB = rowOf(height, F.railB);
-  const edgeTop = rowOf(height, F.edgeTop);
-  const edgeBottom = rowOf(height, F.edgeBottom);
-  const tactileBottom = rowOf(height, F.tactileBottom);
-  const stripeTop = rowOf(height, F.stripeTop);
-  const stripeBottom = rowOf(height, F.stripeBottom);
-  const signLeft = Math.round(width * F.signLeft);
-  const signRight = Math.round(width * F.signRight);
-  const signTop = rowOf(height, F.signTop);
-  const signBottom = rowOf(height, F.signBottom);
-  const mouthRight = Math.max(4, Math.round(width * F.tunnelMouth));
+/** The platform-edge ray through the VP (valid left of the VP). */
+function edgeAt(geo: ArrivalGeometry, x: number): number {
+  return geo.vy + (geo.edgeY0 - geo.vy) * ((geo.vx - x) / geo.vx);
+}
 
-  const fixtureStep = Math.max(6, Math.round(fixtureSpacing));
-  const fixtureXs: number[] = [];
-  for (let x = Math.round(fixtureStep / 2); x < width; x += fixtureStep) {
-    fixtureXs.push(x);
+/** Bounds-checked assignment. */
+function putSet(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    data[y * w + x] = clamp01(v);
+  }
+}
+
+/** Max-write with bounds check. */
+function putMax(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x < 0 || x >= w || y < 0 || y >= h) {
+    return;
   }
 
-  const columnStep = Math.max(8, Math.round(columnSpacing));
-  const columnXs: number[] = [];
-  for (let x = Math.round(columnStep / 2); x < width - 1; x += columnStep) {
-    // Columns never cross the sign slab (the copy slot stays clear) and
-    // never stand inside the tunnel mouth.
-    if (x + 1 >= signLeft - 2 && x <= signRight + 1) {
+  const i = y * w + x;
+
+  if ((data[i] ?? 0) < v) {
+    data[i] = clamp01(v);
+  }
+}
+
+/** Additive glare capped below the '@' band ('@' is reserved for the lamps). */
+function putGlow(data: Float32Array, w: number, h: number, x: number, y: number, add: number): void {
+  if (x < 0 || x >= w || y < 0 || y >= h || add <= 0) {
+    return;
+  }
+
+  const i = y * w + x;
+  const cur = data[i] ?? 0;
+  const lifted = cur + add;
+  data[i] = lifted > 0.87 ? (cur > 0.87 ? cur : 0.87) : lifted;
+}
+
+/**
+ * Static architecture — everything but the light: the frontal tile wall
+ * and tunnel portal, the platform, warning strip and track bed, the near
+ * I-beam jamb, and the whole train (face and receding flank). The car is
+ * stopped; only its light moves.
+ */
+function buildBase(cols: number, rows: number): void {
+  base = new Float32Array(cols * rows);
+  baseCols = cols;
+  baseRows = rows;
+
+  const geo = geometry(cols, rows);
+  const fw = Math.max(1, geo.faceR - geo.faceL);
+  const fh = Math.max(1, geo.faceB - geo.faceT);
+  const cornerR = Math.max(1.5, 0.05 * Math.min(fw, fh));
+  // Face features in cell space (fractions of the face rect).
+  const winY0 = geo.faceT + 0.13 * fh;
+  const winY1 = geo.faceT + 0.4 * fh;
+  const wLx0 = geo.faceL + 0.07 * fw;
+  const wLx1 = geo.faceL + 0.375 * fw;
+  const wRx0 = geo.faceL + 0.625 * fw;
+  const wRx1 = geo.faceL + 0.93 * fw;
+  const dX0 = geo.faceL + 0.435 * fw;
+  const dX1 = geo.faceL + 0.565 * fw;
+  const dY0 = geo.faceT + 0.1 * fh;
+  const dY1 = geo.faceT + 0.84 * fh;
+  const dwX0 = geo.faceL + 0.46 * fw;
+  const dwX1 = geo.faceL + 0.54 * fw;
+  const dwY0 = geo.faceT + 0.15 * fh;
+  const dwY1 = geo.faceT + 0.35 * fh;
+  const bulletX = geo.faceL + 0.5 * fw;
+  const bulletY = geo.faceT + 0.075 * fh;
+  const bulletR = Math.max(1.3, 0.052 * fh);
+  const flankSpan = Math.max(1, geo.faceL - geo.vx);
+
+  const inFace = (x: number, y: number): boolean => {
+    if (x < geo.faceL || x > geo.faceR || y < geo.faceT || y > geo.faceB) {
+      return false;
+    }
+
+    if (y < geo.faceT + cornerR) {
+      const cx = Math.min(Math.max(x, geo.faceL + cornerR), geo.faceR - cornerR);
+      const dx = x - cx;
+      const dy = y - (geo.faceT + cornerR);
+
+      if (dx * dx + dy * dy > cornerR * cornerR) {
+        return false; // outside a rounded top corner
+      }
+    }
+
+    return true;
+  };
+
+  const faceShade = (x: number, y: number): number => {
+    const fy = (y - geo.faceT) / fh;
+    const bd = Math.min(x - geo.faceL, geo.faceR - x, y - geo.faceT, geo.faceB - y);
+
+    if (bd < 3.5) {
+      return fy < 0.06 ? V.roofEdge : V.edge; // the 4-cell outline frame
+    }
+
+    if (fy < 0.06) {
+      return V.roofEdge; // the full roofline band (survives bin-4 pooling)
+    }
+
+    const dbx = x - bulletX;
+    const dby = y - bulletY;
+    const db2 = dbx * dbx + dby * dby;
+
+    if (db2 <= bulletR * bulletR) {
+      return V.bullet;
+    }
+
+    if (db2 <= (bulletR + 1.2) * (bulletR + 1.2)) {
+      return V.bulletRing;
+    }
+
+    if (y >= winY0 && y <= winY1) {
+      for (const [x0, x1] of [
+        [wLx0, wLx1],
+        [wRx0, wRx1],
+      ] as const) {
+        if (x >= x0 && x <= x1) {
+          const border = Math.min(x - x0, x1 - x, y - winY0, winY1 - y) < 1.1;
+
+          return border ? V.glassFrame : V.glass;
+        }
+      }
+    }
+
+    if (x >= dX0 && x <= dX1 && y >= dY0 && y <= dY1) {
+      if (Math.abs(x - dX0) < 1.1 || Math.abs(x - dX1) < 1.1 || Math.abs(y - dY0) < 1.1) {
+        return V.doorEdge;
+      }
+
+      if (x >= dwX0 && x <= dwX1 && y >= dwY0 && y <= dwY1) {
+        return V.doorWin;
+      }
+
+      return V.doorLeaf;
+    }
+
+    if (fy >= 0.415 && fy <= 0.445) {
+      return V.beltTrim;
+    }
+
+    if (fy >= 0.86) {
+      return Math.floor((geo.faceB - y) / 2) % 2 === 0 ? V.antiA : V.antiB;
+    }
+
+    return V.body + (tileNoise(x * 0.13, y * 0.17) - 0.5) * 0.03;
+  };
+
+  const wallShade = (x: number, y: number): number => {
+    const dimH = 0.72 + 0.28 * (y / Math.max(1, geo.wallFoot));
+    const onGrout = x % 7 < 1 || (y + (Math.floor(x / 7) % 2 === 0 ? 0 : 2)) % 4 < 1;
+    let v = onGrout ? V.wallGrout : V.wallFace + (tileNoise(Math.floor(x / 7) * 3.1, Math.floor(y / 4) * 5.7) - 0.5) * 0.05;
+
+    if (y === geo.trimRow) {
+      v *= 0.5; // one-cell trim course; the bond texture runs through it
+    }
+
+    return v * dimH;
+  };
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      let v: number;
+
+      if (inFace(x, y)) {
+        v = faceShade(x, y);
+      } else if (x > geo.vx && x < geo.faceL && flankAt(geo, flankSpan, x, y) >= 0) {
+        v = flankAt(geo, flankSpan, x, y);
+      } else if (x >= geo.portalL && x <= geo.portalR && y >= geo.portalTop && y < geo.wallFoot) {
+        v = V.portalDark;
+      } else if (y < geo.wallFoot) {
+        v = wallShade(x, y);
+      } else if (x >= geo.faceL) {
+        v = V.trackShadow; // under the car
+      } else if (x < geo.vx && y <= edgeAt(geo, x)) {
+        const fr = clamp01((y - geo.wallFoot) / Math.max(1, rows - geo.wallFoot));
+        v = 0.1 + (V.platNear - 0.1) * Math.pow(fr, 0.9);
+      } else {
+        v = V.trackBed + 0.02 * clamp01((y - geo.wallFoot) / Math.max(1, rows - geo.wallFoot));
+      }
+
+      base[y * cols + x] = clamp01(v);
+    }
+  }
+
+  // The cove line where the frontal wall meets the ground (broken by the
+  // portal, where the track runs into the tunnel).
+  for (let x = 0; x < Math.min(cols, geo.faceL); x++) {
+    if (x > geo.portalL && x < geo.portalR) {
       continue;
     }
-    if (x < mouthRight + 2) {
+
+    putSet(base, cols, rows, x, geo.wallFoot, V.wallCove);
+  }
+
+  // Portal edges: the left jamb and the lintel over the opening, both two
+  // cells so the mouth reads as a framed dark (the right jamb hides behind
+  // the car's flank).
+  for (let y = geo.portalTop; y < Math.min(rows, geo.wallFoot); y++) {
+    putSet(base, cols, rows, geo.portalL, y, V.portalJamb);
+    putSet(base, cols, rows, geo.portalL - 1, y, V.portalJamb * 0.75);
+  }
+
+  for (let x = geo.portalL - 1; x <= geo.portalR; x++) {
+    putSet(base, cols, rows, x, geo.portalTop - 1, V.lintel);
+    putSet(base, cols, rows, x, geo.portalTop - 2, V.lintel * 0.75);
+  }
+
+  // The near rail: one glint ray in the trench between strip and car.
+  const railPx = Math.round(cols * 0.45);
+  const railPy = Math.round(rows * 0.82);
+  const railSlope = (railPy - geo.vy) / Math.max(1, railPx - geo.vx);
+
+  for (let x = geo.vx + 3; x < geo.faceL; x++) {
+    const y = Math.round(geo.vy + railSlope * (x - geo.vx));
+    const yBot = geo.vy + ((x - geo.vx) / flankSpan) * (geo.faceB - geo.vy);
+
+    if (y > yBot + 1 && y < rows) {
+      putMax(base, cols, rows, x, y, V.rail * clamp01(0.3 + 0.7 * ((x - geo.vx) / flankSpan)));
+    }
+  }
+
+  // The warning strip: bright dashes diving from the near corner to the
+  // portal's foot, with tactile-dot rows on the platform side.
+  for (let x = 2; x < geo.vx - 2; x++) {
+    const yEdge = edgeAt(geo, x);
+
+    if (yEdge < geo.wallFoot - 1 || yEdge > rows + 3) {
       continue;
     }
-    columnXs.push(x);
-  }
 
-  for (let y = 0; y < height; y++) {
-    const base = y * width;
+    const y = Math.round(yEdge);
+    const nearness = clamp01((geo.vx - x) / geo.vx);
+    const thick = 1 + Math.round(2.2 * nearness);
+    const z = geo.vx / Math.max(1, geo.vx - x);
+    const on = Math.floor(z * 3) % 4 < 3;
 
-    for (let x = 0; x < width; x++) {
-      let v: number = V.ceiling;
+    for (let r = 0; r < thick; r++) {
+      putSet(base, cols, rows, x, y + r, on ? V.stripOn : V.stripOff);
+    }
 
-      if (y >= beamTop && y < wallTop) {
-        v = V.beam;
-      } else if (y >= wallTop && y < wallBottom) {
-        // Lit tile faces with empty grout lines: the wall's grid reads as
-        // dark mortar between light tiles (figure/ground, not a solid field).
-        const onGrout = x % TILE_W < GROUT_W || (y - wallTop) % TILE_H === 0;
-        v = onGrout ? V.grout : V.wall;
-        // Age on the grid, all static: a grime field (clustered, heavier low
-        // on the wall) dims a few tiles a bin; a rare tile carries a glaze
-        // that catches the fixtures a bin brighter; where grime crosses the
-        // mortar, a faint tick keeps the stain continuous across the grout.
-        const tileCol = Math.floor(x / TILE_W);
-        const tileRow = Math.floor((y - wallTop) / TILE_H);
-        const grime = fbm2(wallNoise, tileCol * 0.71 + 5.7, tileRow * 0.47 + 2.9, 2);
-        const lowWall = (y - wallTop) / Math.max(1, wallBottom - wallTop);
-        const stained = grime + 0.15 * lowWall > 0.82;
-        if (onGrout) {
-          if (stained && wallNoise(x * 3.7 + 0.51, y * 5.3 + 7.9) < 0.3) {
-            v = V.groutTick;
-          }
-        } else if (stained) {
-          v = V.wallStain;
-        } else if (wallNoise(tileCol * 7.31 + 3.1, tileRow * 9.17 + 1.7) > 0.94) {
-          v = V.wallGloss;
-        }
-        // A single bright trim line — the station's tile band, one row only.
-        if (y >= stripeTop && y < stripeBottom) {
-          v = V.stripe;
-        }
-        // The sign slab: a framed panel that gives the DOM sign text a home.
-        // The slab stays pristine — no staining under the copy.
-        if (x >= signLeft && x < signRight && y >= signTop && y < signBottom) {
-          const onFrame = x === signLeft || x === signRight - 1 || y === signTop || y === signBottom - 1;
-          v = onFrame ? V.signFrame : V.sign;
-        }
-      } else if (y >= wallBottom && y < trenchTop) {
-        v = V.gap;
-      } else if (y >= trenchTop && y < edgeTop) {
-        // Rails fade as they run into the tunnel mouth.
-        v = y === railA || y === railB ? V.railBase * smooth01(x / Math.max(1, width * 0.07)) : V.trench;
-      } else if (y >= edgeTop && y < edgeBottom) {
-        v = V.edge;
-      } else if (y >= edgeBottom && y < tactileBottom) {
-        // Tactile strip: two staggered rows of raised domes — a woven dot
-        // mat, dimmer on the far row — not a perforation line. Low contrast;
-        // it stands next to the edge line without fighting it.
-        const near = (y - edgeBottom) % 2 === 1;
-        const phase = Math.floor(x / 2) % 2 === (near ? 0 : 1);
-        v = phase ? (near ? V.tactileNear : V.tactileFar) : V.tactileGap;
-      } else if (y >= tactileBottom) {
-        // Platform floor: one calm mid plane that gradients from near-black at
-        // the pit edge (a rest band) up to '·'/':' toward the viewer.
-        const frac = (y - tactileBottom) / Math.max(1, height - 1 - tactileBottom);
-        v = V.floorBack + (V.floorFront - V.floorBack) * frac;
-        // Fixture light falls in closed elliptical pools mid-floor: a ':'
-        // core inside a soft '·' skirt, fully contained before the frame's
-        // bottom edge (no stamped stripes).
-        const poolCenterY = tactileBottom + POOL_CENTER_FRAC * Math.max(1, height - 1 - tactileBottom);
-        const dyp = (y - poolCenterY) / POOL_RY;
-        for (const fx of fixtureXs) {
-          const dxp = (x - fx) / POOL_RX;
-          v += V.poolAdd * Math.exp(-(dxp * dxp + dyp * dyp));
-        }
-      }
-
-      // The tunnel mouth: a dark portal cut into the left end of the far
-      // wall, down through the trench. The headlight resolves out of it.
-      if (x < mouthRight && y >= wallTop + 2 && y < edgeTop && y !== railA && y !== railB) {
-        v = Math.min(v, 0.03);
-      }
-
-      data[base + x] = clamp01(v);
+    if (x % 2 === 0) {
+      putSet(base, cols, rows, x, y - 1, V.tactile);
+      putSet(base, cols, rows, x, y - 2, V.tactile * 0.8);
     }
   }
 
-  // Fixtures on the ceiling beam (steady — no flicker; that motif belongs
-  // to the corridor scene).
-  for (const fx of fixtureXs) {
-    for (let y = beamTop; y < wallTop; y++) {
-      for (let dx = 0; dx < 2; dx++) {
-        const x = fx + dx;
-        if (x < width) {
-          data[y * width + x] = V.fixture;
-        }
+  // The near I-beam jamb: full height at the left canvas edge (full-bleed).
+  for (let y = 0; y < rows; y++) {
+    for (let dx = 0; dx < geo.jambW; dx++) {
+      let v: number = V.jambFill;
+
+      if (dx === 0 || dx === geo.jambW - 1) {
+        v = V.jambEdge;
+      } else if (geo.jambW >= 6 && dx === 2) {
+        v = V.jambWeb;
+      } else if (geo.jambW >= 6 && y % 14 === 6) {
+        v = V.jambSplice;
+      }
+
+      putSet(base, cols, rows, dx, y, v);
+    }
+  }
+
+  // Static lamp housings (the '@' cores and breathing bloom are update's).
+  const seats = lampSeats(geo);
+
+  for (const lx of [seats.lx, seats.rx]) {
+    // A solid housing block: bright enough (with the core and bloom) that
+    // each lamp pools into a blob that survives bin-4 compaction.
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        putSet(base, cols, rows, lx + dx, seats.y + dy, Math.abs(dx) === 3 || dy !== 0 ? V.lampRing : V.lampSeat);
+      }
+    }
+
+    putSet(base, cols, rows, lx, seats.y, V.lampSeat);
+
+    // A static pool of reflected light on the track shadow under each lamp.
+    for (let dy = 1; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        putGlow(base, cols, rows, lx + dx, geo.faceB + dy, 0.14 * Math.exp(-(dx * dx * 0.14 + dy * dy * 0.35)));
       }
     }
   }
 
-  // I-beam columns from the ceiling beam down to the platform edge; the near
-  // rails are drawn in front of them (they belong to the near track).
-  for (const cx of columnXs) {
-    for (let y = beamTop; y < edgeTop; y++) {
-      if (y === railA || y === railB) {
-        continue;
+  // Static spill around the lit route bullet (it reads from far away).
+  for (let dy = -3; dy <= 3; dy++) {
+    for (let dx = -5; dx <= 5; dx++) {
+      const add = 0.2 * Math.exp(-(dx * dx * 0.1 + dy * dy * 0.28));
+
+      if (add > 0.015) {
+        putGlow(base, cols, rows, Math.round(bulletX) + dx, Math.round(bulletY) + dy, add);
       }
-      const base = y * width;
-      data[base + cx] = V.column;
-      if (cx + 1 < width) {
-        data[base + cx + 1] = V.column;
+    }
+  }
+}
+
+/**
+ * The receding flank at (x, y): luminance, or -1 when (x, y) is off the
+ * flank. Window band, door pockets and piers ride on world depth and drop
+ * out once their projection narrows below a cell (no 1-cell jumble).
+ */
+function flankAt(geo: ArrivalGeometry, span: number, x: number, y: number): number {
+  const t = (x - geo.vx) / span;
+
+  if (t < 0.07) {
+    return -1; // dissolved into the portal
+  }
+
+  const yTop = geo.vy + t * (geo.faceT - geo.vy);
+  const yBot = geo.vy + t * (geo.faceB - geo.vy);
+
+  if (y < yTop || y > yBot) {
+    return -1;
+  }
+
+  const dim = 0.3 + 0.7 * t;
+  const rel = FLANK_Z0 / t - FLANK_Z0;
+  const resolution = (span * FLANK_Z0) / ((rel + FLANK_Z0) * (rel + FLANK_Z0)); // cells per world unit
+  let door = false;
+  let doorSplit = false;
+
+  if (resolution >= 1.4) {
+    for (const d of FLANK_DOORS) {
+      const dd = Math.abs(rel - d);
+
+      if (dd < 0.75) {
+        door = true;
+        doorSplit = dd < 0.1;
       }
     }
   }
 
-  return data;
+  const pier = resolution >= 0.7 && Math.floor(rel * 0.9) % 4 === 3;
+  const fyy = (y - yTop) / Math.max(1, yBot - yTop);
+  let v: number;
+
+  if (fyy < 0.07) {
+    v = V.flankRoof;
+  } else if (fyy >= 0.16 && fyy < 0.44) {
+    v = door ? (doorSplit ? V.flankDoor * 0.5 : V.flankDoor + 0.18) : pier ? V.flankPier : V.flankWin;
+  } else if (fyy >= 0.44) {
+    v = door ? V.flankDoor * 0.7 : V.flankSkirt;
+  } else {
+    v = door ? V.flankDoor : V.flankBody;
+  }
+
+  return clamp01(v * dim);
+}
+
+/** The two headlamp seats at the face's lower corners. */
+function lampSeats(geo: ArrivalGeometry): { lx: number; rx: number; y: number } {
+  const fw = Math.max(1, geo.faceR - geo.faceL);
+  const fh = Math.max(1, geo.faceB - geo.faceT);
+
+  return {
+    lx: Math.round(geo.faceL + 0.1 * fw),
+    rx: Math.round(geo.faceL + 0.9 * fw),
+    y: Math.round(geo.faceT + 0.78 * fh),
+  };
 }
 
 export const subwayPlatformScene: SceneModule = {
   dockGlyph: [
-    "  @      @  ",
-    " |  :==:  | ",
-    " |  ::::  | ",
-    "------------",
-    "############",
-    " · · · · · ·",
+    "=====##=====",
+    "|   |::|   |",
+    "|   |::|   |",
+    "|::::::::::|",
+    "|@········@|",
+    "-=-=-=-=-=-=",
   ],
   id: "subway-platform",
   init(context: SceneContext): void {
-    airPhase = 0;
-    staticBase = null;
-    staticKey = "";
-    context.lights.push({
-      intensity: 0,
-      radius: 11,
-      x: -4,
-      y: rowOf(context.buffer.height, (F.railA + F.railB) / 2),
-    });
+    const { width, height } = context.buffer;
+
+    buildBase(width, height);
   },
   summaryChip: "July 2026 — between trains, shipping open source.",
   tuning: {
-    cellH: 8,
-    cellW: 8,
-    cols: 160,
+    cellH: 6,
+    cellW: 6,
+    cols: 224,
     minimalGlyph: "·",
     motion: {
-      airAmount: 0.05,
-      breeze: 0.32,
-      breezePush: 2,
-      columnSpacing: 38,
-      fixtureSpacing: 20,
-      headlightApproach: 9,
-      headlightHold: 5,
-      headlightIntensity: 0.55,
-      headlightPeriod: 42,
-      headlightRadius: 8,
-      headlightReach: 0.12,
-      headlightRecede: 7,
-      mouthWash: 0.3,
-      noiseScale: 0.11,
-      railFalloff: 0.12,
-      railGlow: 0.22,
-      railLead: 3,
-      tileBreath: 0.015,
+      beamAimX: 0,
+      beamAimY: 1.32,
+      beamGain: 0.68,
+      beamLength: 150,
+      beamSpread: 0.16,
+      bloomGain: 0.68,
+      breatheAmp: 0.18,
+      breathePeriod: 11,
+      hazeAmount: 0.06,
+      hazeFloor: 0.02,
+      hazeScale: 0.06,
+      hazeSpeed: 0.05,
+      splashGain: 1.2,
     },
-    ramp: " ·:~-=|+*#@",
-    rows: 72,
+    ramp: " ·:-|=+#@",
+    rows: 104,
   },
-  update(dt: number, context: SceneContext): void {
-    const { buffer, lights, time } = context;
+  update(_dt: number, context: SceneContext): void {
+    const { buffer, time } = context;
     const {
-      airAmount = 0.05,
-      breeze = 0.32,
-      breezePush = 2,
-      columnSpacing = 38,
-      fixtureSpacing = 20,
-      headlightApproach = 9,
-      headlightHold = 5,
-      headlightIntensity = 0.55,
-      headlightPeriod = 42,
-      headlightRadius = 8,
-      headlightReach = 0.12,
-      headlightRecede = 7,
-      mouthWash = 0.3,
-      noiseScale = 0.11,
-      railFalloff = 0.12,
-      railGlow = 0.22,
-      railLead = 3,
-      tileBreath = 0.015,
+      beamAimX = 0,
+      beamAimY = 1.32,
+      beamGain = 0.68,
+      beamLength = 150,
+      beamSpread = 0.16,
+      bloomGain = 0.68,
+      breatheAmp = 0.18,
+      breathePeriod = 11,
+      hazeAmount = 0.06,
+      hazeFloor = 0.02,
+      hazeScale = 0.06,
+      hazeSpeed = 0.05,
+      splashGain = 1.2,
     } = this.tuning.motion;
-    const width = buffer.width;
-    const height = buffer.height;
+    const w = buffer.width;
+    const h = buffer.height;
     const data = buffer.data;
 
-    const key = `${width}x${height}|${columnSpacing}|${fixtureSpacing}`;
-    if (!staticBase || staticBase.length !== data.length || key !== staticKey) {
-      staticBase = buildStatic(width, height, columnSpacing, fixtureSpacing);
-      staticKey = key;
+    if (baseCols !== w || baseRows !== h) {
+      buildBase(w, h);
     }
 
-    // --- The distant headlight: a pure function of time. Each cycle the
-    // light enters the tunnel mouth, approaches a little way down the rails,
-    // holds (a train waiting on its signal), and dims. Deterministic
-    // per-cycle jitter keeps the interval from reading as a loop.
-    const approach = Math.max(0.25, headlightApproach);
-    const hold = Math.max(0, headlightHold);
-    const recede = Math.max(0.25, headlightRecede);
-    const active = approach + hold + recede;
-    const period = Math.max(active + 1, headlightPeriod);
-    const cycle = Math.floor(time / period);
-    const jitterA = cycleNoise(cycle * 12.9 + 0.37, 4.7);
-    const jitterB = cycleNoise(cycle * 5.3 + 8.11, 21.5);
-    const delay = Math.min(period * 0.3, Math.max(0, period - active)) * jitterA;
-    const s = time - cycle * period - delay;
+    const geo = geometry(w, h);
+    const seats = lampSeats(geo);
+    const fw = Math.max(1, geo.faceR - geo.faceL);
+    const fh = Math.max(1, geo.faceB - geo.faceT);
 
-    const phaseAt = (sv: number): [envelope: number, travel: number] => {
-      if (sv <= 0 || sv >= active) {
-        return [0, 0];
+    data.set(base);
+
+    // --- Haze drifts low through the light (dust the tunnel exhales),
+    // sampled on a coarse lattice and bilinearly upsampled.
+    const stride = 4;
+    const gw = Math.floor(w / stride) + 2;
+    const gh = Math.floor(h / stride) + 2;
+
+    if (hazeLattice.length !== gw * gh) {
+      hazeLattice = new Float32Array(gw * gh);
+    }
+
+    for (let gy = 0; gy < gh; gy++) {
+      const ny = gy * stride * hazeScale * 1.4 + time * hazeSpeed * 0.6;
+
+      for (let gx = 0; gx < gw; gx++) {
+        hazeLattice[gy * gw + gx] = fbm2(hazeNoise, gx * stride * hazeScale + time * hazeSpeed, ny, 2);
       }
-      if (sv < approach) {
-        const t = smooth01(sv / approach);
-        return [t, t];
+    }
+
+    for (let y = geo.wallFoot + 1; y < h; y++) {
+      const gy = y / stride;
+      const gy0 = Math.floor(gy);
+      const fy = gy - gy0;
+      const rowA = gy0 * gw;
+      const rowB = (gy0 + 1) * gw;
+
+      for (let x = geo.jambW; x < Math.min(w, geo.faceL); x++) {
+        const gx = x / stride;
+        const gx0 = Math.floor(gx);
+        const fx = gx - gx0;
+        const top = (hazeLattice[rowA + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowA + gx0 + 1] ?? 0) * fx;
+        const bottom = (hazeLattice[rowB + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowB + gx0 + 1] ?? 0) * fx;
+        putMax(data, w, h, x, y, hazeFloor + hazeAmount * (top * (1 - fy) + bottom * fy));
       }
-      if (sv < approach + hold) {
-        return [1, 1];
+    }
+
+    // --- The one motion: the headlight field breathes, slow and even.
+    const gm = 1 - breatheAmp + breatheAmp * (0.5 + 0.5 * Math.sin((Math.PI * 2 * time) / Math.max(0.5, breathePeriod)));
+
+    for (const lx of [seats.lx, seats.rx]) {
+      // Halation: an elliptical bloom around each lamp, wider than tall;
+      // glyph quantization dithers its falloff rings.
+      const sx = Math.max(1.6, 0.05 * fw);
+      const sy = Math.max(1, 0.024 * fh);
+      const rx = Math.ceil(sx * 2.7);
+      const ry = Math.ceil(sy * 2.7);
+
+      for (let dy = -ry; dy <= ry; dy++) {
+        for (let dx = -rx; dx <= rx; dx++) {
+          const add = bloomGain * gm * Math.exp(-((dx * dx) / (2 * sx * sx) + (dy * dy) / (2 * sy * sy)));
+
+          if (add > 0.012) {
+            putGlow(data, w, h, lx + dx, seats.y + dy, add);
+          }
+        }
       }
-      return [smooth01(1 - (sv - approach - hold) / recede), 1];
-    };
 
-    // Anticipation is the scene's emotion: the rails run ahead of the light.
-    // Their reflection follows a phase led by railLead seconds, so the glint
-    // creeps down the steel a beat before the tunnel mouth brightens — and
-    // stays (max of both phases) until the light itself dies.
-    const [envelope, travel] = phaseAt(s);
-    const [leadEnvelope, leadTravel] = phaseAt(s + railLead);
-    const railEnvelope = Math.max(envelope, leadEnvelope);
-    const railTravel = Math.max(travel, leadTravel);
-    const peak = clamp01(headlightIntensity * (0.8 + 0.25 * jitterB));
+      // The beam: a cone fanning down the track bed and across the
+      // platform corner toward the viewer — the light that explains the
+      // floor streak.
+      const tx = w * beamAimX - lx;
+      const ty = h * beamAimY - seats.y;
+      const tLen = Math.max(1, Math.hypot(tx, ty));
+      const dx = tx / tLen;
+      const dy = ty / tLen;
+      const gain = beamGain * gm;
+      const beamLen = Math.max(8, beamLength * (w / 224));
 
-    // --- Air movement: the breeze a train pushes ahead of itself. The drift
-    // phase integrates so the push accelerates smoothly with the envelope.
-    airPhase += dt * breeze * (1 + envelope * breezePush);
+      for (let y = Math.max(0, seats.y - 6); y < h; y++) {
+        for (let x = 0; x <= Math.min(w - 1, lx); x++) {
+          const px = x - lx;
+          const py = y - seats.y;
+          const proj = px * dx + py * dy;
 
-    data.set(staticBase);
+          if (proj < 1) {
+            continue;
+          }
 
-    const wallTop = rowOf(height, F.wallTop);
-    const wallBottom = rowOf(height, F.wallBottom);
-    const trenchTop = rowOf(height, F.gapBottom);
-    const railA = rowOf(height, F.railA);
-    const railB = rowOf(height, F.railB);
-    const edgeTop = rowOf(height, F.edgeTop);
-    const signLeft = Math.round(width * F.signLeft);
-    const signRight = Math.round(width * F.signRight);
-    const signTop = rowOf(height, F.signTop);
-    const signBottom = rowOf(height, F.signBottom);
-    const wallPhase = time * 0.05;
+          const off = px * dy - py * dx;
+          const spread = beamSpread * proj + 1.4;
+          // The cone dims while it crosses the car's own face — the light
+          // only blooms once it reaches open air and the track bed.
+          const faceDamp = x >= geo.faceL && y <= geo.faceB ? 0.3 : 1;
+          const add = faceDamp * gain * smooth01(proj / 10) * Math.exp(-(off * off) / (2 * spread * spread)) * Math.exp(-proj / beamLen);
 
-    // Wall tiles breathe faintly (the scene's water-adjacent part), never
-    // under the sign slab: the copy slot stays calm.
-    for (let y = wallTop; y < wallBottom; y++) {
-      const base = y * width;
-      const ny = y * noiseScale * 0.9;
-      for (let x = 0; x < width; x++) {
-        if (x >= signLeft && x < signRight && y >= signTop && y < signBottom) {
+          if (add > 0.005) {
+            putGlow(data, w, h, x, y, add);
+          }
+        }
+      }
+
+      // The splash: the warning strip catches the beam a band brighter
+      // than the concrete around it (paint reflects).
+      for (let x = 2; x < geo.vx - 2; x++) {
+        const yEdge = edgeAt(geo, x);
+
+        if (yEdge < geo.wallFoot - 1 || yEdge > h + 2) {
           continue;
         }
-        const v = (data[base + x] ?? 0) + (fbm2(wallNoise, x * noiseScale * 0.6 + wallPhase, ny, 1) - 0.5) * 2 * tileBreath;
-        data[base + x] = clamp01(v);
-      }
-    }
 
-    // Dust drifting through the track trench (rail rows stay crisp).
-    for (let y = trenchTop; y < edgeTop; y++) {
-      if (y === railA || y === railB) {
-        continue;
-      }
-      const base = y * width;
-      const ny = y * noiseScale * 1.7;
-      for (let x = 0; x < width; x++) {
-        const v = (data[base + x] ?? 0) + (fbm2(airNoise, x * noiseScale + airPhase, ny, 2) - 0.5) * 2 * airAmount;
-        data[base + x] = clamp01(v);
-      }
-    }
+        const px = x - lx;
+        const py = yEdge - seats.y;
+        const proj = px * dx + py * dy;
 
-    // The platform floor stays a still rest plane (no dither): the only air
-    // that moves is in the track trench, where the train pushes it.
-
-    // Rails catch the headlight first: the reflection spreads from where the
-    // led phase puts the light, one beat ahead of the visible bloom.
-    const lightX = -4 + travel * (headlightReach * width + 4);
-    const railLightX = -4 + railTravel * (headlightReach * width + 4);
-    if (railEnvelope > 0) {
-      const fall = Math.max(1, width * railFalloff);
-      for (const y of [railA, railB]) {
-        const base = y * width;
-        for (let x = 0; x < width; x++) {
-          const add = railEnvelope * railGlow * Math.exp(-Math.abs(x - railLightX) / fall);
-          const lit = clamp01((data[base + x] ?? 0) + add);
-          data[base + x] = lit > RAIL_GLINT_MAX ? RAIL_GLINT_MAX : lit;
-        }
-      }
-    }
-
-    // Then the tunnel mouth brightens: the portal fills with a faint wash as
-    // the light nears, resolving out of black behind the already-lit rails.
-    if (envelope > 0) {
-      const mouthRight = Math.max(4, Math.round(width * F.tunnelMouth));
-      const wallTopRow = wallTop + 2;
-      const wash = envelope * peak * mouthWash;
-      for (let y = wallTopRow; y < edgeTop; y++) {
-        if (y === railA || y === railB) {
+        if (proj < 1) {
           continue;
         }
-        // The wash hugs the ground — a low headlight lights the portal from
-        // the rails up, so the top of the mouth stays dark longest.
-        const rise = (y - wallTopRow) / Math.max(1, edgeTop - 1 - wallTopRow);
-        const washHere = wash * (0.25 + 0.75 * rise);
-        const base = y * width;
-        for (let x = 0; x < mouthRight; x++) {
-          data[base + x] = clamp01((data[base + x] ?? 0) + washHere);
+
+        const off = px * dy - py * dx;
+        const spread = beamSpread * proj + 1.4;
+        const add = splashGain * gain * Math.exp(-(off * off) / (2 * spread * spread)) * Math.exp(-proj / beamLen);
+
+        if (add > 0.005) {
+          const thick = 1 + Math.round(2.2 * clamp01((geo.vx - x) / geo.vx));
+
+          for (let r = 0; r < thick; r++) {
+            putGlow(data, w, h, x, Math.round(yEdge) + r, add);
+          }
         }
       }
     }
 
-    const light = lights[0];
-    if (light) {
-      light.x = lightX;
-      light.y = (railA + railB) / 2;
-      light.radius = headlightRadius;
-      light.intensity = envelope * peak;
+    // --- The silhouette march: dark I-beams standing in front of the glow.
+    for (let i = 0; i < SIL_X.length; i++) {
+      const xc = Math.round((SIL_X[i] ?? 0) * w);
+      const cw = Math.max(1, Math.round((SIL_W[i] ?? 0) * w));
+      const xl = xc - (cw >> 1);
+      const yBase = Math.min(h - 1, Math.round(edgeAt(geo, xc)) - 1);
+
+      for (let y = 0; y <= yBase; y++) {
+        for (let dx = 0; dx < cw; dx++) {
+          putSet(data, w, h, xl + dx, y, cw >= 3 && (dx === 0 || dx === cw - 1) ? V.silEdge : V.silFill);
+        }
+      }
     }
+
+    // --- The cores: the scene's only two '@' cells.
+    putSet(data, w, h, seats.lx, seats.y, V.lamp);
+    putSet(data, w, h, seats.rx, seats.y, V.lamp);
   },
 };

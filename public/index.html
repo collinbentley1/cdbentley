@@ -348,11 +348,10 @@
         padding-bottom: 24vh;
       }
 
-      /* The airport chapter is short: pull it up only as far as the floor
-         band, so the departure board and the glass stay in view while it
-         reads. */
+      /* The gate chapter starts below the curtain wall's sill band, so the
+         airliner and the glass grid stay clear while it reads. */
       body.ocean section[data-scene="airport-gate"] .prose {
-        margin-top: -40vh;
+        margin-top: -26vh;
       }
 
       /* The stage chapter starts below the stage-floor line of the
@@ -362,36 +361,34 @@
         margin-top: -26vh;
       }
 
-      /* The corridor chapter is short: start the prose below the vanishing-
-         point sign (~44vh) so no text lands on the focal feature — the
-         illuminated end sign stays clear as the corridor's destination. */
+      /* The tower chapter starts below the arcade's street line so the
+         Humana shaft, crown, and the sweeping EKG pulse stay clear. */
       body.ocean section[data-scene="corridor"] .prose {
-        margin-top: -46vh;
+        margin-top: -43vh;
       }
 
-      /* The classroom board is the focal feature and carries faint writing;
-         start the chapter just below the board so the heading and summary
-         don't land on it (the desks below are a repeating field). */
+      /* The learning hall's floor is the open zone: the prose enters below
+         the shelf wall's floor line, where only the Sphero's trail glides. */
       body.ocean section[data-scene="classroom"] .prose {
-        margin-top: -52vh;
+        margin-top: -38vh;
       }
 
-      /* The three long chapters below were the only ones still on the -62vh
-         default; that deepest pull floated their heading up under the fixed
-         shelf band (--top-rail-h) at mid-scroll, shaving the glyph tops. Each
-         gets its own slightly gentler offset so the label clears the band
-         while the chapter still sits above the scene's focal feature (the lit
-         phone / the desks / the platform tracks, all lower in frame). */
+      /* The microphone chapter starts below the pedestal's mid-steps; the
+         dome, voice arcs, and yoke stay clear while it reads. */
       body.ocean section[data-scene="kitchen-table"] .prose {
-        margin-top: -56vh;
+        margin-top: -42vh;
       }
 
+      /* The exchange facade houses text well in its dark colonnade voids:
+         the deepest pull keeps the pediment and ticker band clear. */
       body.ocean section[data-scene="trading-floor"] .prose {
-        margin-top: -58vh;
+        margin-top: -62vh;
       }
 
+      /* The arrival chapter starts below the beam wash on the platform
+         floor, keeping the car face and headlight cones clear. */
       body.ocean section[data-scene="subway-platform"] .prose {
-        margin-top: -54vh;
+        margin-top: -35vh;
       }
 
       body.ocean .prose > * {

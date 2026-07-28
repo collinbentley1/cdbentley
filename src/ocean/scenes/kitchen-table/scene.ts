@@ -1,459 +1,506 @@
 /**
- * Scene — "kitchen-table": a kitchen at night, true black. One table (a solid
- * mass, classroom-desk build: slab top, apron, four legs), one chair pulled up
- * to its near-right corner, and a phone lying face-up on the wood — the
- * room's ONLY light source, the SDK lure mechanic used exactly as designed:
- * the glow is three small LightSource lobes riding the screen's long axis
- * (one phone, one pool — stretched along the wood instead of a floating orb),
- * and inside that pool the ramp lifts and hidden detail resolves out of the
- * black: the wood grain, the mug by the phone, the chair's near edge. A
- * window hints at distance: thin mullion cross, two faint far lights. Outside
- * the pool the furniture is a whisper (sparse grain speckle, a dotted near
- * edge at most); the room stays black. The whole room sits in the upper half
- * of the frame: the integrated page floats its chapter prose over the lower
- * half of this canvas, so the slab, pool, and chair live above the prose line
- * and only the quiet leg strokes fall behind the text.
+ * Scene — "kitchen-table": THE BROADCAST MICROPHONE. Healthyr pivoted from
+ * an app in a pocket to SMS and a real-time voice LLM — care that speaks.
+ * No mouths, no phones: retro voice. A monumental 1950s birdcage microphone
+ * (Shure 55 spirit) stands centered, filling most of the canvas height — a
+ * rounded-dome grille head drawn GRAND, vertical grille ribs alternating
+ * '='/'|' with dark slots like the stage's triglyph frieze, a bright
+ * horizontal band across the grille (the scene's hottest light, '@' held to
+ * a five-cell core), a '+'-weight outline crown — atop a tapering yoke and
+ * a massive deco stepped pedestal: three plinths spanning wider toward a
+ * full-bleed floor line that crosses every column.
  *
- * One quiet motion idiom, phone-shaped: the glow breathes; on a slow cycle a
- * message arrives — the glow swells and two-to-three glyph rows flicker
- * across the face — and once per long cycle a soft concentric voice-ripple
- * expands one ring off the phone and dissolves. A diorama, not a screensaver.
+ * THE LIGHT EVENT + ONE MOTION: concentric voice arcs ripple outward from
+ * the grille to both sides — nested portions of rings centered on the
+ * band, brightness falling with radius (':' near, '-'/'·' far), slowly
+ * propagating outward (phase = radius - speed*time) and fading to black
+ * before the canvas edges, so the air itself carries the voice. The band's
+ * core pulses in sync with each departing ring. Secondaries, both quiet: a
+ * breathing haze confined to a halo around the head, and a faint
+ * oscilloscope waveform line low across the full width, its amplitude
+ * breathing on a slow cycle.
  *
- * The sim is STATELESS by construction: every frame is a closed-form function
- * of context.time (no accumulators), so arbitrary sleep gaps land the room
- * exactly where it should be — scene.test.ts proves buffer equality across
- * different dt partitions.
+ * The sim is STATELESS by construction: every frame is a closed-form
+ * function of context.time (no accumulators, no per-frame randomness), so
+ * arbitrary sleep gaps land the voice exactly where it should be — two
+ * updates at identical time produce byte-identical buffers.
  *
- * Compaction legibility: the room is line art, and 1-cell strokes average
- * away to black under bin pooling, so init bakes THREE static bases with
- * stroke thickness matched to the bin stride (1/2/4, small gain) and update
- * picks one via resolutionForDepth(context.depth) — pure in depth, so scroll
- * up re-blooms along the same path. As the scene forgets itself the furniture
- * fades first; what survives longest is what the room remembers: the pool of
- * phone light, the table's near edge, the far lights in the window.
+ * Compaction legibility: the head interior half-fills its area at rib
+ * weights that pool past the bin-4 threshold near the band, the pedestal
+ * plinths are solid '|'-band slabs, and the column is a thick fluted
+ * stroke — at deep scroll the scene survives as its skeleton: a dotted
+ * dome over a dotted column over a widening dotted base.
  *
- * Copy note (binding): this scene renders no text — the message rows are
- * non-lexical glyph shimmer, never words. The chapter prose beside this
+ * Nothing human-readable is rendered here; the chapter prose beside this
  * scene is DOM.
  *
  * Ramp intent (hand-tunable, Collin's brush), dark -> bright:
- * " ·:-=+*#@" — the night lives in the first two glyphs (black + sparse '·'
- * silhouettes), lit wood grain breathes on ':-=', the mug rim and chair edge
- * resolve on '·:', the phone face lands on '+*', message rows and the screen
- * core on '#@'. simplifyRamp level 2 residue is " ·": the compacted memory of
- * the kitchen is a small pool of dots where the phone was.
+ * " ·:-|=+#@" — the dark holds the corners; far arcs whisper on '·', near
+ * arcs speak on ':' '-'; grille ribs live on '|' '='; crown, collar and
+ * plinth edges on '+'; the band on '#'; its five-cell core alone on '@'.
  */
 
-import { createValueNoise, fbm2, resolutionForDepth } from "../../sdk/index.ts";
-import type { LuminanceBuffer, SceneContext, SceneModule } from "../../sdk/index.ts";
+import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
 
-const grainNoise = createValueNoise(47);
+const hazeNoise = createValueNoise(31);
 
-/** Deterministic integer hash -> [0, 1). Keeps the message shimmer replayable. */
-function hash(seed: number, a: number, b: number): number {
-  let h = Math.imul(seed ^ 0x9e3779b9, 2654435761) ^ Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263);
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+const TAU = Math.PI * 2;
+
+/** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
+const CROWN_LUM = 0.72; // '+' — the head's outline crown
+const CROWN_T = 2.6; // crown thickness in cells (measured radially)
+const RIM_LUM = 0.66; // '=' — the rim where head meets yoke
+const SLOT_LUM = 0.13; // '·' — dark slots between grille ribs
+const RIB_BASE_LUM = 0.44; // '|' — rib brightness at the dome apex
+const RIB_GAIN = 0.14; // ribs brighten toward the band ('=' beside it)
+const RIB_ALT_DROP = 0.1; // the narrow alternate rib sits one band lower
+const BAND_EDGE_LUM = 0.7; // '+' — the band's outer rows at the crown
+const BAND_GAIN = 0.12; // outer-row lift toward center ('#'-adjacent)
+const BAND_MID_LUM = 0.8; // '#' — the band's middle row, full width
+const BAND_MID_GAIN = 0.08; // middle-row lift toward center
+const BAND_CORE_LUM = 0.9; // '@' — five-cell core, the hottest light
+const YOKE_EDGE_LUM = 0.6; // '=' — yoke silhouette edges
+const YOKE_FILL_LUM = 0.44; // '|' — yoke fill
+const COL_EDGE_LUM = 0.66; // '=' — column arris, both sides
+const COL_FLUTE_A_LUM = 0.56; // '=' — column flute, lit (pools past bin 4)
+const COL_FLUTE_B_LUM = 0.46; // '|' — column flute, shadowed
+const STEP_TOP_LUM = 0.68; // '+' — each plinth's top edge
+const STEP_SIDE_LUM = 0.58; // '=' — plinth ends
+const STEP_FILL_LUM = 0.5; // '|' — plinth body (pools past bin-4 threshold)
+const FLOOR_LUM = 0.56; // '=' — the full-bleed floor line
+const FLOOR_UNDER_LUM = 0.42; // '-' — the floor line's soffit row
+const FLOOR_SHADOW_LUM = 0.12; // '·' — the dark ground under the floor line
+
+interface MicGeometry {
+  bandMid: number;
+  bandY0: number;
+  bandY1: number;
+  colBot: number;
+  colHalf: number;
+  cx: number;
+  floorRow: number;
+  headBot: number;
+  headCy: number;
+  headR: number;
+  headTop: number;
+  steps: ReadonlyArray<{ halfW: number; y0: number; y1: number }>;
+  waveRow: number;
+  yokeBot: number;
 }
+
+let base = new Float32Array(0);
+let baseCols = 0;
+let baseRows = 0;
+let hazeLattice = new Float32Array(0);
 
 function clamp01(v: number): number {
-  return v < 0 ? 0 : v > 1 ? 1 : v;
-}
-
-interface Rect {
-  x0: number;
-  y0: number;
-  x1: number;
-  y1: number;
-}
-
-/** Max-blend drawing pen over a Float32Array, with stroke width and gain. */
-interface Pen {
-  cell(x: number, y: number, v: number): void;
-  rect(r: Rect, v: number): void;
-  h(x0: number, x1: number, y: number, v: number): void;
-  v(x: number, y0: number, y1: number, v: number): void;
-}
-
-/** Static room luminance, one base per bin stride (strokes thicken with bin). */
-let bases: Partial<Record<1 | 2 | 4, Float32Array>> = {};
-/** Phone screen interior (dynamic fill + message rows), buffer cell coords. */
-let screen: Rect = { x0: 0, x1: 0, y0: 0, y1: 0 };
-/** Phone/light center — also the origin of the voice-ripple. */
-let phoneX = 0;
-let phoneY = 0;
-/** Far-light cells in the window (index, phase) for the slow twinkle. */
-let farLights: Array<{ index: number; phase: number }> = [];
-
-function makePen(target: Float32Array, w: number, h: number, stroke: number, gain: number): Pen {
-  const put = (x: number, y: number, v: number): void => {
-    if (x < 0 || y < 0 || x >= w || y >= h) {
-      return;
-    }
-
-    const i = y * w + x;
-    target[i] = Math.max(target[i] ?? 0, clamp01(v * gain));
-  };
-  const rect = (r: Rect, v: number): void => {
-    for (let y = r.y0; y <= r.y1; y++) {
-      for (let x = r.x0; x <= r.x1; x++) {
-        put(x, y, v);
-      }
-    }
-  };
-
-  return {
-    cell: put,
-    h: (x0, x1, y, v) => {
-      rect({ x0, x1, y0: y, y1: y + stroke - 1 }, v);
-    },
-    rect,
-    v: (x, y0, y1, v) => {
-      rect({ x0: x, x1: x + stroke - 1, y0, y1 }, v);
-    },
-  };
-}
-
-/** Draw the static room; returns the phone-screen interior rect. */
-function drawRoom(pen: Pen, w: number, h: number): Rect {
-  const X = (f: number): number => Math.round(f * (w - 1));
-  const Y = (f: number): number => Math.round(f * (h - 1));
-
-  // Window, upper left: thin frame, mullion cross, near-black glass — one
-  // quiet ramp step above black, a window you notice second.
-  const win: Rect = { x0: X(0.1), x1: X(0.21), y0: Y(0.07), y1: Y(0.27) };
-  pen.rect({ x0: win.x0 + 1, x1: win.x1 - 1, y0: win.y0 + 1, y1: win.y1 - 1 }, 0.02);
-  pen.h(win.x0, win.x1, win.y0, 0.13);
-  pen.h(win.x0, win.x1, win.y1, 0.13);
-  pen.v(win.x0, win.y0, win.y1, 0.13);
-  pen.v(win.x1, win.y0, win.y1, 0.13);
-  pen.h(win.x0 + 1, win.x1 - 1, Y(0.17), 0.115);
-  pen.v(X(0.155), win.y0 + 1, win.y1 - 1, 0.115);
-
-  // Two far lights through the glass: someone else's night, kilometres off.
-  // Self-luminous (they ARE lights), one-cell halos, slow twinkle in update.
-  // Under compaction these outlive the furniture.
-  const farA = { x: X(0.13), y: Y(0.22) };
-  const farB = { x: X(0.185), y: Y(0.12) };
-  pen.cell(farA.x, farA.y, 0.24);
-  pen.cell(farA.x - 1, farA.y, 0.08);
-  pen.cell(farA.x + 1, farA.y, 0.08);
-  pen.cell(farB.x, farB.y, 0.19);
-  pen.cell(farB.x + 1, farB.y, 0.07);
-
-  // The table: one solid mass. Slab top seen at a shallow angle (a trapezoid
-  // of wood grain), a firm near edge, an apron, four legs. The grain rides
-  // just under the first ramp step — sparse speckle where the figure peaks
-  // keeps the slab present in the dark; the pool resolves all of it.
-  const backY = Y(0.24);
-  const frontY = Y(0.35);
-  const backL = X(0.3);
-  const backR = X(0.7);
-  const frontL = X(0.245);
-  const frontR = X(0.755);
-
-  for (let y = backY; y <= frontY; y++) {
-    const t = (y - backY) / Math.max(1, frontY - backY);
-    const x0 = Math.round(backL + (frontL - backL) * t);
-    const x1 = Math.round(backR + (frontR - backR) * t);
-
-    for (let x = x0; x <= x1; x++) {
-      // Wood grain: long horizontal figure, a few darker pores.
-      const g = fbm2(grainNoise, x * 0.11, y * 0.9, 2);
-      const pore = fbm2(grainNoise, x * 0.45 + 40, y * 1.7, 1);
-      pen.cell(x, y, clamp01(0.1 + (g - 0.5) * 2 * 0.055 - (pore > 0.72 ? 0.035 : 0)));
-    }
-  }
-
-  // Back-edge whisper, near-edge line, apron shadow under the slab. The near
-  // edge is the table's read-at-a-glance silhouette, so it carries the most
-  // weight of any structural stroke — it survives the shallow-depth (thin,
-  // bin-1) render at the fold, where the room is otherwise a whisper.
-  pen.h(backL, backR, backY, 0.16);
-  pen.h(frontL, frontR, frontY, 0.36);
-  pen.h(frontL + 1, frontR - 1, frontY + 1, 0.09);
-
-  // Legs: front pair to the floor, back pair shorter (depth), dimmer. One
-  // ramp step above whisper so the slab-on-legs silhouette carries the
-  // "table" read even outside the pool.
-  pen.v(frontL + 2, frontY + 2, Y(0.64), 0.24);
-  pen.v(frontR - 3, frontY + 2, Y(0.64), 0.24);
-  pen.v(backL + 2, frontY + 1, Y(0.54), 0.14);
-  pen.v(backR - 3, frontY + 1, Y(0.54), 0.14);
-
-  // The chair, pulled up at the near-right corner: a tall narrow backrest
-  // rising above the slab (two rails), stiles down to the seat, the seat
-  // overhanging toward the table, legs beneath. Its inner stile sits at
-  // light height — the "chair edge" that resolves as the glow swells.
-  const seatY = Y(0.41);
-  const stileL = X(0.775);
-  const stileR = X(0.825);
-  pen.h(stileL, stileR, Y(0.14), 0.2);
-  pen.h(stileL + 1, stileR - 1, Y(0.19), 0.16);
-  pen.h(stileL + 1, stileR - 1, Y(0.27), 0.15);
-  pen.v(stileL, Y(0.14), seatY, 0.2);
-  pen.v(stileR, Y(0.14), seatY, 0.17);
-  pen.h(stileL - 4, stileR, seatY, 0.22);
-  pen.v(stileL - 2, seatY + 1, Y(0.66), 0.16);
-  pen.v(stileR - 1, seatY + 1, Y(0.66), 0.14);
-
-  // The mug, close by the phone where its rim catches the glow: a dark
-  // cylinder against the lit wood — bright rim, near-black coffee, a
-  // two-cell handle on the shadow side.
-  const mugL = X(0.555);
-  const mugR = mugL + 4;
-  const mugTop = backY + 1;
-  pen.rect({ x0: mugL, x1: mugR, y0: mugTop + 1, y1: mugTop + 5 }, 0.05);
-  pen.h(mugL, mugR, mugTop, 0.22);
-  pen.rect({ x0: mugL + 1, x1: mugR - 1, y0: mugTop + 1, y1: mugTop + 1 }, 0.02);
-  pen.cell(mugL - 1, mugTop + 2, 0.12);
-  pen.cell(mugL - 2, mugTop + 3, 0.12);
-  pen.cell(mugL - 1, mugTop + 4, 0.12);
-
-  // The phone, face-up: a one-cell bezel around a screen the update() pass
-  // fills every frame. The bezel is silhouette-grade; the screen is the sun.
-  const scr: Rect = { x0: X(0.615), x1: X(0.615) + 8, y0: backY + 3, y1: backY + 6 };
-  pen.h(scr.x0 - 1, scr.x1 + 1, scr.y0 - 1, 0.13);
-  pen.h(scr.x0 - 1, scr.x1 + 1, scr.y1 + 1, 0.13);
-  pen.v(scr.x0 - 1, scr.y0 - 1, scr.y1 + 1, 0.13);
-  pen.v(scr.x1 + 1, scr.y0 - 1, scr.y1 + 1, 0.13);
-
-  return scr;
-}
-
-function buildBases(buffer: LuminanceBuffer): void {
-  const w = buffer.width;
-  const h = buffer.height;
-  bases = {};
-
-  // Stroke thickness tracks the bin stride so line art survives average
-  // pooling; the small gain offsets partial block coverage at the edges.
-  for (const [stroke, gain] of [
-    [1, 1],
-    [2, 1.15],
-    [4, 1.35],
-  ] as const) {
-    const target = new Float32Array(w * h);
-    screen = drawRoom(makePen(target, w, h, stroke, gain), w, h);
-    bases[stroke as 1 | 2 | 4] = target;
-  }
-
-  phoneX = (screen.x0 + screen.x1) / 2;
-  phoneY = (screen.y0 + screen.y1) / 2;
-
-  const X = (f: number): number => Math.round(f * (w - 1));
-  const Y = (f: number): number => Math.round(f * (h - 1));
-  farLights = [
-    { index: Y(0.22) * w + X(0.13), phase: 0.9 },
-    { index: Y(0.12) * w + X(0.185), phase: 3.7 },
-  ];
-}
-
-/** sin^2 arrival envelope: 0 outside the window, eased in and out inside. */
-function pulseEnvelope(time: number, phase: number, period: number, length: number): number {
-  const p = (((time + phase) % period) + period) % period;
-
-  if (p >= length) {
+  if (!Number.isFinite(v)) {
     return 0;
   }
 
-  const s = Math.sin((Math.PI * p) / length);
+  return v <= 0 ? 0 : v >= 1 ? 1 : v;
+}
 
-  return s * s;
+/**
+ * Landmarks from proportions. The microphone is centered and monumental:
+ * the head fills the upper half, the pedestal reaches the bottom edge, and
+ * the floor line is full-bleed across every column. All offsets scale with
+ * cols/rows so small harness grids stay in-bounds.
+ */
+function geometry(cols: number, rows: number): MicGeometry {
+  const cx = Math.round(cols * 0.5);
+  const headR = Math.max(3, Math.round(Math.min(rows * 0.25, cols * 0.12)));
+  const headTop = Math.max(1, Math.round(rows * 0.048));
+  const headCy = headTop + headR;
+  const headBot = Math.min(rows - 2, headCy + Math.max(1, Math.round(headR * 1.05)));
+  const bandMid = Math.min(headBot - 1, headCy + Math.max(1, Math.round(headR * 0.12)));
+  const yokeBot = Math.min(rows - 2, headBot + Math.max(1, Math.round(rows * 0.055)));
+  const colHalf = Math.max(2, Math.round(cols * 0.027));
+  const stepH = Math.max(2, Math.round(rows * 0.045));
+  const floorRow = Math.max(yokeBot + 1, rows - 3);
+  const step3Top = floorRow - stepH;
+  const step2Top = step3Top - stepH;
+  const step1Top = step2Top - stepH;
+
+  return {
+    bandMid,
+    bandY0: bandMid - 1,
+    bandY1: bandMid + 1,
+    colBot: Math.max(yokeBot, step1Top - 1),
+    colHalf,
+    cx,
+    floorRow,
+    headBot,
+    headCy,
+    headR,
+    headTop,
+    steps: [
+      { halfW: Math.max(colHalf + 2, Math.round(cols * 0.066)), y0: step1Top, y1: step2Top - 1 },
+      { halfW: Math.max(colHalf + 4, Math.round(cols * 0.105)), y0: step2Top, y1: step3Top - 1 },
+      { halfW: Math.max(colHalf + 6, Math.round(cols * 0.165)), y0: step3Top, y1: floorRow - 1 },
+    ],
+    waveRow: Math.round(rows * 0.78),
+    yokeBot,
+  };
+}
+
+/**
+ * The head silhouette: a circle-capped dome above headCy, sides tapering
+ * gently inward below it (the birdcage profile). Returns the half-width at
+ * row y, or -1 outside the head.
+ */
+function domeHalfWidth(y: number, geo: MicGeometry): number {
+  if (y < geo.headTop || y > geo.headBot) {
+    return -1;
+  }
+
+  if (y <= geo.headCy) {
+    const dy = geo.headCy - y;
+    const s = geo.headR * geo.headR - dy * dy;
+
+    return s <= 0 ? 0 : Math.sqrt(s);
+  }
+
+  const t = (y - geo.headCy) / Math.max(1, geo.headBot - geo.headCy);
+
+  return geo.headR * (1 - 0.3 * t);
+}
+
+/** Bounds-checked assignment. */
+function putSet(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    data[y * w + x] = clamp01(v);
+  }
+}
+
+/** Max-write with bounds check. */
+function putMax(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x < 0 || x >= w || y < 0 || y >= h) {
+    return;
+  }
+
+  const i = y * w + x;
+
+  if ((data[i] ?? 0) < v) {
+    data[i] = clamp01(v);
+  }
+}
+
+/**
+ * Static architecture: the birdcage head — crown outline, vertical grille
+ * ribs alternating with dark slots, the bright band, a rim where the head
+ * meets the yoke — then the tapering yoke, the fluted column, three deco
+ * plinths widening toward the floor, and the full-bleed floor line.
+ */
+function buildBase(cols: number, rows: number): void {
+  base = new Float32Array(cols * rows);
+  baseCols = cols;
+  baseRows = rows;
+
+  const geo = geometry(cols, rows);
+
+  // The head: crown outline around a ribbed grille with the bright band.
+  for (let y = geo.headTop; y <= geo.headBot; y++) {
+    const hw = domeHalfWidth(y, geo);
+
+    if (hw < 0) {
+      continue;
+    }
+
+    const hwI = Math.max(1, Math.round(hw));
+
+    for (let dx = -hwI; dx <= hwI; dx++) {
+      const x = geo.cx + dx;
+      let edge: boolean;
+
+      if (y <= geo.headCy) {
+        const rr = Math.sqrt(dx * dx + (y - geo.headCy) * (y - geo.headCy));
+        edge = rr >= geo.headR - CROWN_T;
+      } else {
+        edge = Math.abs(dx) >= hw - CROWN_T;
+      }
+
+      if (y >= geo.headBot - 1) {
+        putMax(base, cols, rows, x, y, RIM_LUM);
+        continue;
+      }
+
+      if (edge) {
+        putMax(base, cols, rows, x, y, CROWN_LUM);
+        continue;
+      }
+
+      if (y >= geo.bandY0 && y <= geo.bandY1) {
+        const u = Math.min(1, Math.abs(dx) / hwI);
+        const v =
+          y === geo.bandMid
+            ? Math.abs(dx) <= 2
+              ? BAND_CORE_LUM
+              : BAND_MID_LUM + BAND_MID_GAIN * (1 - u)
+            : BAND_EDGE_LUM + BAND_GAIN * (1 - u);
+        putMax(base, cols, rows, x, y, v);
+        continue;
+      }
+
+      // Grille ribs, period 4: two '=' columns, one '|' column, one slot.
+      const m = ((dx % 4) + 4) % 4;
+
+      if (m === 3) {
+        putMax(base, cols, rows, x, y, SLOT_LUM);
+        continue;
+      }
+
+      const g = 1 - Math.min(1, Math.abs(y - geo.bandMid) / (geo.headR * 1.15));
+      const rib = RIB_BASE_LUM + RIB_GAIN * g;
+      putMax(base, cols, rows, x, y, m === 2 ? rib - RIB_ALT_DROP : rib);
+    }
+  }
+
+  // The yoke: a trapezoid tapering from the head rim down to the column.
+  const yokeSpan = Math.max(1, geo.yokeBot - geo.headBot);
+  const yokeTopHalf = geo.headR * 0.42;
+
+  for (let y = geo.headBot + 1; y <= geo.yokeBot; y++) {
+    const t = (y - geo.headBot) / yokeSpan;
+    const hw = Math.max(geo.colHalf, Math.round(yokeTopHalf + (geo.colHalf + 1 - yokeTopHalf) * t));
+
+    for (let dx = -hw; dx <= hw; dx++) {
+      putMax(base, cols, rows, geo.cx + dx, y, Math.abs(dx) >= hw - 1 ? YOKE_EDGE_LUM : YOKE_FILL_LUM);
+    }
+  }
+
+  // The column: bright arrises, alternating flutes down the shaft.
+  for (let y = geo.yokeBot + 1; y <= geo.colBot; y++) {
+    for (let dx = -geo.colHalf; dx <= geo.colHalf; dx++) {
+      const v = Math.abs(dx) >= geo.colHalf ? COL_EDGE_LUM : (dx & 1) === 0 ? COL_FLUTE_A_LUM : COL_FLUTE_B_LUM;
+      putMax(base, cols, rows, geo.cx + dx, y, v);
+    }
+  }
+
+  // Three deco plinths, each wider than the last, stepping to the floor.
+  for (const step of geo.steps) {
+    for (let y = step.y0; y <= step.y1; y++) {
+      const top = y === step.y0;
+
+      for (let dx = -step.halfW; dx <= step.halfW; dx++) {
+        const v = top ? STEP_TOP_LUM : Math.abs(dx) >= step.halfW - 1 ? STEP_SIDE_LUM : STEP_FILL_LUM;
+        putMax(base, cols, rows, geo.cx + dx, y, v);
+      }
+    }
+  }
+
+  // The full-bleed floor line: every column, a soffit row, dark ground.
+  for (let x = 0; x < cols; x++) {
+    putSet(base, cols, rows, x, geo.floorRow, FLOOR_LUM);
+    putMax(base, cols, rows, x, geo.floorRow + 1, FLOOR_UNDER_LUM);
+
+    for (let y = geo.floorRow + 2; y < rows; y++) {
+      putMax(base, cols, rows, x, y, FLOOR_SHADOW_LUM);
+    }
+  }
 }
 
 export const scene: SceneModule = {
   dockGlyph: [
-    "            ",
-    "     ·:·    ",
-    "    :·@·:   ",
-    "  ========  ",
-    "  |      |  ",
-    "  |      |  ",
+    "    ·++·    ",
+    " ·  |==|  · ",
+    "·:  |##|  :·",
+    " ·  ·||·  · ",
+    "     ||     ",
+    "  ·======·  ",
   ],
   id: "kitchen-table",
   init(context: SceneContext): void {
-    buildBases(context.buffer);
-    const radius = Math.max(this.tuning.motion.glowRadiusMin ?? 8, this.tuning.motion.glowRadius ?? 19);
-    const spread = this.tuning.motion.glowSpread ?? 11;
-    context.lights.length = 0;
+    const { width, height } = context.buffer;
 
-    // One phone, one pool: three lobes along the screen's long axis stretch
-    // the glow across the wood instead of floating a single ball of light;
-    // glowDropY biases the pool into the tabletop, where the detail lives.
-    for (const offset of [-spread, 0, spread]) {
-      context.lights.push({
-        intensity: this.tuning.motion.glowIntensity ?? 0.21,
-        radius,
-        x: phoneX + offset,
-        y: phoneY + (this.tuning.motion.glowDropY ?? 1.5),
-      });
-    }
+    buildBase(width, height);
+    context.lights.length = 0;
   },
   summaryChip: "Healthyr, 2024–2025 — clinical care by app, SMS, and voice.",
   tuning: {
-    cellH: 8,
-    cellW: 8,
-    cols: 176,
+    cellH: 6,
+    cellW: 6,
+    cols: 224,
     minimalGlyph: "·",
     motion: {
-      breatheAmp: 0.16,
-      breatheSpeed: 0.22,
-      farTwinkle: 0.045,
-      flickerHz: 8,
-      glowDropY: 1.5,
-      glowIntensity: 0.34,
-      glowRadius: 19,
-      glowRadiusMin: 8,
-      glowSpread: 11,
-      msgLen: 2.4,
-      msgPeriod: 13,
-      msgPhase: 8.4,
-      msgRadiusSwell: 0.22,
-      msgScreenLift: 0.12,
-      msgSwell: 0.5,
-      rippleAmp: 0.13,
-      rippleLen: 3.5,
-      rippleMax: 30,
-      ripplePeriod: 29,
-      ripplePhase: 20,
-      rippleWidth: 1.6,
-      screenBase: 0.62,
-      screenBreathe: 0.06,
+      arcAmp: 0.32,
+      arcAngHi: 0.88,
+      arcAngLo: 0.52,
+      arcFadePow: 1.6,
+      arcInner: 4,
+      arcSharp: 2.5,
+      arcSpanFrac: 0.47,
+      arcSpeed: 4,
+      arcWavelength: 16,
+      bandPulse: 0.04,
+      hazeAmount: 0.08,
+      hazeFloor: 0.02,
+      hazeRadius: 1.9,
+      hazeScale: 0.055,
+      hazeSpeed: 0.05,
+      waveAmp: 1.8,
+      waveFloor: 0.55,
+      waveLambda: 24,
+      waveLum: 0.19,
+      wavePeriod: 17,
     },
-    ramp: " ·:-=+*#@",
-    rows: 80,
+    ramp: " ·:-|=+#@",
+    rows: 104,
   },
   update(_dt: number, context: SceneContext): void {
-    const { buffer, lights, time: t } = context;
+    const { buffer, time } = context;
     const {
-      breatheAmp = 0.16,
-      breatheSpeed = 0.22,
-      farTwinkle = 0.045,
-      flickerHz = 8,
-      glowDropY = 1.5,
-      glowIntensity = 0.34,
-      glowRadius = 19,
-      glowRadiusMin = 8,
-      glowSpread = 11,
-      msgLen = 2.4,
-      msgPeriod = 13,
-      msgPhase = 8.4,
-      msgRadiusSwell = 0.22,
-      msgScreenLift = 0.12,
-      msgSwell = 0.5,
-      rippleAmp = 0.13,
-      rippleLen = 3.5,
-      rippleMax = 30,
-      ripplePeriod = 29,
-      ripplePhase = 20,
-      rippleWidth = 1.6,
-      screenBase = 0.62,
-      screenBreathe = 0.06,
+      arcAmp = 0.32,
+      arcAngHi = 0.88,
+      arcAngLo = 0.52,
+      arcFadePow = 1.6,
+      arcInner = 4,
+      arcSharp = 2.5,
+      arcSpanFrac = 0.47,
+      arcSpeed = 4,
+      arcWavelength = 16,
+      bandPulse = 0.04,
+      hazeAmount = 0.08,
+      hazeFloor = 0.02,
+      hazeRadius = 1.9,
+      hazeScale = 0.055,
+      hazeSpeed = 0.05,
+      waveAmp = 1.8,
+      waveFloor = 0.55,
+      waveLambda = 24,
+      waveLum = 0.19,
+      wavePeriod = 17,
     } = this.tuning.motion;
     const w = buffer.width;
     const h = buffer.height;
     const data = buffer.data;
 
-    if ((bases[1]?.length ?? 0) !== data.length) {
-      buildBases(buffer);
+    if (baseCols !== w || baseRows !== h) {
+      buildBase(w, h);
     }
 
-    // 1) Static room, stroke-matched to the current bin stride (pure in depth).
-    const resolution = resolutionForDepth(context.depth, this.tuning.resolution);
-    data.set(bases[resolution.bin] ?? bases[1] ?? data);
+    const geo = geometry(w, h);
 
-    // 2) Far lights twinkle — slow, a glyph step at most.
-    for (const { index, phase } of farLights) {
-      data[index] = clamp01((data[index] ?? 0) + farTwinkle * Math.sin(t * 0.7 + phase));
+    // 1) Static architecture.
+    data.set(base);
+
+    // 2) Air: a breathing haze halo confined around the head, sampled on a
+    // coarse lattice and bilinearly upsampled (same fabric as the stage).
+    const stride = 4;
+    const gw = Math.floor(w / stride) + 2;
+    const gh = Math.floor(h / stride) + 2;
+
+    if (hazeLattice.length !== gw * gh) {
+      hazeLattice = new Float32Array(gw * gh);
     }
 
-    // 3) The phone face breathes; a message arriving swells it and flickers
-    //    two-to-three non-lexical glyph rows across the screen.
-    const breathe = Math.sin(t * breatheSpeed * Math.PI * 2);
-    const msg = pulseEnvelope(t, msgPhase, msgPeriod, msgLen);
-    const screenLum = clamp01(screenBase + screenBreathe * breathe + msgScreenLift * msg);
+    for (let gy = 0; gy < gh; gy++) {
+      const ny = gy * stride * hazeScale * 1.4 + time * hazeSpeed * 0.6;
 
-    for (let y = screen.y0; y <= screen.y1; y++) {
-      const row = y * w;
-
-      for (let x = screen.x0; x <= screen.x1; x++) {
-        data[row + x] = screenLum;
+      for (let gx = 0; gx < gw; gx++) {
+        hazeLattice[gy * gw + gx] = fbm2(hazeNoise, gx * stride * hazeScale + time * hazeSpeed, ny, 2);
       }
     }
 
-    if (msg > 0.02) {
-      const tick = Math.floor(t * flickerHz);
-      const rows = msg > 0.55 ? 3 : 2;
+    // 3) THE light event: concentric voice arcs rippling outward from the
+    // band to both sides — pure f(time): phase = radius - speed * time.
+    // Brightness falls with radius and the arcs fade before the edges.
+    const arcR0 = geo.headR + arcInner;
+    const arcR1 = Math.max(arcR0 + 8, w * arcSpanFrac);
+    const arcSpan = Math.max(1, arcR1 - arcR0);
+    const hazeR = geo.headR * hazeRadius;
+    const angSpan = Math.max(0.05, arcAngHi - arcAngLo);
 
-      for (let k = 0; k < rows; k++) {
-        const y = screen.y0 + 1 + k;
+    for (let y = 0; y < h; y++) {
+      const dy = y - geo.bandMid;
+      const row = y * w;
+      const gy = y / stride;
+      const gy0 = Math.floor(gy);
+      const fy = gy - gy0;
+      const rowA = gy0 * gw;
+      const rowB = (gy0 + 1) * gw;
 
-        if (y > screen.y1) {
-          break;
+      for (let x = 0; x < w; x++) {
+        const dx = x - geo.cx;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        const i = row + x;
+
+        if (r < hazeR) {
+          const gx = x / stride;
+          const gx0 = Math.floor(gx);
+          const fx = gx - gx0;
+          const top = (hazeLattice[rowA + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowA + gx0 + 1] ?? 0) * fx;
+          const bottom = (hazeLattice[rowB + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowB + gx0 + 1] ?? 0) * fx;
+          const air = (hazeFloor + hazeAmount * (top * (1 - fy) + bottom * fy)) * (1 - r / hazeR);
+
+          if (air > (data[i] ?? 0)) {
+            data[i] = clamp01(air);
+          }
+        }
+
+        if (r < arcR0 || r >= arcR1) {
+          continue;
+        }
+
+        const ang = Math.abs(dx) / (r || 1);
+        const aFac = Math.min(1, Math.max(0, (ang - arcAngLo) / angSpan));
+
+        if (aFac <= 0) {
+          continue;
+        }
+
+        const env = 1 - (r - arcR0) / arcSpan;
+        const crest = 0.5 + 0.5 * Math.cos((TAU * (r - arcSpeed * time)) / arcWavelength);
+        const v = arcAmp * Math.pow(env, arcFadePow) * aFac * Math.pow(crest, arcSharp);
+
+        if (v > (data[i] ?? 0)) {
+          data[i] = clamp01(v);
+        }
+      }
+    }
+
+    // 4) The band's core pulses in sync with each ring leaving the grille
+    // (the wave evaluated at radius zero), additive over the band rows.
+    const crest0 = 0.5 + 0.5 * Math.cos((TAU * (0 - arcSpeed * time)) / arcWavelength);
+    const pulse = bandPulse * Math.pow(crest0, arcSharp);
+
+    if (pulse > 0.0005) {
+      for (let y = geo.bandY0; y <= geo.bandY1; y++) {
+        const hw = Math.round(domeHalfWidth(y, geo));
+
+        if (hw < 1 || y < 0 || y >= h) {
+          continue;
         }
 
         const row = y * w;
 
-        for (let x = screen.x0 + 1; x <= screen.x1 - 1; x++) {
-          const hv = hash(k + 1, x, tick);
+        for (let dx = -hw; dx <= hw; dx++) {
+          const x = geo.cx + dx;
 
-          if (hv < 0.3) {
-            continue; // gaps, so the rows read as lines, not bars
+          if (x < 0 || x >= w) {
+            continue;
           }
 
-          data[row + x] = clamp01(screenLum + msg * (0.12 + 0.32 * hv));
+          data[row + x] = clamp01((data[row + x] ?? 0) + pulse * (1 - Math.abs(dx) / hw));
         }
       }
     }
 
-    // 4) Once per long cycle, a voice-ripple: one soft concentric ring
-    //    expanding off the phone and dissolving as it goes.
-    const rippleT = (((t + ripplePhase) % ripplePeriod) + ripplePeriod) % ripplePeriod;
+    // 5) A faint oscilloscope line low across the full width, amplitude
+    // breathing on a slow cycle; connected column to column like a hem.
+    const amp = waveAmp * (waveFloor + (1 - waveFloor) * (0.5 + 0.5 * Math.sin((TAU * time) / Math.max(0.5, wavePeriod))));
+    let prev = -1;
 
-    if (rippleT < rippleLen) {
-      const q = rippleT / rippleLen;
-      const ease = 1 - (1 - q) * (1 - q);
-      const radius = 6 + (rippleMax - 6) * ease;
-      const amp = rippleAmp * (1 - q);
+    for (let x = 0; x < w; x++) {
+      const yy = geo.waveRow + Math.round(amp * Math.sin((TAU * x) / Math.max(2, waveLambda)));
+      const from = prev < 0 ? yy : Math.min(prev + 1, yy);
+      const to = prev < 0 ? yy : Math.max(prev - 1, yy);
 
-      if (amp > 0.008) {
-        const x0 = Math.max(0, Math.floor(phoneX - radius - 2));
-        const x1 = Math.min(w - 1, Math.ceil(phoneX + radius + 2));
-        const y0 = Math.max(0, Math.floor(phoneY - radius - 2));
-        const y1 = Math.min(h - 1, Math.ceil(phoneY + radius + 2));
-
-        for (let y = y0; y <= y1; y++) {
-          const dy = y - phoneY;
-          const row = y * w;
-
-          for (let x = x0; x <= x1; x++) {
-            const dx = x - phoneX;
-            const tent = 1 - Math.abs(Math.sqrt(dx * dx + dy * dy) - radius) / rippleWidth;
-
-            if (tent > 0) {
-              data[row + x] = clamp01((data[row + x] ?? 0) + amp * tent);
-            }
-          }
-        }
+      for (let y = Math.min(from, to); y <= Math.max(from, to); y++) {
+        putMax(data, w, h, x, y, waveLum);
       }
-    }
 
-    // 5) THE light: three lobes riding the screen. They breathe with the
-    //    face and swell (intensity and radius) as the message arrives. The
-    //    radius never drops below glowRadiusMin — the mobile floor.
-    const radius = Math.max(glowRadiusMin, glowRadius * (1 + msgRadiusSwell * msg));
-    const intensity = clamp01(glowIntensity * (1 + breatheAmp * breathe) + glowIntensity * msgSwell * msg);
-
-    for (let i = 0; i < lights.length; i++) {
-      const light = lights[i];
-
-      if (light) {
-        light.x = phoneX + (i - (lights.length - 1) / 2) * glowSpread;
-        light.y = phoneY + glowDropY;
-        light.radius = radius;
-        light.intensity = intensity;
-      }
+      prev = yy;
     }
   },
 };
