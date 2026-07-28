@@ -1,626 +1,787 @@
 /**
- * Scene 7 — "airport-gate": an airport gate, last flight gone.
+ * Scene 7 — "airport-gate": the gate at night, the last flight still at the
+ * bridge.
  *
- * The one idiomatic motion is the departure board reshuffling: a board cell's
- * luminance sweeping through the ramp reads as a split-flap flip, no
- * skeuomorphism. Around it, one room, not four islands: a back-wall line and
- * a floor line tie the board, the night glass, and two linked rows of empty
- * seats together. The board's grid — a digit-pair time column, dash-run
- * destinations, a dim status column — reads as departures without one
- * legible word. Through the glass the view resolves instead of dissolving:
- * an empty jet bridge stands parked over the tarmac — ribbed tube, rotunda,
- * one support pylon — with sparse taxiway dashes below the horizon; the last
- * flight is gone and the bridge waits. Three runway lights sit on the
- * horizon; a beacon crosses the glass on a slow period. The chapter prose
- * beside this scene is DOM, never rendered here.
+ * Full-bleed architecture: a floor-to-ceiling glass curtain wall — heavy
+ * paired mullions on a steady module, capped with head blocks under the
+ * fascia and base plates at the sill, structural transoms, a strong fascia
+ * band crossing every column above, and a dense full-width sill band
+ * grounding the wall like a stylobate. Beyond the glass, a huge airliner
+ * nose-to-tail: a rounded nose cone with a dark cockpit notch, the two-tone
+ * fuselage tube with portholes and cheatline, a foreshortened wing sweeping
+ * down toward the viewer with two slung engine nacelles — dark inlets
+ * forward — gear legs to the apron, the upswept tail cone, and ONE compact
+ * swept tail fin with a vertical rudder seam. A floodlight pool washes the
+ * apron; beyond it a dotted apron horizon, faint tarmac streaks, and two
+ * distant floodlight masts give the empty bays depth; taxiway edge dots
+ * recede to the right. Foreground: two committed rows of gate seats — backs,
+ * cushions, legs — anchored on faint floor seams, with a walkway gap. The
+ * ONE motion is the fin-tip anti-collision beacon — a slow sine pulse that
+ * lifts a tiny cluster to '@' at peak and breathes a faint glow onto the
+ * fin. Haze breathes only inside the glass. Pure f(time); no flicker. The
+ * chapter prose beside this scene is DOM, never rendered here.
  */
 
-import { createValueNoise, fbm2, type SceneContext, type SceneModule, type SceneTuning } from "../../sdk/index.ts";
+import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
 
-const COLS = 192;
-const ROWS = 84;
+const hazeNoise = createValueNoise(23);
 
-// Departure board (left): panel frame, header row, six data rows.
-const BOARD_X0 = 14;
-const BOARD_X1 = 97;
-const BOARD_Y0 = 5;
-const BOARD_Y1 = 23;
-const TEXT_X0 = 18;
-const TEXT_COLS = 76;
-const HEADER_Y = 8;
-const DATA_ROW_YS = [10, 12, 14, 16, 18, 20] as const;
-const CLOCK_C0 = 66; // header-local column where the clock block starts
+/** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
+const SKY_LUM = 0.02; // ceiling void above the fascia
+const GLASS_NIGHT_LUM = 0.03; // unlit night beyond the glass
+const FASCIA_EDGE_LUM = 0.62; // '=' — fascia top and soffit bands
+const FASCIA_FILL_LUM = 0.52; // '|' — fascia body (survives bin 4)
+const FASCIA_REVEAL_LUM = 0.4; // '-' — recessed reveal seam in the fascia
+const MULLION_LUM = 0.56; // '=' — paired mullion shafts, in front of everything
+const MULLION_CAP_LUM = 0.66; // '+' — head blocks and base plates
+const TRANSOM_LUM = 0.58; // '=' — horizontal transoms, structural weight
+const SILL_EDGE_LUM = 0.62; // '=' — sill band top edge, full width
+const SILL_FILL_LUM = 0.54; // '|' — sill band body (survives bin 4)
+const SILL_BASE_LUM = 0.32; // ':' — sill band under-shadow
+const FLOOR_PLANE_LUM = 0.06; // polished terminal floor
+const FIN_FILL_LUM = 0.64; // '=' — tail fin body (the key silhouette)
+const FIN_EDGE_LUM = 0.72; // '+' — fin leading/trailing edges
+const FIN_RUDDER_LUM = 0.5; // '|' — rudder hinge seam
+const FUS_CROWN_LUM = 0.6; // '=' — fuselage crown line
+const FUS_UPPER_LUM = 0.55; // '|' — upper fuselage tube
+const FUS_CHEAT_LUM = 0.66; // '=' — cheatline at the tube centerline
+const FUS_BELLY_LUM = 0.34; // ':' — darker belly
+const FUS_KEEL_LUM = 0.28; // ':' — belly bottom edge
+const PORTHOLE_LUM = 0.16; // '·' — dark porthole dots breaking the band
+const COCKPIT_LUM = 0.14; // '·' — dark cockpit-window notch at the nose
+const WING_EDGE_LUM = 0.6; // '=' — wing top surface catching the floods
+const WING_FILL_LUM = 0.44; // '-' — wing underside sweeping toward the viewer
+const FAIRING_LUM = 0.42; // '-' — wing-root fairing blending into the belly
+const NACELLE_TOP_LUM = 0.62; // '=' — engine nacelle top highlight
+const NACELLE_BODY_LUM = 0.55; // '|' — nacelle lozenge body
+const NACELLE_LIP_LUM = 0.7; // '+' — inlet lip catching the floods
+const NACELLE_INLET_LUM = 0.12; // '·' — dark inlet mouth
+const PYLON_LUM = 0.46; // engine pylons up to the wing
+const GEAR_LUM = 0.3; // landing-gear legs
+const BOGIE_LUM = 0.42; // wheel bogies on the apron
+const BRIDGE_LUM = 0.34; // jet-bridge corridor body
+const BRIDGE_RIB_LUM = 0.42; // accordion ribs
+const BRIDGE_ROOF_LUM = 0.48; // bridge roof line
+const BRIDGE_CAB_LUM = 0.5; // accordion cab at the door
+const POOL_MAX_LUM = 0.28; // floodlight pool peak, under the belly
+const TAXI_NEAR_LUM = 0.36; // nearest taxiway edge dots
+const TAXI_MID_LUM = 0.28;
+const TAXI_FAR_LUM = 0.22;
+const HORIZON_DOT_LUM = 0.15; // '·' — far apron edge lights
+const HORIZON_BRIGHT_LUM = 0.22; // ':' — every third apron light, nearer
+const TARMAC_STREAK_LUM = 0.12; // '·' — faint tarmac joints receding
+const MAST_LUM = 0.28; // ':' — distant floodlight mast poles
+const MAST_HEAD_LUM = 0.66; // '+' — mast lamp heads
+const MAST_GLOW_LUM = 0.2; // radial glow around the lamp heads
+const MULLION_REFLECT_LUM = 0.12; // mullion feet on the polished floor
+const SEAT_BACK_A_LUM = 0.3; // ':' — far seat row backs
+const SEAT_TOP_A_LUM = 0.36; // '-' — far seat back top edge
+const SEAT_CUSHION_A_LUM = 0.24; // far seat cushions
+const SEAT_LEG_A_LUM = 0.2; // far seat legs
+const SEAT_BACK_B_LUM = 0.4; // '-' — near seat row backs
+const SEAT_TOP_B_LUM = 0.46; // '|' — near seat back top edge
+const SEAT_CUSHION_B_LUM = 0.32; // near seat cushions
+const SEAT_LEG_B_LUM = 0.26; // near seat legs
+const SEAT_SEAM_A_LUM = 0.12; // '·' — floor seam anchoring the far row
+const SEAT_SEAM_B_LUM = 0.14; // '·' — floor seam anchoring the near row
 
-// Board columns (board-local cells). Alignment does the reading: every row
-// puts a digit pair on the left, a dash-run destination mid-left, and a dim
-// status run on the right — the grid says "departures" with no legible words.
-const TIME_C1 = 4; // cells 0..4: digit pair, separator, digit pair
-const DEST_C0 = 9;
-const DEST_MAX = 40;
-const STATUS_C0 = 52;
-const STATUS_MAX = 69;
-
-// Window band (right): mullions, breathing night glass, a horizon.
-const WIN_X0 = 108;
-const WIN_X1 = 186;
-const WIN_Y0 = 5;
-const WIN_Y1 = 44;
-const MULLION_STEP = 13;
-const HORIZON_Y = 36;
-const BEACON_Y = 35; // the beacon rides the horizon, not the sky
-const RUNWAY_DOT_XS = [126, 149, 171] as const; // three lights, off-mullion
-
-// Room lines: the two horizontals that make the islands one room.
-const WALL_LINE_Y = 48; // back wall meets floor, under board and window alike
-const FLOOR_LINE_Y = 73; // front edge of the floor; the near seats stand on it
-
-// Two linked rows of empty seats facing the glass, two banks per row with an
-// aisle. The near row is taller (closer); its legs reach the floor line.
-const SEAT_UNIT_W = 11;
-const SEAT_UNITS = 6;
-const SEAT_ROWS_SPEC = [
-  { banks: [26, 107] as const, legsTo: 58, yTop: 52 },
-  { banks: [22, 103] as const, legsTo: 72, yTop: 63 },
-] as const;
-
-const PANEL_BG = 0.13; // blank board cell (a dark flap, not a hole)
-
-const noise = createValueNoise(6);
-
-interface BoardRow {
-  /** Event id feeding the flip-cycle hash, distinct per reshuffle. */
-  flipSeed: number;
-  /** Time the left-to-right sweep began; -1e9 = settled since forever. */
-  flipStart: number;
-  /** Line shown ahead of the sweep (76 board-local cells; 0 = blank). */
-  prev: Float32Array;
-  /** Line the sweep settles into. */
-  target: Float32Array;
+interface GateGeometry {
+  aisleHalf: number;
+  beaconX: number;
+  centerY: number;
+  crownY: number;
+  cx: number;
+  fasciaTop: number;
+  finTop: number;
+  floorRow: number;
+  glassTop: number;
+  halfH: number;
+  horizonRow: number;
+  leadRoot: number;
+  leadTip: number;
+  mullionStep: number;
+  noseX: number;
+  poolCx: number;
+  poolRx: number;
+  seatRowA: number;
+  seatRowB: number;
+  tailX: number;
+  trailRoot: number;
+  trailTip: number;
+  transomA: number;
+  transomB: number;
+  wingRootX: number;
+  wingRootY: number;
+  wingTipX: number;
+  wingTipY: number;
 }
 
-interface SceneState {
-  base: Float32Array;
-  eventCounter: number;
-  /** Packed [bufferIndex, x, y] triples for glass cells (noise per frame). */
-  glassCells: Int32Array;
-  nextCascadeAt: number;
-  nextReshuffleAt: number;
-  reshuffleCursor: number;
-  rows: BoardRow[];
+let base = new Float32Array(0);
+let baseCols = 0;
+let baseRows = 0;
+let hazeLattice = new Float32Array(0);
+
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) {
+    return 0;
+  }
+
+  return v <= 0 ? 0 : v >= 1 ? 1 : v;
 }
 
-/** Cells of the static view through the glass (jet bridge, taxiway dashes) —
- * they and their one-cell margin are excluded from the breathing night noise. */
-let viewMask = new Uint8Array(0);
+/**
+ * Landmarks from proportions. The curtain wall is full-bleed: the fascia
+ * crosses every column, the paired-mullion grid spans the whole width, and
+ * the sill band runs edge to edge. Everything scales with cols/rows so
+ * small harness grids stay in-bounds.
+ */
+function geometry(cols: number, rows: number): GateGeometry {
+  const glassTop = Math.round(rows * 0.135);
+  const floorRow = Math.round(rows * 0.8);
+  const glassSpan = Math.max(1, floorRow - glassTop);
+  const centerY = Math.round(rows * 0.6);
+  const halfH = Math.max(1, Math.round(rows * 0.055));
+  const belly = centerY + halfH;
 
-let state: SceneState = {
-  base: new Float32Array(0),
-  eventCounter: 0,
-  glassCells: new Int32Array(0),
-  nextCascadeAt: 0,
-  nextReshuffleAt: 0,
-  reshuffleCursor: 0,
-  rows: [],
-};
+  return {
+    aisleHalf: Math.max(2, Math.round(cols * 0.03)),
+    beaconX: Math.round(cols * 0.858),
+    centerY,
+    crownY: centerY - halfH,
+    cx: Math.round(cols * 0.5),
+    fasciaTop: Math.max(1, Math.round(rows * 0.045)),
+    finTop: Math.round(rows * 0.31),
+    floorRow,
+    glassTop,
+    halfH,
+    horizonRow: Math.round(rows * 0.44),
+    leadRoot: Math.round(cols * 0.79),
+    leadTip: Math.round(cols * 0.842),
+    mullionStep: Math.max(8, Math.round(cols * 0.095)),
+    noseX: Math.round(cols * 0.055),
+    poolCx: Math.round(cols * 0.42),
+    poolRx: Math.max(4, Math.round(cols * 0.3)),
+    seatRowA: Math.round(rows * 0.875),
+    seatRowB: Math.round(rows * 0.945),
+    tailX: Math.round(cols * 0.88),
+    trailRoot: Math.round(cols * 0.885),
+    trailTip: Math.round(cols * 0.872),
+    transomA: glassTop + Math.round(glassSpan * 0.32),
+    transomB: glassTop + Math.round(glassSpan * 0.55),
+    wingRootX: Math.round(cols * 0.56),
+    wingRootY: belly - 2,
+    wingTipX: Math.round(cols * 0.27),
+    wingTipY: Math.min(rows - 1, belly + Math.max(2, Math.round(rows * 0.038))),
+  };
+}
 
-const tuning: SceneTuning = {
-  cellH: 8,
-  cellW: 8,
-  cols: COLS,
-  minimalGlyph: "·",
-  motion: {
-    beaconIntensity: 0.2,
-    beaconPeriod: 11,
-    beaconRadius: 7,
-    cascadeEvery: 47,
-    cascadeStagger: 0.28,
-    flipDuration: 0.55,
-    flipStagger: 0.035,
-    flipTick: 0.045,
-    nightAmp: 0.11,
-    nightDrift: 0.05,
-    nightScale: 0.12,
-    reshuffleEvery: 5.5,
-    residueDepth: 0.85,
-    residueLevel: 0.62,
-    residueSpan: 0.25,
-  },
-  ramp: " ·:~-=+*#%@",
-  rows: ROWS,
-};
+/** Bounds-checked assignment (buildBase writes never wrap on small grids). */
+function putSet(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    data[y * w + x] = clamp01(v);
+  }
+}
 
-export const scene: SceneModule = {
-  dockGlyph: [
-    " ========== ",
-    " =%%·---·:= ",
-    " =%%·--··:= ",
-    " ========== ",
-    "  =·=·=·=·  ",
-    "  | | | |   ",
-  ],
-  id: "airport-gate",
-  init(context: SceneContext): void {
-    state = {
-      base: buildBase(),
-      eventCounter: 0,
-      glassCells: new Int32Array(0),
-      nextCascadeAt: Math.max(10, tuning.motion.cascadeEvery ?? 47),
-      nextReshuffleAt: 2.5,
-      reshuffleCursor: 0,
-      rows: [],
-    };
-
-    // Board rows settle into their opening lines before the first reshuffle.
-    state.rows = DATA_ROW_YS.map((_, r) => {
-      state.eventCounter += 1;
-      const row: BoardRow = {
-        flipSeed: state.eventCounter,
-        flipStart: -1e9,
-        prev: new Float32Array(TEXT_COLS),
-        target: new Float32Array(TEXT_COLS),
-      };
-      generateLine(row.target, r, state.eventCounter);
-      row.prev.set(row.target);
-      return row;
-    });
-
-    // Glass cells (window interior, off-mullion) get per-frame night noise.
-    // Cells the static view occupies (the jet bridge, taxiway dashes — any
-    // base above the noise ceiling), plus a one-cell quiet margin around
-    // them, are excluded: the structure stands still with a dark outline of
-    // separation while the night breathes around it.
-    const isView = (x: number, y: number): boolean => (viewMask[y * COLS + x] ?? 0) !== 0;
-    const nearView = (x: number, y: number): boolean => {
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (isView(x + dx, y + dy)) {
-            return true;
-          }
-        }
-      }
-
-      return false;
-    };
-    const triples: number[] = [];
-
-    for (let y = WIN_Y0 + 1; y < WIN_Y1; y++) {
-      for (let x = WIN_X0 + 1; x < WIN_X1; x++) {
-        if ((x - WIN_X0) % MULLION_STEP !== 0 && !nearView(x, y)) {
-          triples.push(y * COLS + x, x, y);
-        }
-      }
-    }
-
-    state.glassCells = Int32Array.from(triples);
-
-    // The runway beacon is the scene's single light source.
-    context.lights.splice(0, context.lights.length);
-    context.lights.push({ intensity: 0, radius: 7, x: WIN_X0 + 2, y: BEACON_Y });
-  },
-  summaryChip: "OTseek, 2026 — a ChatGPT app in the first public wave.",
-  tuning,
-  update(dt: number, context: SceneContext): void {
-    const t = context.time;
-    const data = context.buffer.data;
-    const {
-      beaconIntensity = 0.2,
-      beaconPeriod = 11,
-      beaconRadius = 7,
-      cascadeEvery = 47,
-      cascadeStagger = 0.28,
-      flipDuration = 0.55,
-      flipStagger = 0.035,
-      flipTick = 0.045,
-      nightAmp = 0.11,
-      nightDrift = 0.05,
-      nightScale = 0.12,
-      reshuffleEvery = 5.5,
-      residueDepth = 0.85,
-      residueLevel = 0.62,
-      residueSpan = 0.25,
-    } = tuning.motion;
-
-    // 1) Static architecture.
-    data.set(state.base);
-
-    // 2) Night glass breathes on the sparse end of the ramp; the tarmac below
-    //    the horizon carries a touch more light than the sky above it.
-    const cells = state.glassCells;
-
-    for (let i = 0; i < cells.length; i += 3) {
-      const idx = cells[i] ?? 0;
-      const x = cells[i + 1] ?? 0;
-      const y = cells[i + 2] ?? 0;
-      const ground = y > HORIZON_Y ? 0.02 : 0;
-      const v = 0.02 + ground + nightAmp * fbm2(noise, x * nightScale + t * nightDrift, y * nightScale * 1.7 - t * nightDrift * 0.35, 2);
-      data[idx] = clampWrite(v);
-    }
-
-    //    A faint steady horizon line out on the tarmac, three runway lights
-    //    sitting on it. They twinkle, dimly — the airfield is alive.
-    for (let x = WIN_X0 + 1; x < WIN_X1; x++) {
-      if ((x - WIN_X0) % MULLION_STEP !== 0) {
-        const idx = HORIZON_Y * COLS + x;
-        const under = data[idx] ?? 0;
-        data[idx] = clampWrite(Math.max(under, 0.16));
-      }
-    }
-
-    for (const x of RUNWAY_DOT_XS) {
-      data[HORIZON_Y * COLS + x] = clampWrite(0.5 + 0.08 * hash3(x, Math.floor(t * 2), 3));
-    }
-
-    // 3) Board events: single-row reshuffles, and the occasional full cascade.
-    const interval = Math.max(0.5, reshuffleEvery);
-
-    if (state.nextReshuffleAt < t - interval * 2) {
-      state.nextReshuffleAt = t + interval * 0.5;
-    }
-
-    while (t >= state.nextReshuffleAt) {
-      const r = state.reshuffleCursor % state.rows.length;
-      fireRow(r, t);
-      state.reshuffleCursor += 1;
-      state.nextReshuffleAt += interval;
-    }
-
-    const cascadeInterval = Math.max(5, cascadeEvery);
-
-    if (state.nextCascadeAt < t - cascadeInterval) {
-      state.nextCascadeAt = t + cascadeInterval;
-    }
-
-    while (t >= state.nextCascadeAt) {
-      for (let r = 0; r < state.rows.length; r++) {
-        fireRow(r, t + r * Math.max(0, cascadeStagger) + 0.01);
-      }
-
-      state.nextCascadeAt += cascadeInterval;
-    }
-
-    // 4) Header clock: separators blink at 1Hz, seconds cells flip each second.
-    const blinkOn = Math.floor(t) % 2 === 0;
-
-    for (let c = CLOCK_C0; c <= CLOCK_C0 + 7; c++) {
-      const idx = HEADER_Y * COLS + TEXT_X0 + c;
-
-      if (c === CLOCK_C0 + 2 || c === CLOCK_C0 + 5) {
-        data[idx] = blinkOn ? 0.7 : 0.2;
-      } else if (c >= CLOCK_C0 + 6) {
-        data[idx] = clampWrite(0.55 + 0.3 * hash3(Math.floor(t), c, 11));
-      } else {
-        data[idx] = 0.78;
-      }
-    }
-
-    // 5) Data rows: settled cells show their line; cells inside the sweep
-    //    window cycle through the ramp — the split-flap flip itself.
-    const tick = Math.max(0.01, flipTick);
-    const stagger = Math.max(0, flipStagger);
-    const duration = Math.max(0.05, flipDuration);
-
-    for (let r = 0; r < state.rows.length; r++) {
-      const row = state.rows[r];
-
-      if (!row) {
-        continue;
-      }
-
-      const y = DATA_ROW_YS[r] ?? 10;
-      const rowBase = y * COLS + TEXT_X0;
-
-      for (let c = 0; c < TEXT_COLS; c++) {
-        const prev = row.prev[c] ?? 0;
-        const target = row.target[c] ?? 0;
-        const start = row.flipStart + c * stagger;
-        let v: number;
-
-        if (t < start) {
-          v = prev;
-        } else if (t < start + duration && (prev > 0 || target > 0)) {
-          v = 0.2 + 0.72 * hash3(r * 97 + c, Math.floor((t - start) / tick), row.flipSeed);
-        } else {
-          v = target;
-        }
-
-        data[rowBase + c] = v === 0 ? PANEL_BG : clampWrite(v);
-      }
-    }
-
-    // 6) Residue shaping, pure in depth (so re-bloom retraces the same path):
-    //    past the ramp-collapse band the level-2 ramp is two glyphs with a
-    //    0.5 threshold, and 4x4 binning averages everything below it — the
-    //    scene would forget itself to solid black. Instead the board panel
-    //    lifts toward a luminance that survives the binning: what you
-    //    remember of the gate is the board.
-    const residue = Math.min(1, Math.max(0, (context.depth - residueDepth) / Math.max(0.05, residueSpan)));
-
-    if (residue > 0) {
-      const lift = clampWrite(residue * residueLevel);
-
-      for (let y = BOARD_Y0; y <= BOARD_Y1; y++) {
-        const rowBase = y * COLS;
-
-        for (let x = BOARD_X0; x <= BOARD_X1; x++) {
-          const idx = rowBase + x;
-          const current = data[idx] ?? 0;
-
-          if (current < lift) {
-            data[idx] = lift;
-          }
-        }
-      }
-    }
-
-    // 7) The runway beacon crosses the glass; sin^2 envelope so it never pops.
-    const light = context.lights[0];
-
-    if (light) {
-      const period = Math.max(2, beaconPeriod);
-      const phase = (((t % period) + period) % period) / period;
-      const envelope = Math.sin(Math.PI * phase);
-      light.x = WIN_X0 + 2 + phase * (WIN_X1 - WIN_X0 - 4);
-      light.y = BEACON_Y;
-      light.radius = Math.max(1, beaconRadius);
-      light.intensity = Math.max(0, beaconIntensity) * envelope * envelope;
-    }
-
-    void dt; // scheduling is absolute-time based, so arbitrary sleep gaps are safe
-  },
-};
-
-/** Board reshuffle: keep the old line ahead of the sweep, settle into a new one. */
-function fireRow(r: number, startTime: number): void {
-  const row = state.rows[r];
-
-  if (!row) {
+/** Max-write with bounds check. */
+function putMax(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x < 0 || x >= w || y < 0 || y >= h) {
     return;
   }
 
-  row.prev.set(row.target);
-  state.eventCounter += 1;
-  row.flipSeed = state.eventCounter;
-  generateLine(row.target, r, state.eventCounter);
-  row.flipStart = startTime;
+  const i = y * w + x;
+
+  if ((data[i] ?? 0) < v) {
+    data[i] = clamp01(v);
+  }
 }
 
 /**
- * Deterministic board line, 76 board-local cells; 0 = blank flap (drawn as
- * PANEL_BG). Two kinds, weighted toward remnants — the last flight is gone:
- * a "remembered entry" (digit-pair time, dash-run destination, dim status
- * run) or an "emptied row" (the same column skeleton, sparse). No letterforms
- * — glyph texture only; the chapter prose is DOM beside the scene.
+ * Fuselage tube extents at column x: [yTop, yBot], or null outside the
+ * hull. The nose is a quarter-ellipse (rounded cone, no staircase); the
+ * tail cone upsweeps — the belly rises while the crown holds level.
  */
-function generateLine(target: Float32Array, rowIndex: number, event: number): void {
-  target.fill(0);
-  const rng = makeRng(rowIndex * 7919 + event * 104729 + 17);
-
-  if (rng() < 0.55) {
-    // Time column: two digit pairs around a dimmer separator.
-    for (let c = 0; c <= TIME_C1; c++) {
-      target[c] = c === 2 ? 0.42 : 0.62 + (rng() - 0.5) * 0.12;
-    }
-
-    // Destination column: one or two dash-runs of varying length.
-    let c = DEST_C0;
-    const segments = rng() < 0.4 ? 2 : 1;
-
-    for (let s = 0; s < segments; s++) {
-      const len = 6 + Math.floor(rng() * 12);
-
-      for (let i = 0; i < len && c <= DEST_MAX; i++, c++) {
-        target[c] = 0.66 + (rng() - 0.5) * 0.08;
-      }
-
-      c += 2 + Math.floor(rng() * 2);
-    }
-
-    // Status column: a single dim run — everything already departed.
-    const statusLen = 5 + Math.floor(rng() * 8);
-
-    for (let i = 0; i < statusLen && STATUS_C0 + i <= STATUS_MAX; i++) {
-      target[STATUS_C0 + i] = 0.48 + (rng() - 0.5) * 0.06;
-    }
-  } else {
-    // Emptied row: the same column skeleton, sparse and dim.
-    for (const c of [0, 1, 3, 4]) {
-      if (rng() < 0.8) {
-        target[c] = 0.28;
-      }
-    }
-
-    for (let c = DEST_C0; c <= DEST_MAX; c++) {
-      if (rng() < 0.16) {
-        target[c] = 0.28;
-      }
-    }
-
-    for (let c = STATUS_C0; c <= STATUS_MAX; c++) {
-      if (rng() < 0.16) {
-        target[c] = 0.28;
-      }
-    }
+function tubeAt(geo: GateGeometry, cols: number, x: number): readonly [number, number] | null {
+  if (x < geo.noseX || x > geo.tailX) {
+    return null;
   }
+
+  const noseLen = Math.max(4, Math.round(cols * 0.045));
+  const coneLen = Math.max(4, Math.round(cols * 0.06));
+  let yTop = geo.centerY - geo.halfH;
+  let yBot = geo.centerY + geo.halfH;
+
+  if (x < geo.noseX + noseLen) {
+    const u = (x - geo.noseX) / noseLen;
+    const half = Math.max(1, Math.round(geo.halfH * Math.sqrt(u * (2 - u))));
+    yTop = geo.centerY - half;
+    yBot = geo.centerY + half;
+  } else if (x > geo.tailX - coneLen) {
+    const v = (x - (geo.tailX - coneLen)) / coneLen;
+    yBot = geo.centerY + geo.halfH - Math.round((geo.halfH * 2 - 1) * v);
+  }
+
+  return yBot < yTop ? null : [yTop, yBot];
 }
 
-/** Static architecture, rebuilt on init: panel, window, room lines, seats. */
-function buildBase(): Float32Array {
-  const b = new Float32Array(COLS * ROWS);
-  b.fill(0.035);
+/** Wing centerline row at column x (foreshortened sweep toward the viewer). */
+function wingYAt(geo: GateGeometry, x: number): number {
+  const span = Math.max(1, geo.wingRootX - geo.wingTipX);
+  const u = (x - geo.wingTipX) / span;
 
-  for (let y = 0; y <= 3; y++) {
-    b.fill(0.02, y * COLS, y * COLS + COLS);
-  }
+  return Math.round(geo.wingTipY + (geo.wingRootY - geo.wingTipY) * u);
+}
 
-  // Floor plane: from the wall line forward, faintly lighter than the wall.
-  for (let y = WALL_LINE_Y + 1; y < ROWS; y++) {
-    b.fill(0.05, y * COLS, y * COLS + COLS);
-  }
+/**
+ * Static architecture: the distant apron (horizon lights, tarmac streaks,
+ * floodlight masts), the floodlight pool and taxiway dots, the airliner
+ * (rounded nose with cockpit notch, tube, portholes, foreshortened wing,
+ * two engine nacelles, gear, upswept tail cone, one compact swept fin),
+ * the jet bridge, then the curtain wall drawn in front — fascia, paired
+ * mullions with caps, transoms — and the sill band with the seat rows.
+ */
+function buildBase(cols: number, rows: number): void {
+  base = new Float32Array(cols * rows);
+  baseCols = cols;
+  baseRows = rows;
 
-  // The two room lines that unify the islands: a quiet back-wall line (far,
-  // first to be forgotten under compaction) and a firmer floor-front line
-  // (near, it survives into bin-2 as a trace).
-  for (let x = 4; x <= 188; x++) {
-    b[WALL_LINE_Y * COLS + x] = 0.16;
-    b[FLOOR_LINE_Y * COLS + x] = 0.42;
-  }
+  const geo = geometry(cols, rows);
+  const bellyY = geo.centerY + geo.halfH;
 
-  // Departure board panel.
-  for (let y = BOARD_Y0; y <= BOARD_Y1; y++) {
-    for (let x = BOARD_X0; x <= BOARD_X1; x++) {
-      const edge = y === BOARD_Y0 || y === BOARD_Y1 || x === BOARD_X0 || x === BOARD_X1;
-      b[y * COLS + x] = edge ? 0.48 : PANEL_BG;
+  // Ground: sky void, night glass, polished floor.
+  for (let y = 0; y < rows; y++) {
+    const v = y <= geo.glassTop ? SKY_LUM : y < geo.floorRow ? GLASS_NIGHT_LUM : FLOOR_PLANE_LUM;
+
+    for (let x = 0; x < cols; x++) {
+      putSet(base, cols, rows, x, y, v);
     }
   }
 
-  // Header labels over the three data columns (the clock block stays dynamic).
-  const labelRuns: ReadonlyArray<readonly [number, number]> = [
-    [0, TIME_C1],
-    [DEST_C0, DEST_C0 + 10],
-    [STATUS_C0, STATUS_C0 + 6],
+  // Distant apron: a dotted horizon of far edge lights across every bay.
+  for (let x = 3; x < cols - 1; x += 7) {
+    putSet(base, cols, rows, x, geo.horizonRow, x % 21 === 3 ? HORIZON_BRIGHT_LUM : HORIZON_DOT_LUM);
+  }
+
+  // Faint tarmac joint streaks receding below the horizon.
+  for (const drop of [3, 6]) {
+    const y = geo.horizonRow + drop;
+
+    for (let x = 5 + drop * 2; x < cols - 3; x += 11 + drop) {
+      putSet(base, cols, rows, x, y, TARMAC_STREAK_LUM);
+      putSet(base, cols, rows, x + 1, y, TARMAC_STREAK_LUM);
+      putSet(base, cols, rows, x + 2, y, TARMAC_STREAK_LUM);
+    }
+  }
+
+  // Two distant floodlight masts rising from the horizon — quiet verticals
+  // that fill the empty bays above the fuselage with layered depth.
+  const mastTop = Math.max(geo.glassTop + 2, Math.round(rows * 0.22));
+
+  for (const mx of [Math.round(cols * 0.235), Math.round(cols * 0.52), Math.round(cols * 0.71)]) {
+    for (let y = mastTop; y <= geo.horizonRow; y++) {
+      putSet(base, cols, rows, mx, y, MAST_LUM);
+    }
+
+    for (let dx = -1; dx <= 1; dx++) {
+      putSet(base, cols, rows, mx + dx, mastTop, MAST_HEAD_LUM);
+      putSet(base, cols, rows, mx + dx, mastTop + 1, MAST_HEAD_LUM);
+    }
+
+    for (let y = mastTop - 3; y <= mastTop + 4; y++) {
+      for (let x = mx - 4; x <= mx + 4; x++) {
+        const d = Math.sqrt((x - mx) * (x - mx) + (y - mastTop - 0.5) * (y - mastTop - 0.5));
+
+        if (d >= 1.5 && d < 4.5) {
+          putMax(base, cols, rows, x, y, MAST_GLOW_LUM * (1 - d / 4.5));
+        }
+      }
+    }
+  }
+
+  // Floodlight pool: an elliptical wash on the apron under the fuselage.
+  const poolCy = Math.min(rows - 1, Math.round((bellyY + geo.floorRow) / 2 + 1));
+  const poolRy = Math.max(2, geo.floorRow - poolCy + 1);
+
+  for (let y = bellyY; y < geo.floorRow; y++) {
+    for (let x = geo.poolCx - geo.poolRx; x <= geo.poolCx + geo.poolRx; x++) {
+      const dx = (x - geo.poolCx) / geo.poolRx;
+      const dy = (y - poolCy) / poolRy;
+      const d2 = dx * dx + dy * dy;
+
+      if (d2 < 1) {
+        putMax(base, cols, rows, x, y, POOL_MAX_LUM * (1 - d2));
+      }
+    }
+  }
+
+  // Taxiway edge dots receding to the right, three depths.
+  const taxi: ReadonlyArray<{ lum: number; rowUp: number; step: number; x0: number }> = [
+    { lum: TAXI_NEAR_LUM, rowUp: 3, step: 8, x0: 0.6 },
+    { lum: TAXI_MID_LUM, rowUp: 7, step: 11, x0: 0.68 },
+    { lum: TAXI_FAR_LUM, rowUp: 10, step: 14, x0: 0.76 },
   ];
 
-  for (const [c0, c1] of labelRuns) {
-    for (let c = c0; c <= c1; c++) {
-      b[HEADER_Y * COLS + TEXT_X0 + c] = 0.8 - hash3(c, 5, 9) * 0.06;
+  for (const t of taxi) {
+    const y = geo.floorRow - t.rowUp;
+
+    for (let x = Math.round(cols * t.x0); x < cols - 1; x += t.step) {
+      putMax(base, cols, rows, x, y, t.lum);
     }
   }
 
-  // The view through the glass: an empty jet bridge parked over the tarmac.
-  // Static silhouette-grade structure (excluded from the per-frame night
-  // noise in init), so the window resolves as a view instead of static:
-  // a ribbed tube sloping down toward the rotunda, one support pylon to the
-  // ground, and sparse taxiway dashes below the horizon.
-  viewMask = new Uint8Array(COLS * ROWS);
-  const view = (x: number, y: number, v: number): void => {
-    b[y * COLS + x] = v;
-    viewMask[y * COLS + x] = 1;
-  };
-  const TUBE_X0 = 112;
-  const TUBE_X1 = 138;
-  const tubeTopAt = (x: number): number => 20 + Math.round(((x - TUBE_X0) * 7) / (TUBE_X1 - TUBE_X0));
+  // The airliner fuselage: rounded nose, crown line, upper tube, cheatline,
+  // dark belly, upswept tail cone. The cockpit notch sits just behind the
+  // nose tip so orientation is instant.
+  for (let x = geo.noseX; x <= geo.tailX; x++) {
+    const tube = tubeAt(geo, cols, x);
 
-  for (let x = TUBE_X0; x <= TUBE_X1; x++) {
-    const yTop = tubeTopAt(x);
-    view(x, yTop, 0.42); // roof line
-    view(x, yTop + 3, 0.38); // floor line
+    if (!tube) {
+      continue;
+    }
 
-    // Tube body: dark solid (excluded from the glass noise, so the tube
-    // reads as a mass) with brighter accordion ribs every third column.
-    const rib = (x - TUBE_X0) % 3 === 0;
-    view(x, yTop + 1, rib ? 0.3 : 0.16);
-    view(x, yTop + 2, rib ? 0.3 : 0.16);
-  }
+    const [yTop, yBot] = tube;
 
-  // Rotunda at the aircraft end, and its support pylon down to the tarmac.
-  for (let y = 25; y <= 31; y++) {
-    for (let x = TUBE_X1; x <= TUBE_X1 + 4; x++) {
-      const edge = y === 25 || y === 31 || x === TUBE_X1 || x === TUBE_X1 + 4;
-      view(x, y, edge ? 0.38 : 0.18);
+    for (let y = yTop; y <= yBot; y++) {
+      let v: number;
+
+      if (y === yTop) {
+        v = FUS_CROWN_LUM;
+      } else if (y < geo.centerY && y < yBot) {
+        v = FUS_UPPER_LUM;
+      } else if (y === geo.centerY && y < yBot) {
+        v = FUS_CHEAT_LUM;
+      } else if (y === yBot) {
+        v = FUS_KEEL_LUM;
+      } else {
+        v = FUS_BELLY_LUM;
+      }
+
+      // Cockpit windows: a dark 2-row notch behind the rounded nose tip.
+      if (x >= geo.noseX + 3 && x <= geo.noseX + 7 && y > yTop && y <= yTop + 2 && y < geo.centerY) {
+        v = COCKPIT_LUM;
+      }
+
+      putSet(base, cols, rows, x, y, v);
     }
   }
 
-  for (let y = 32; y <= HORIZON_Y; y++) {
-    view(TUBE_X1 + 2, y, 0.32);
-  }
+  // Portholes: a row of dark dots breaking the upper band.
+  const portholeY = geo.centerY - 3;
 
-  // Taxiway centerline dashes, converging quietly toward the runway lights.
-  for (let x = 116; x <= 158; x += 4) {
-    view(x, 39, 0.17);
-  }
+  for (let x = geo.noseX + Math.max(8, Math.round(cols * 0.065)); x <= geo.leadRoot - 8; x += 3) {
+    const tube = tubeAt(geo, cols, x);
 
-  for (let x = 128; x <= 174; x += 5) {
-    view(x, 41, 0.15);
-  }
-
-  // Window frame + mullions.
-  for (let x = WIN_X0; x <= WIN_X1; x++) {
-    b[WIN_Y0 * COLS + x] = 0.4;
-    b[WIN_Y1 * COLS + x] = 0.4;
-  }
-
-  for (let x = WIN_X0; x <= WIN_X1; x += MULLION_STEP) {
-    for (let y = WIN_Y0; y <= WIN_Y1; y++) {
-      b[y * COLS + x] = 0.4;
-    }
-
-    // Faint mullion reflections just past the wall line, on the floor.
-    for (let y = WALL_LINE_Y + 1; y <= WALL_LINE_Y + 4 && y < ROWS; y++) {
-      b[y * COLS + x] = Math.max(b[y * COLS + x] ?? 0, 0.12 - (y - WALL_LINE_Y - 1) * 0.02);
+    if (tube && portholeY > tube[0] && portholeY < geo.centerY) {
+      putSet(base, cols, rows, x, portholeY, PORTHOLE_LUM);
     }
   }
 
-  // Two linked rows of empty seats facing the glass, two banks per row.
-  for (const rowSpec of SEAT_ROWS_SPEC) {
-    for (const bankX0 of rowSpec.banks) {
-      drawSeatBank(b, bankX0, rowSpec.yTop, rowSpec.legsTo);
+  // Wing-root fairing blending the wing into the belly.
+  for (let x = Math.round(cols * 0.47); x <= Math.round(cols * 0.585); x++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      putSet(base, cols, rows, x, bellyY + dy, FAIRING_LUM);
     }
   }
 
-  return b;
+  // The wing: a foreshortened plank sweeping down toward the viewer, top
+  // surface catching the floods, thicker (nearer) at the tip.
+  for (let x = geo.wingTipX; x <= geo.wingRootX; x++) {
+    const u = (x - geo.wingTipX) / Math.max(1, geo.wingRootX - geo.wingTipX);
+    const yC = wingYAt(geo, x);
+    const thick = u < 0.4 ? 4 : u < 0.7 ? 3 : 2;
+
+    putSet(base, cols, rows, x, yC, WING_EDGE_LUM);
+
+    for (let dy = 1; dy < thick; dy++) {
+      putSet(base, cols, rows, x, yC + dy, WING_FILL_LUM);
+    }
+  }
+
+  // Wingtip cap: the near end reads as a deliberate terminus.
+  for (let dy = 0; dy <= 2; dy++) {
+    putSet(base, cols, rows, geo.wingTipX, geo.wingTipY + dy, WING_EDGE_LUM);
+  }
+
+  // Two engine nacelles slung under the wing: dense lozenges with dark
+  // inlet mouths facing the nose — the strongest recognition anchors.
+  const nacelles: ReadonlyArray<{ tall: number; x0: number; x1: number }> = [
+    { tall: Math.max(3, Math.round(rows * 0.05)), x0: Math.round(cols * 0.305), x1: Math.round(cols * 0.305) + Math.max(7, Math.round(cols * 0.085)) },
+    { tall: Math.max(2, Math.round(rows * 0.035)), x0: Math.round(cols * 0.46), x1: Math.round(cols * 0.46) + Math.max(5, Math.round(cols * 0.058)) },
+  ];
+
+  for (const n of nacelles) {
+    const mid = Math.round((n.x0 + n.x1) / 2);
+    const top = wingYAt(geo, mid) + 2;
+    const bot = top + n.tall;
+
+    // Pylon up to the wing underside.
+    for (let x = n.x1 - 6; x <= n.x1 - 5; x++) {
+      putSet(base, cols, rows, x, top - 1, PYLON_LUM);
+    }
+
+    for (let x = n.x0; x <= n.x1; x++) {
+      for (let y = top; y <= bot; y++) {
+        let v = y === top ? NACELLE_TOP_LUM : NACELLE_BODY_LUM;
+
+        if (x === n.x0) {
+          v = NACELLE_LIP_LUM; // inlet lip
+        } else if (x <= n.x0 + 2) {
+          v = NACELLE_INLET_LUM; // dark inlet mouth
+        }
+
+        putSet(base, cols, rows, x, y, v);
+      }
+    }
+  }
+
+  // Landing gear: nose and main legs down to the apron, bogies at the feet.
+  const gearBottom = geo.floorRow - Math.max(2, Math.round(rows * 0.03));
+  const gears: ReadonlyArray<{ from: number; x: number }> = [
+    { from: bellyY + 1, x: Math.round(cols * 0.14) },
+    { from: bellyY + 3, x: Math.round(cols * 0.545) },
+  ];
+
+  for (const g of gears) {
+    for (let y = g.from; y <= gearBottom; y++) {
+      putSet(base, cols, rows, g.x, y, GEAR_LUM);
+      putSet(base, cols, rows, g.x + 1, y, GEAR_LUM);
+    }
+
+    for (let x = g.x - 1; x <= g.x + 2; x++) {
+      putSet(base, cols, rows, x, gearBottom, BOGIE_LUM);
+      putSet(base, cols, rows, x, gearBottom + 1, BOGIE_LUM);
+    }
+  }
+
+  // The tail fin: ONE compact swept silhouette — leading edge raked aft,
+  // trailing rudder line near-vertical, a rudder hinge seam inside. Solid
+  // '=' fill with '+' edges so it survives bin-4 pooling.
+  const finSpan = Math.max(1, geo.crownY - geo.finTop);
+
+  for (let y = geo.finTop; y <= geo.crownY; y++) {
+    const u = (y - geo.finTop) / finSpan; // 0 at the tip, 1 at the root
+    const le = Math.round(geo.leadTip + (geo.leadRoot - geo.leadTip) * u);
+    const te = Math.round(geo.trailTip + (geo.trailRoot - geo.trailTip) * u);
+
+    for (let x = le; x <= te; x++) {
+      putSet(base, cols, rows, x, y, x === le || x === te ? FIN_EDGE_LUM : FIN_FILL_LUM);
+    }
+
+    // Rudder hinge seam, sharpening the vertical trailing plane.
+    if (y > geo.finTop + 1 && te - 3 > le + 1) {
+      putSet(base, cols, rows, te - 3, y, FIN_RUDDER_LUM);
+    }
+  }
+
+  // Jet bridge: a constant-thickness corridor sloping up from the terminal
+  // to the forward door, accordion ribs along it, a denser cab at the
+  // fuselage, and two support legs down to the apron.
+  const doorX = geo.noseX + Math.max(6, Math.round(cols * 0.058));
+  const bridgeX0 = Math.max(1, Math.round(cols * 0.01));
+  const bridgeY1 = geo.centerY - 2; // roof at the door
+  const bridgeY0 = Math.min(geo.floorRow - 4, bridgeY1 + Math.max(3, Math.round(rows * 0.11)));
+  const bridgeH = Math.max(3, Math.round(rows * 0.045));
+
+  for (let x = bridgeX0; x <= doorX; x++) {
+    const u = (x - bridgeX0) / Math.max(1, doorX - bridgeX0);
+    const yTop = Math.round(bridgeY0 + (bridgeY1 - bridgeY0) * u);
+
+    putSet(base, cols, rows, x, yTop, BRIDGE_ROOF_LUM);
+
+    for (let dy = 1; dy <= bridgeH; dy++) {
+      putSet(base, cols, rows, x, yTop + dy, (x - bridgeX0) % 3 === 0 ? BRIDGE_RIB_LUM : BRIDGE_LUM);
+    }
+  }
+
+  // Accordion cab hugging the fuselage at the door.
+  for (let x = doorX - 2; x <= doorX + 1; x++) {
+    for (let dy = -1; dy <= bridgeH + 1; dy++) {
+      putSet(base, cols, rows, x, bridgeY1 + dy, x % 2 === 0 ? BRIDGE_CAB_LUM : BRIDGE_RIB_LUM);
+    }
+  }
+
+  // Support legs at thirds of the run.
+  for (const u of [0.35, 0.75]) {
+    const lx = Math.round(bridgeX0 + (doorX - bridgeX0) * u);
+    const yTop = Math.round(bridgeY0 + (bridgeY1 - bridgeY0) * u);
+
+    for (let y = yTop + bridgeH + 1; y < geo.floorRow - 1; y++) {
+      putSet(base, cols, rows, lx, y, GEAR_LUM);
+      putSet(base, cols, rows, lx + 1, y, GEAR_LUM);
+    }
+  }
+
+  // The curtain wall, in front of the night: fascia band across every
+  // column, then paired mullions with head blocks and base plates, and
+  // structural transoms over everything beyond the glass.
+  for (let y = geo.fasciaTop; y < geo.glassTop; y++) {
+    const edge = y <= geo.fasciaTop + 1 || y >= geo.glassTop - 2;
+    const reveal = y === geo.fasciaTop + 2 && geo.glassTop - geo.fasciaTop >= 6;
+
+    for (let x = 0; x < cols; x++) {
+      putSet(base, cols, rows, x, y, reveal ? FASCIA_REVEAL_LUM : edge ? FASCIA_EDGE_LUM : FASCIA_FILL_LUM);
+    }
+  }
+
+  for (let x = 0; x < cols; x++) {
+    if (x % geo.mullionStep !== 0 && x !== cols - 2) {
+      continue;
+    }
+
+    // Two-cell shaft the full glass height.
+    for (let y = geo.glassTop; y < geo.floorRow; y++) {
+      putSet(base, cols, rows, x, y, MULLION_LUM);
+      putSet(base, cols, rows, x + 1, y, MULLION_LUM);
+    }
+
+    // Head block under the fascia and base plate at the sill — dense caps
+    // so the wall's rhythm survives binarization.
+    for (let dx = -1; dx <= 2; dx++) {
+      putSet(base, cols, rows, x + dx, geo.glassTop, MULLION_CAP_LUM);
+      putSet(base, cols, rows, x + dx, geo.glassTop + 1, MULLION_CAP_LUM);
+      putSet(base, cols, rows, x + dx, geo.floorRow - 2, MULLION_CAP_LUM);
+      putSet(base, cols, rows, x + dx, geo.floorRow - 1, MULLION_CAP_LUM);
+    }
+
+    // Mullion feet reflected onto the polished floor.
+    for (let dy = 5; dy <= 9; dy++) {
+      putMax(base, cols, rows, x, geo.floorRow + dy, MULLION_REFLECT_LUM - (dy - 5) * 0.012);
+      putMax(base, cols, rows, x + 1, geo.floorRow + dy, MULLION_REFLECT_LUM - (dy - 5) * 0.012);
+    }
+  }
+
+  for (const ty of [geo.transomA, geo.transomB]) {
+    for (let x = 0; x < cols; x++) {
+      putSet(base, cols, rows, x, ty, TRANSOM_LUM);
+    }
+  }
+
+  // The sill band: a dense full-width stylobate grounding the wall —
+  // bright top edge, '|'-grade body deep enough to survive bin-4 pooling,
+  // and an under-shadow row.
+  const sillDepth = Math.max(2, Math.round(rows * 0.04));
+
+  for (let x = 0; x < cols; x++) {
+    putSet(base, cols, rows, x, geo.floorRow, SILL_EDGE_LUM);
+
+    for (let dy = 1; dy <= sillDepth; dy++) {
+      putSet(base, cols, rows, x, geo.floorRow + dy, SILL_FILL_LUM);
+    }
+
+    putSet(base, cols, rows, x, geo.floorRow + sillDepth + 1, SILL_BASE_LUM);
+  }
+
+  // Gate seating, committed: two rows of chair silhouettes — back top
+  // edge, back, cushion, legs — each anchored on a faint floor seam, with
+  // the central walkway kept clear.
+  const seatRows: ReadonlyArray<{
+    back: number;
+    cushion: number;
+    leg: number;
+    margin: number;
+    seam: number;
+    top: number;
+    unit: number;
+    y: number;
+  }> = [
+    {
+      back: SEAT_BACK_A_LUM,
+      cushion: SEAT_CUSHION_A_LUM,
+      leg: SEAT_LEG_A_LUM,
+      margin: 0.06,
+      seam: SEAT_SEAM_A_LUM,
+      top: SEAT_TOP_A_LUM,
+      unit: 6,
+      y: geo.seatRowA,
+    },
+    {
+      back: SEAT_BACK_B_LUM,
+      cushion: SEAT_CUSHION_B_LUM,
+      leg: SEAT_LEG_B_LUM,
+      margin: 0.02,
+      seam: SEAT_SEAM_B_LUM,
+      top: SEAT_TOP_B_LUM,
+      unit: 7,
+      y: geo.seatRowB,
+    },
+  ];
+
+  for (const row of seatRows) {
+    const margin = Math.round(cols * row.margin);
+    const legRow = Math.min(rows - 1, row.y + 2);
+
+    // The floor seam the whole row stands on (skips nothing — it is the
+    // carpet track line, continuous under the walkway too).
+    for (let x = margin; x < cols - margin; x++) {
+      putMax(base, cols, rows, x, legRow, row.seam);
+    }
+
+    for (let x = margin; x < cols - margin; x++) {
+      if (Math.abs(x - geo.cx) <= geo.aisleHalf) {
+        continue; // the walkway gap
+      }
+
+      const phase = x % row.unit;
+
+      if (phase >= row.unit - 2) {
+        continue; // gap between seat units
+      }
+
+      putSet(base, cols, rows, x, row.y - 1, row.top);
+      putSet(base, cols, rows, x, row.y, row.back);
+      putSet(base, cols, rows, x, row.y + 1, row.cushion);
+
+      // Legs at the unit edges, standing on the seam.
+      if (phase === 0 || phase === row.unit - 3) {
+        putMax(base, cols, rows, x, legRow, row.leg);
+      }
+    }
+  }
 }
 
-/**
- * One bank of linked seats: back-rest band with a bright top edge, seat pan,
- * a continuous rail linking every unit, armrest verticals at unit boundaries,
- * and legs dropping toward the floor.
- */
-function drawSeatBank(b: Float32Array, x0: number, yTop: number, legsTo: number): void {
-  const x1 = x0 + SEAT_UNITS * SEAT_UNIT_W;
+export const scene: SceneModule = {
+  dockGlyph: [
+    "============",
+    "|    ·   =+|",
+    "|=========+|",
+    "|  ==  ==  |",
+    "============",
+    " :: ::  :: :",
+  ],
+  id: "airport-gate",
+  init(context: SceneContext): void {
+    const { width, height } = context.buffer;
 
-  for (let u = 0; u < SEAT_UNITS; u++) {
-    const ux = x0 + u * SEAT_UNIT_W;
+    context.lights.splice(0, context.lights.length);
+    buildBase(width, height);
+  },
+  summaryChip: "OTseek, 2026 — a ChatGPT app in the first public wave.",
+  tuning: {
+    cellH: 6,
+    cellW: 6,
+    cols: 224,
+    minimalGlyph: "·",
+    motion: {
+      beaconAmp: 0.15,
+      beaconBase: 0.8,
+      beaconPeriod: 6,
+      beaconSideAmp: 0.12,
+      beaconSideBase: 0.7,
+      glowAmp: 0.18,
+      glowRadius: 6,
+      hazeAmount: 0.07,
+      hazeFloor: 0.02,
+      hazeScale: 0.055,
+      hazeSpeed: 0.04,
+    },
+    ramp: " ·:-|=+#@",
+    rows: 104,
+  },
+  update(_dt: number, context: SceneContext): void {
+    const { buffer, time } = context;
+    const {
+      beaconAmp = 0.15,
+      beaconBase = 0.8,
+      beaconPeriod = 6,
+      beaconSideAmp = 0.12,
+      beaconSideBase = 0.7,
+      glowAmp = 0.18,
+      glowRadius = 6,
+      hazeAmount = 0.07,
+      hazeFloor = 0.02,
+      hazeScale = 0.055,
+      hazeSpeed = 0.04,
+    } = this.tuning.motion;
+    const w = buffer.width;
+    const h = buffer.height;
+    const data = buffer.data;
 
-    for (let x = ux + 1; x < ux + SEAT_UNIT_W; x++) {
-      b[yTop * COLS + x] = 0.42; // top edge of the back rest
-      b[(yTop + 1) * COLS + x] = 0.14; // back-rest body, dotted open weave
-      b[(yTop + 2) * COLS + x] = 0.14;
-      b[(yTop + 3) * COLS + x] = 0.34; // seat pan
+    if (baseCols !== w || baseRows !== h) {
+      buildBase(w, h);
     }
-  }
 
-  // The linking rail: one continuous line under every pan in the bank.
-  for (let x = x0; x <= x1; x++) {
-    b[(yTop + 4) * COLS + x] = 0.4;
-  }
+    const geo = geometry(w, h);
 
-  // Armrest verticals at every unit boundary, rising through the back band.
-  for (let u = 0; u <= SEAT_UNITS; u++) {
-    const ax = x0 + u * SEAT_UNIT_W;
+    // 1) Air: haze breathes only inside the glass (night air over the
+    // apron), sampled on a coarse lattice and bilinearly upsampled.
+    const stride = 4;
+    const gw = Math.floor(w / stride) + 2;
+    const gh = Math.floor(h / stride) + 2;
 
-    for (let y = yTop; y <= yTop + 4; y++) {
-      b[y * COLS + ax] = 0.62;
+    if (hazeLattice.length !== gw * gh) {
+      hazeLattice = new Float32Array(gw * gh);
     }
-  }
 
-  // Legs at every other boundary, from the rail toward the floor.
-  for (let u = 0; u <= SEAT_UNITS; u += 2) {
-    const lx = x0 + u * SEAT_UNIT_W;
+    for (let gy = 0; gy < gh; gy++) {
+      const ny = gy * stride * hazeScale * 1.4 + time * hazeSpeed * 0.6;
 
-    for (let y = yTop + 5; y <= legsTo && y < ROWS; y++) {
-      b[y * COLS + lx] = 0.16;
+      for (let gx = 0; gx < gw; gx++) {
+        hazeLattice[gy * gw + gx] = fbm2(hazeNoise, gx * stride * hazeScale + time * hazeSpeed, ny, 2);
+      }
     }
-  }
-}
 
-function clampWrite(v: number): number {
-  return v <= 0 ? 0 : v >= 0.98 ? 0.98 : v;
-}
+    for (let y = 0; y < h; y++) {
+      const gy = y / stride;
+      const gy0 = Math.floor(gy);
+      const fy = gy - gy0;
+      const rowA = gy0 * gw;
+      const rowB = (gy0 + 1) * gw;
+      const inGlass = y > geo.glassTop + 1 && y < geo.floorRow;
 
-function hash3(a: number, b: number, c: number): number {
-  let h = (Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 1442695041)) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        const b = base[i] ?? 0;
 
-function makeRng(seed: number): () => number {
-  let s = seed | 0;
+        if (!inGlass) {
+          data[i] = b;
+          continue;
+        }
 
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+        const gx = x / stride;
+        const gx0 = Math.floor(gx);
+        const fx = gx - gx0;
+        const top = (hazeLattice[rowA + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowA + gx0 + 1] ?? 0) * fx;
+        const bottom = (hazeLattice[rowB + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowB + gx0 + 1] ?? 0) * fx;
+        const air = clamp01(hazeFloor + hazeAmount * (top * (1 - fy) + bottom * fy));
+        data[i] = air > b ? air : b;
+      }
+    }
+
+    // 2) The one motion: the fin-tip anti-collision beacon. A slow sine
+    // pulse lifts a tiny cluster toward '@' at peak and breathes a faint
+    // glow onto the fin tip. Pure f(time) — no flicker.
+    const pulse = 0.5 + 0.5 * Math.sin((Math.PI * 2 * time) / Math.max(0.5, beaconPeriod));
+    const by = geo.finTop - 1;
+    const coreLum = beaconBase + beaconAmp * pulse;
+    const sideLum = beaconSideBase + beaconSideAmp * pulse;
+
+    for (let dy = -1; dy <= 0; dy++) {
+      putSet(data, w, h, geo.beaconX, by + dy, coreLum);
+      putSet(data, w, h, geo.beaconX - 1, by + dy, sideLum);
+      putSet(data, w, h, geo.beaconX + 1, by + dy, sideLum);
+    }
+
+    const r = Math.max(1, glowRadius);
+
+    for (let y = by - r; y <= by + r; y++) {
+      if (y < 0 || y >= h) {
+        continue;
+      }
+
+      for (let x = geo.beaconX - r; x <= geo.beaconX + r; x++) {
+        if (x < 0 || x >= w) {
+          continue;
+        }
+
+        const dist = Math.sqrt((x - geo.beaconX) * (x - geo.beaconX) + (y - by) * (y - by));
+
+        if (dist >= r || dist < 1.5) {
+          continue; // the core cells stay as written
+        }
+
+        const f = 1 - dist / r;
+        const i = y * w + x;
+        data[i] = clamp01((data[i] ?? 0) + glowAmp * pulse * f * f);
+      }
+    }
+  },
+};

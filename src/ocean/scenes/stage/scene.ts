@@ -1,16 +1,16 @@
 /**
- * Scene 2 — "stage": a stage after the audience leaves.
+ * Scene 2 — "stage": the University Theatre at Yale, seen from the house.
  *
- * Silhouette before texture. Rigging over an empty house: each lineset
- * (pick lines + dash cross-bars + batten, one carrying a border curtain)
- * is a slow rigid pendulum from the loft — the ONE quiet idiomatic motion —
- * periods scaled by line length, amplitudes modulated by a slower "air
- * current" so nothing loops visibly. Everything else stands still: the grid
- * iron, one solid '='-weight proscenium/floor line, seat-back rows receding
- * into the dark behind two aisles. A ghost light on a stand pools downstage,
- * and a lone figure — 2-cell head over a 4-cell shoulder line — stands at
- * the pool's edge, two-plus ramp steps brighter than the glow around it.
- * Low haze breathes on the sparse end of the ramp. Steady by default — no
+ * Silhouette before texture. The proscenium fills the frame edge to edge —
+ * sitting close, the arch is the whole field of view — jambs with fluted
+ * panels rising from bright bases into the dark, a full entablature
+ * (cornice, dentil course, triglyph frieze, architrave) across the top.
+ * Inside: a teaser curtain whose scalloped hem breathes — the ONE quiet
+ * idiomatic motion — black velour legs behind a dark seam, and nothing
+ * else: the stage stands empty, a vast dark opening over a bare floor
+ * line. Below the apron an orchestra-pit gap, then four curved seat rows
+ * whose center aisle widens toward the viewer. Haze breathes only inside
+ * the opening (dust hanging in an empty house). Steady by default — no
  * flicker (that motion belongs to the corridor scene).
  *
  * Nothing human-readable is rendered here; the chapter prose beside this
@@ -19,39 +19,44 @@
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
 
-const hashNoise = createValueNoise(83);
 const hazeNoise = createValueNoise(19);
 
 /** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
-const LOFT_LUM = 0.3; // ':' — grid iron line across the top
-const PULLEY_LUM = 0.68; // '+' — loft blocks the pick lines hang from
-const LINE_LUM = 0.52; // '|' — pick lines (whole-cell rounded, stays crisp)
-const CROSSBAR_LUM = 0.38; // '-' — rig cross-bars at consistent heights
-const BATTEN_LUM = 0.6; // '=' — the pipes
-const CURTAIN_LUM = 0.26; // ':' — border curtain body
-const CURTAIN_HEM_LUM = 0.38; // '-' — border curtain bottom hem
-const STAND_LUM = 0.58; // '=' bare, '#' inside the pool — ghost light stand
-const BULB_LUM = 0.93; // '@' — the bulb itself
-const FLOOR_LUM = 0.6; // '=' — ONE solid proscenium/floor line
-const FIGURE_LUM = 0.8; // '#' — the figure: one flat band, silhouette before texture
+const CURTAIN_LUM = 0.28; // ':' — teaser body
+const CURTAIN_HEM_LUM = 0.38; // '-' — teaser scalloped hem
+const LEG_FOLD_LUM = 0.26; // ':' — velour leg fold (alternating with '·')
+const LEG_SHADOW_LUM = 0.12; // '·' — velour leg counter-fold
+const LEG_EDGE_LUM = 0.36; // '-' — the onstage edge of each leg
+const SEAT_LUMS = [0.22, 0.28, 0.36, 0.42] as const; // back arc -> front arc
+const APRON_LUM = 0.5; // '|' — apron lip below the arch (survives bin 4)
+const FRAME_LOW_LUM = 0.62; // '=' — jamb bases nearest the bulb
+const FRAME_MID_LUM = 0.54; // '|' — jamb middles
+const FRAME_HIGH_LUM = 0.5; // '|' — jamb tops; still '|' but survives bin-4 pooling
+const FLUTE_LOW_LUM = 0.38; // '-' — panel-groove columns in the jamb, lower
+const FLUTE_HIGH_LUM = 0.3; // ':' — panel-groove columns, upper
+const ENTAB_EDGE_LUM = 0.62; // '=' — cornice + architrave bands
+const ENTAB_FILL_LUM = 0.52; // '|' — frieze reads as a triglyph band and survives bin 4
+const ARRIS_LOW_LUM = 0.7; // '+' — inner arris catching the light, lower half
+const ARRIS_HIGH_LUM = 0.52; // '|' — inner arris, upper half
+const DENTIL_LUM = 0.52; // '|' — dentil blocks under the cornice
+
+/** Jamb panel-groove columns, as offsets from the inner arris (dx). */
+const FLUTE_DX = [5, 9] as const;
+const FLUTE_MIN_JAMB = 12;
 
 interface StageGeometry {
-  battenMax: number;
-  battenMin: number;
-  bulbRow: number;
-  floorTop: number;
-  houseTop: number;
-}
-
-interface Lineset {
-  battenRow: number;
-  curtainRows: number;
+  apronL: number;
+  apronR: number;
+  apronRow: number;
   cx: number;
-  gustPhase: number;
-  halfW: number;
-  period: number;
-  phase: number;
-  picks: readonly number[];
+  entabTop: number;
+  floorRow: number;
+  jambW: number;
+  legW: number;
+  openL: number;
+  openR: number;
+  openTop: number;
+  valanceTop: number;
 }
 
 let base = new Float32Array(0);
@@ -60,67 +65,44 @@ let baseRows = 0;
 let hazeLattice = new Float32Array(0);
 
 function clamp01(v: number): number {
+  if (!Number.isFinite(v)) {
+    return 0;
+  }
+
   return v <= 0 ? 0 : v >= 1 ? 1 : v;
 }
 
-/** Decorrelated deterministic [0,1] hash for lineset layout. */
-function hash(i: number, k: number): number {
-  return hashNoise(i * 37.91 + 11.33, k * 17.71 + 5.17);
-}
-
-function geometry(rows: number): StageGeometry {
-  const floorTop = Math.floor(rows * 0.62);
-  const battenMin = Math.max(8, Math.round(rows * 0.26));
+/**
+ * Landmarks from proportions. The frame is full-bleed: the entablature
+ * spans every column and the jambs rise at the canvas edges, so the arch
+ * is the entire field of view. Vertical offsets scale with rows so small
+ * harness grids stay in-bounds.
+ */
+function geometry(cols: number, rows: number): StageGeometry {
+  const jambW = Math.max(4, Math.round(cols * 0.065));
+  const openTop = Math.round(rows * 0.135);
+  const floorRow = Math.round(rows * 0.82);
 
   return {
-    battenMax: Math.max(battenMin + 2, floorTop - 6),
-    battenMin,
-    bulbRow: floorTop - 5,
-    floorTop,
-    houseTop: Math.floor(rows * 0.7),
+    apronL: 2,
+    apronR: cols - 3,
+    apronRow: Math.min(rows - 1, floorRow + 1),
+    cx: Math.round(cols * 0.5),
+    entabTop: Math.max(1, Math.round(rows * 0.05)),
+    floorRow,
+    jambW,
+    legW: Math.max(3, Math.round(cols * 0.03)),
+    openL: 2 + jambW,
+    openR: cols - 3 - jambW,
+    openTop,
+    valanceTop: openTop,
   };
 }
 
-/** Static architecture: loft line, floor line, seat-back rows with aisles. */
-function buildBase(cols: number, rows: number): void {
-  base = new Float32Array(cols * rows);
-  baseCols = cols;
-  baseRows = rows;
-
-  const geo = geometry(rows);
-
-  for (let x = 0; x < cols; x++) {
-    base[x] = LOFT_LUM;
-  }
-
-  // ONE solid '='-weight proscenium/floor line — the strong horizontal that
-  // separates the stage from the house.
-  for (let x = 0; x < cols; x++) {
-    base[geo.floorTop * cols + x] = FLOOR_LUM;
-  }
-
-  // Empty house: a repeated 3-cell seat-back motif (3 lit, 1 gap), staggered
-  // on alternate rows, receding into the dark behind two aisle gaps.
-  const aisleA = Math.round(cols * 0.3);
-  const aisleB = Math.round(cols * 0.7);
-
-  for (let r = geo.houseTop + 2; r < rows - 1; r += 3) {
-    const t = (r - geo.houseTop) / Math.max(1, rows - geo.houseTop);
-    const rowLum = 0.17 + 0.13 * t;
-    const margin = Math.round(6 + (1 - t) * 12);
-    const phase = (Math.floor(r / 3) % 2) * 2;
-
-    for (let x = margin; x < cols - margin; x++) {
-      if (Math.abs(x - aisleA) <= 1 || Math.abs(x - aisleB) <= 1) {
-        continue; // aisles
-      }
-
-      if ((x + phase) % 4 === 3) {
-        continue; // gap between seat backs
-      }
-
-      base[r * cols + x] = rowLum;
-    }
+/** Bounds-checked assignment (buildBase writes never wrap on small grids). */
+function putSet(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    data[y * w + x] = clamp01(v);
   }
 }
 
@@ -137,78 +119,118 @@ function putMax(data: Float32Array, w: number, h: number, x: number, y: number, 
   }
 }
 
-/** Energy-preserving additive splat capped at `cap` (horizontal runs). */
-function splatAdd(data: Float32Array, w: number, h: number, x: number, y: number, v: number, cap: number): void {
-  const x0 = Math.floor(x);
-  const f = x - x0;
+/**
+ * Static architecture: the full-bleed proscenium frame — jamb columns
+ * brightest at the base and fading upward, panel grooves fluting each
+ * jamb, an entablature of cornice, dentil course, triglyph frieze and
+ * architrave — the stage floor, the apron lip, and four curved seat rows
+ * behind an orchestra-pit gap, their center aisle widening toward the
+ * viewer.
+ */
+function buildBase(cols: number, rows: number): void {
+  base = new Float32Array(cols * rows);
+  baseCols = cols;
+  baseRows = rows;
 
-  addCapped(data, w, h, x0, y, v * (1 - f), cap);
-  addCapped(data, w, h, x0 + 1, y, v * f, cap);
-}
+  const geo = geometry(cols, rows);
 
-function addCapped(data: Float32Array, w: number, h: number, x: number, y: number, v: number, cap: number): void {
-  if (x < 0 || x >= w || y < 0 || y >= h) {
-    return;
-  }
+  // Entablature, full width: two cornice rows, a dentil course, the
+  // triglyph frieze, then two architrave rows above the opening.
+  const entabBottom = geo.openTop - 1;
+  const entabSpan = entabBottom - geo.entabTop;
+  const dentilRow = entabSpan >= 4 ? geo.entabTop + 2 : -1;
 
-  const i = y * w + x;
-  const current = data[i] ?? 0;
-  data[i] = clamp01(Math.max(current, Math.min(cap, current + v)));
-}
+  for (let y = geo.entabTop; y <= entabBottom; y++) {
+    const edge = y <= geo.entabTop + 1 || y >= entabBottom - 1;
 
-function buildLinesets(cols: number, rows: number, count: number, swayPeriod: number): Lineset[] {
-  const geo = geometry(rows);
-  const n = Math.max(0, Math.min(12, Math.floor(count)));
-  const margin = Math.max(6, Math.round(cols * 0.07));
-  const usable = cols - margin * 2;
-  const linesets: Lineset[] = [];
+    for (let x = 0; x < cols; x++) {
+      if (y === dentilRow) {
+        putSet(base, cols, rows, x, y, x % 3 === 2 ? LEG_SHADOW_LUM : DENTIL_LUM);
+        continue;
+      }
 
-  for (let i = 0; i < n; i++) {
-    const slot = usable / n;
-    const cx = margin + slot * (i + 0.5) + (hash(i, 1) - 0.5) * slot * 0.4;
-    const halfW = Math.min(Math.round(5 + hash(i, 2) * 5), Math.max(4, Math.floor(slot * 0.45)));
-    const depthFrac = (i * 0.618034 + hash(i, 3) * 0.2) % 1;
-    const battenRow = Math.round(geo.battenMin + (geo.battenMax - geo.battenMin) * depthFrac);
-    const length = Math.max(1, battenRow - 1);
-    const lengthMax = Math.max(1, geo.battenMax - 1);
-    const period = Math.max(0.5, swayPeriod) * Math.max(0.35, Math.sqrt(length / lengthMax));
-    const picks = halfW >= 9 ? [-halfW, 0, halfW] : [-halfW, halfW];
-
-    linesets.push({
-      battenRow,
-      curtainRows: 0,
-      cx,
-      gustPhase: hash(i, 5) * Math.PI * 2,
-      halfW,
-      period,
-      phase: hash(i, 4) * Math.PI * 2,
-      picks,
-    });
-  }
-
-  // The border curtain hangs from the shallowest batten (borders trim high).
-  let shallowest = -1;
-
-  for (let i = 0; i < linesets.length; i++) {
-    if (shallowest < 0 || linesets[i]!.battenRow < linesets[shallowest]!.battenRow) {
-      shallowest = i;
+      putSet(base, cols, rows, x, y, edge ? ENTAB_EDGE_LUM : ENTAB_FILL_LUM);
     }
   }
 
-  if (shallowest >= 0) {
-    linesets[shallowest]!.curtainRows = 5;
+  // Jambs at the canvas edges: lit from below — '=' bases, '|' fluting
+  // above — panel grooves carved down each face, the inner arris hottest
+  // where the ghost light reaches it.
+  const openSpan = Math.max(1, geo.floorRow - geo.openTop);
+
+  for (let y = geo.openTop; y <= geo.floorRow; y++) {
+    const t = (y - geo.openTop) / openSpan; // 0 at the top, 1 at the floor
+    const fill = t > 0.66 ? FRAME_LOW_LUM : t > 0.33 ? FRAME_MID_LUM : FRAME_HIGH_LUM;
+    const flute = t > 0.66 ? FLUTE_LOW_LUM : FLUTE_HIGH_LUM;
+    const arris = t > 0.5 ? ARRIS_LOW_LUM : ARRIS_HIGH_LUM;
+
+    for (let dx = 1; dx <= geo.jambW; dx++) {
+      const groove = geo.jambW >= FLUTE_MIN_JAMB && FLUTE_DX.includes(dx as 5 | 9);
+      putSet(base, cols, rows, geo.openL - dx, y, groove ? flute : fill);
+      putSet(base, cols, rows, geo.openR + dx, y, groove ? flute : fill);
+    }
+
+    putSet(base, cols, rows, geo.openL - 1, y, arris);
+    putSet(base, cols, rows, geo.openR + 1, y, arris);
   }
 
-  return linesets;
+  // Stage floor line across the opening; apron lip just below, nearly full
+  // width and thick enough that the lip survives bin-4 pooling.
+  for (let x = geo.openL; x <= geo.openR; x++) {
+    putSet(base, cols, rows, x, geo.floorRow, FRAME_LOW_LUM);
+  }
+
+  for (let x = geo.apronL; x <= geo.apronR; x++) {
+    putSet(base, cols, rows, x, geo.apronRow, APRON_LUM);
+  }
+
+  // The house: an orchestra-pit gap below the apron, then four curved seat
+  // rows (concave toward the stage, ends higher in frame). Seat groups grow
+  // and the center aisle widens toward the viewer; the front row catches a
+  // little spill through the opening.
+  const arcs: ReadonlyArray<{ aisleHalf: number; group: number; margin: number; offset: number; sag: number }> = [
+    { aisleHalf: 3, group: 4, margin: 0.16, offset: 0.048, sag: 2 },
+    { aisleHalf: 4, group: 5, margin: 0.1, offset: 0.086, sag: 3 },
+    { aisleHalf: 5, group: 5, margin: 0.05, offset: 0.125, sag: 3 },
+    { aisleHalf: 7, group: 6, margin: 0.01, offset: 0.163, sag: 4 },
+  ];
+
+  for (let a = 0; a < arcs.length; a++) {
+    const arc = arcs[a]!;
+    const lum = SEAT_LUMS[a] ?? 0.3;
+    const front = a === arcs.length - 1;
+    const row = geo.floorRow + Math.round(rows * arc.offset);
+    const margin = Math.round(cols * arc.margin);
+    const halfSpan = Math.max(1, geo.cx - margin);
+
+    for (let x = margin; x < cols - margin; x++) {
+      if (Math.abs(x - geo.cx) <= arc.aisleHalf) {
+        continue; // center aisle
+      }
+
+      if (x % arc.group >= arc.group - 2) {
+        continue; // gap between seat backs
+      }
+
+      const u = (x - geo.cx) / halfSpan;
+      const y = row - Math.round(arc.sag * u * u);
+
+      putSet(base, cols, rows, x, y, lum);
+
+      if (front) {
+        putSet(base, cols, rows, x, y + 1, lum * 0.75);
+      }
+    }
+  }
 }
 
 export const stageScene: SceneModule = {
   dockGlyph: [
-    " |  |  |  | ",
-    " |--|  |--| ",
-    " |==|  |==| ",
-    "    @   ++  ",
-    "    +  ++++ ",
+    "============",
+    "|:--------:|",
+    "|:        :|",
+    "|:        :|",
+    "|:        :|",
     "============",
   ],
   id: "stage",
@@ -216,60 +238,43 @@ export const stageScene: SceneModule = {
     const { width, height } = context.buffer;
 
     buildBase(width, height);
-
-    if (context.lights.length === 0) {
-      const geo = geometry(height);
-
-      context.lights.push({
-        intensity: 0.26,
-        radius: 13,
-        x: Math.round(0.46 * width),
-        y: geo.bulbRow,
-      });
-    }
   },
   summaryChip: "Yale, 2016–2019 — computer science and mainstage musicals.",
   tuning: {
-    cellH: 8,
-    cellW: 8,
-    cols: 176,
+    cellH: 6,
+    cellW: 6,
+    cols: 224,
     minimalGlyph: "·",
     motion: {
-      figureX: 0.535,
-      gustDepth: 0.4,
+      gustDepth: 0.35,
       gustRate: 0.02,
-      hazeAmount: 0.08,
-      hazeFloor: 0.04,
+      hazeAmount: 0.09,
+      hazeFloor: 0.03,
       hazeScale: 0.055,
       hazeSpeed: 0.045,
-      lightBreath: 0,
-      lightIntensity: 0.26,
-      lightRadius: 13,
-      lightX: 0.46,
-      lineSets: 5,
-      swayAmplitude: 2.2,
-      swayPeriod: 9,
+      swagCount: 5,
+      swagDepth: 3,
+      swayAmplitude: 0.9,
+      swayPeriod: 11,
+      valanceRows: 8,
     },
     ramp: " ·:-|=+#@",
-    rows: 80,
+    rows: 104,
   },
   update(_dt: number, context: SceneContext): void {
-    const { buffer, lights, time } = context;
+    const { buffer, time } = context;
     const {
-      figureX = 0.535,
-      gustDepth = 0.4,
+      gustDepth = 0.35,
       gustRate = 0.02,
-      hazeAmount = 0.08,
-      hazeFloor = 0.04,
+      hazeAmount = 0.09,
+      hazeFloor = 0.03,
       hazeScale = 0.055,
       hazeSpeed = 0.045,
-      lightBreath = 0,
-      lightIntensity = 0.26,
-      lightRadius = 13,
-      lightX = 0.46,
-      lineSets = 5,
-      swayAmplitude = 2.2,
-      swayPeriod = 9,
+      swagCount = 5,
+      swagDepth = 3,
+      swayAmplitude = 0.9,
+      swayPeriod = 11,
+      valanceRows = 8,
     } = this.tuning.motion;
     const w = buffer.width;
     const h = buffer.height;
@@ -279,8 +284,10 @@ export const stageScene: SceneModule = {
       buildBase(w, h);
     }
 
-    // 1) Air: low haze breathing on the sparse end of the ramp, sampled on a
-    // coarse lattice and bilinearly upsampled (value noise is smooth anyway).
+    const geo = geometry(w, h);
+
+    // 1) Air: haze breathes only inside the opening (dust in the ghost
+    // light), sampled on a coarse lattice and bilinearly upsampled.
     const stride = 4;
     const gw = Math.floor(w / stride) + 2;
     const gh = Math.floor(h / stride) + 2;
@@ -303,113 +310,69 @@ export const stageScene: SceneModule = {
       const fy = gy - gy0;
       const rowA = gy0 * gw;
       const rowB = (gy0 + 1) * gw;
+      const inRows = y > geo.openTop && y < geo.floorRow;
 
       for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        const b = base[i] ?? 0;
+
+        if (!inRows || x <= geo.openL || x >= geo.openR) {
+          data[i] = b;
+          continue;
+        }
+
         const gx = x / stride;
         const gx0 = Math.floor(gx);
         const fx = gx - gx0;
         const top = (hazeLattice[rowA + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowA + gx0 + 1] ?? 0) * fx;
         const bottom = (hazeLattice[rowB + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowB + gx0 + 1] ?? 0) * fx;
         const air = clamp01(hazeFloor + hazeAmount * (top * (1 - fy) + bottom * fy));
-        const i = y * w + x;
-        const b = base[i] ?? 0;
         data[i] = air > b ? air : b;
       }
     }
 
-    // 2) The fly system: rigid pendulums from the loft, one quiet motion.
-    // Dash cross-bars tie each lineset's picks together at consistent
-    // absolute heights, so the upper rig reads as structure, not dead black.
-    const linesets = buildLinesets(w, h, lineSets, swayPeriod);
-    const geo = geometry(h);
-    const barRows = [Math.round(h * 0.0875), Math.round(h * 0.175)];
+    // 2) The teaser curtain: scalloped hem breathing — one quiet motion.
+    // hem(x) dips between swag pickup points; a slow gust modulates depth;
+    // the whole hem breathes together (no lone center dip).
+    const gust = 1 - gustDepth + gustDepth * (0.5 + 0.5 * Math.sin(Math.PI * 2 * gustRate * time));
+    const breathe = swayAmplitude * gust * Math.sin((Math.PI * 2 * time) / Math.max(0.5, swayPeriod));
+    const openSpan = geo.openR - geo.openL;
+    let prevHem = -1;
 
-    for (const set of linesets) {
-      const gust = 1 - gustDepth + gustDepth * (0.5 + 0.5 * Math.sin(Math.PI * 2 * gustRate * time + set.gustPhase));
-      const sway = swayAmplitude * gust * Math.sin((Math.PI * 2 * time) / set.period + set.phase);
-      const length = Math.max(1, set.battenRow - 1);
+    for (let x = geo.openL + 1; x <= geo.openR - 1; x++) {
+      const u = (x - geo.openL) / openSpan;
+      const scallop = 0.5 - 0.5 * Math.cos(Math.PI * 2 * Math.max(1, swagCount) * u);
+      const hem = Math.min(geo.floorRow - 3, Math.round(geo.valanceTop + valanceRows + swagDepth * scallop + breathe));
 
-      for (const pick of set.picks) {
-        putMax(data, w, h, Math.round(set.cx + pick), 1, PULLEY_LUM);
-
-        for (let y = 2; y <= set.battenRow; y++) {
-          const depthFrac = (y - 1) / length;
-
-          // Rounded to whole cells on purpose: a swaying line stays a crisp
-          // '|' staircase instead of anti-aliasing into dim doubled dots.
-          putMax(data, w, h, Math.round(set.cx + pick + sway * depthFrac), y, LINE_LUM);
-        }
+      for (let y = geo.valanceTop; y < hem; y++) {
+        putMax(data, w, h, x, y, CURTAIN_LUM);
       }
 
-      for (const barRow of barRows) {
-        if (barRow >= set.battenRow - 2) {
-          continue;
-        }
+      // The hem stays a connected '-' curve: fill the vertical jump between
+      // adjacent columns so the scallop never breaks into floating dashes.
+      const from = prevHem < 0 ? hem : Math.min(prevHem + 1, hem);
+      const to = prevHem < 0 ? hem : Math.max(prevHem - 1, hem);
 
-        const offset = sway * ((barRow - 1) / length);
-
-        for (let dx = -set.halfW; dx <= set.halfW; dx++) {
-          putMax(data, w, h, Math.round(set.cx + dx + offset), barRow, CROSSBAR_LUM);
-        }
+      for (let y = Math.min(from, to); y <= Math.max(from, to); y++) {
+        putMax(data, w, h, x, y, CURTAIN_HEM_LUM);
       }
 
-      for (let dx = -set.halfW; dx <= set.halfW; dx++) {
-        splatAdd(data, w, h, set.cx + dx + sway, set.battenRow, BATTEN_LUM, BATTEN_LUM);
+      prevHem = hem;
+    }
+
+    // 3) Leg curtains: black velour behind a dark seam (one unlit column
+    // inside each arris), alternating fold/shadow columns, the onstage
+    // edge one step brighter so the fabric plane reads.
+    for (let y = geo.openTop + 1; y < geo.floorRow; y++) {
+      for (let dx = 1; dx < geo.legW; dx++) {
+        const fold = dx % 2 === 0 ? LEG_FOLD_LUM : LEG_SHADOW_LUM;
+        putMax(data, w, h, geo.openL + 1 + dx, y, fold);
+        putMax(data, w, h, geo.openR - 1 - dx, y, fold);
       }
 
-      for (let cy = 1; cy <= set.curtainRows; cy++) {
-        const y = set.battenRow + cy;
-
-        if (y >= geo.floorTop - 2) {
-          break;
-        }
-
-        const lum = cy === set.curtainRows ? CURTAIN_HEM_LUM : CURTAIN_LUM;
-
-        for (let dx = -set.halfW + 1; dx <= set.halfW - 1; dx++) {
-          putMax(data, w, h, Math.round(set.cx + dx + sway), y, lum);
-        }
-      }
+      putMax(data, w, h, geo.openL + geo.legW, y, LEG_EDGE_LUM);
+      putMax(data, w, h, geo.openR - geo.legW, y, LEG_EDGE_LUM);
     }
 
-    // 3) The ghost light: stand and bulb; the SDK light source pools around
-    // it (stamped by the runner after update).
-    const standX = Math.round(clamp01(lightX) * (w - 1));
-
-    for (let y = geo.bulbRow + 1; y < geo.floorTop; y++) {
-      putMax(data, w, h, standX, y, STAND_LUM);
-    }
-
-    putMax(data, w, h, standX, geo.bulbRow, BULB_LUM);
-
-    // 4) The figure: still, at the pool's edge. Silhouette before texture —
-    // a 2-cell head over a 4-cell shoulder line, solid mass down to the floor.
-    const figX = Math.round(clamp01(figureX) * (w - 1));
-    const figTop = geo.floorTop - 8;
-
-    for (let y = figTop; y < figTop + 2; y++) {
-      putMax(data, w, h, figX, y, FIGURE_LUM); // head, 2 cells wide
-      putMax(data, w, h, figX + 1, y, FIGURE_LUM);
-    }
-
-    for (let y = figTop + 2; y < figTop + 5; y++) {
-      for (let dx = -1; dx <= 2; dx++) {
-        putMax(data, w, h, figX + dx, y, FIGURE_LUM); // shoulder line + torso, 4 wide
-      }
-    }
-
-    for (let y = figTop + 5; y < geo.floorTop; y++) {
-      putMax(data, w, h, figX, y, FIGURE_LUM); // legs down to the floor line
-      putMax(data, w, h, figX + 1, y, FIGURE_LUM);
-    }
-
-    const light = lights[0];
-
-    if (light) {
-      light.x = standX;
-      light.y = geo.bulbRow;
-      light.radius = Math.max(0.5, lightRadius);
-      light.intensity = clamp01(lightIntensity * (1 + lightBreath * Math.sin(time * 1.7)));
-    }
   },
 };

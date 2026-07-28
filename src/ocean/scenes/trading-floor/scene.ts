@@ -1,405 +1,443 @@
 /**
- * Scene 5 — "trading-floor": a trading floor at 4 a.m. Silhouette first:
- * three rows of desks as solid horizontal masses receding toward a back wall, a
- * ticker of drifting digits anchored under the wall line, and monitor
- * rectangles standing ON the desks — bright single-cell borders, interiors
- * three to four cells tall. Six monitors are lit and scroll silent figures,
- * each pooling a little light onto its desk (one LightSource per screen); the
- * rest are dark rectangles. One chair, empty, at a lit desk. Every digit in
- * the scene lives INSIDE a monitor interior or ON the ticker row — the dark
- * air and the architecture never enter the ramp's digit band.
+ * Scene 5 — "trading-floor": the exchange at night — a stock-exchange
+ * TEMPLE FACADE, the NYSE archetype, drawn full-bleed in the proscenium's
+ * own vocabulary.
  *
- * The one idiomatic motion is the scroll (screens step up one discrete row at
- * a time; the ticker steps sideways). Beneath it the dark air breathes barely
- * on the sparse end of the ramp, the glow flickers slightly, and single cells
- * blink as quotes update. A diorama, not a screensaver.
+ * Silhouette before texture. Broad entry steps rise from the bottom edge
+ * across the full width — wide horizontal courses, brighter toward the
+ * viewer — up to a stylobate carrying a colonnade of SIX monumental
+ * fluted columns (jamb grammar: '|'/'=' fills, panel-groove flutes,
+ * bright bases and capitals, lit from below). Above them a full
+ * entablature — architrave band, frieze, dentil course, cornice — and
+ * the triangular pediment rising to the top center, its tympanum a dark
+ * field with a faint geometric relief hint. Between the columns: the
+ * vast dark negative space of a sleeping porch, where haze breathes.
  *
- * Copy note (binding): this scene renders NO text — the scrolling figures
- * are luminance noise quantized through the ramp, never characters chosen
- * by code. The chapter prose beside this scene is DOM.
+ * THE LIGHT EVENT + THE ONE MOTION: an abstract ticker band of light
+ * flowing slowly right-to-left along the architrave, between the frieze
+ * and the columns — not letters, a stream of varied bright tick marks
+ * and short dashes ('='/'+' with occasional '#'), spacing and lengths
+ * hashed on floor(position), drifting at ~6 cells/s, pure f(time). The
+ * one lit strip of a sleeping temple of money.
  *
- * Ramp intent (hand-tunable, Collin's brush), dark -> bright:
- * " ·:-=1739#@" — architecture sits in ·:-= (air dust '·', lower desk faces
- * ':', upper faces '-', desk tops '='), lit-screen backgrounds land on '=',
- * figures land in the digit band 1739, '#' is the lit-monitor border, and @
- * is reserved for quote blinks and glow cores. Structural luminance is capped
- * at 0.37 and glow peaks near 0.08, so architecture + glow stays below the
- * 0.4545 digit threshold — digits cannot leak out of the screens.
- * simplifyRamp level 1 samples this to " :=79@" (still numeric); level 2
- * residue is " ·".
+ * Nothing human-readable is rendered here; the chapter prose beside this
+ * scene is DOM.
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
 
-const ambientNoise = createValueNoise(41);
-const flickerNoise = createValueNoise(97);
+const hazeNoise = createValueNoise(23);
 
-/** Deterministic integer hash -> [0, 1). Keeps the sim reproducible. */
+/** Deterministic integer hash -> [0, 1). Keeps the ticker reproducible. */
 function hash(seed: number, a: number, b: number): number {
   let h = Math.imul(seed ^ 0x9e3779b9, 2654435761) ^ Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/**
- * Luminance plan against the 11-glyph ramp (bin width 1/11 ≈ 0.0909):
- * digits '1739' own [0.4545, 0.8182). Architecture tops out at deskTop 0.37;
- * the strongest glow adds ~0.08 at its core, so structure + glow < 0.4545.
- */
-const LUM = {
-  air: 0.05,
-  blink: 0.95,
-  ceiling: 0.02,
-  chair: 0.19,
-  chairBase: 0.14,
-  chairTop: 0.26,
-  deskFace: 0.3,
-  deskFaceLow: 0.21,
-  deskTop: 0.37,
-  figureMax: 0.8,
-  figureMin: 0.47,
-  floor: 0.05,
-  litBorder: 0.83,
-  screenBg: 0.38,
-  tickerMax: 0.78,
-  tickerMin: 0.5,
-  unlitBorder: 0.13,
-  unlitScreen: 0.05,
-  wallLine: 0.3,
-} as const;
+/** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
+const TYMPANUM_LUM = 0.05; // ' ' — dark pediment field
+const RELIEF_LUM = 0.17; // '·' — faint geometric relief hint in the tympanum
+const RAKE_LUM = 0.62; // '=' — raking cornice of the pediment
+const CORNICE_LUM = 0.64; // '=' — horizontal cornice band
+const DENTIL_LUM = 0.54; // '|' — dentil blocks under the cornice
+const DENTIL_GAP_LUM = 0.2; // '·' — gaps between dentils
+const FRIEZE_LUM = 0.54; // '|' — frieze band (dense enough to survive bin 4)
+const CHANNEL_LUM = 0.08; // ' ' — the shadowed architrave the ticker flows along
+const CAP_ABACUS_LUM = 0.68; // '+' — capital abacus (top slab)
+const CAP_ECHINUS_LUM = 0.58; // '=' — capital echinus
+const SHAFT_LOW_LUM = 0.63; // '=' — shaft nearest the step light
+const SHAFT_MID_LUM = 0.55; // '|' — shaft middle
+const SHAFT_HIGH_LUM = 0.5; // '|' — shaft top, fading into the dark
+const FLUTE_LOW_LUM = 0.4; // '-' — panel-groove flutes, lower
+const FLUTE_HIGH_LUM = 0.34; // '-' — panel-groove flutes, upper
+const ARRIS_LOW_LUM = 0.7; // '+' — column edge catching the light, lower half
+const ARRIS_HIGH_LUM = 0.55; // '|' — column edge, upper half
+const BASE_TOP_LUM = 0.64; // '=' — base fillet under the shaft
+const BASE_TORUS_LUM = 0.72; // '+' — base torus, hottest stone
+const STYLOBATE_LUM = 0.66; // '=' — platform the colonnade stands on
+const STEP_MIN_LUM = 0.3; // ':' — farthest step course
+const STEP_MAX_LUM = 0.68; // '+' — nearest step course (brighter toward viewer)
+const STEP_RISER_DROP = 0.08; // riser sits just below its tread
 
-interface LitMonitor {
+interface ExchangeGeometry {
+  apexRow: number;
+  archBot: number;
+  archTop: number;
+  baseTop: number;
+  capBot: number;
+  capTop: number;
+  /** Column center columns, left to right (six of them). */
+  centers: number[];
+  colW: number;
+  corniceBot: number;
+  corniceTop: number;
   cx: number;
-  deskY: number;
-  /** Interior box (inside the 1-cell border). */
-  ih: number;
-  iw: number;
-  ix0: number;
-  iy0: number;
-  phase: number;
-  /** 0..1 nearness scale; near rows glow brighter. */
-  scale: number;
-  seed: number;
-  speedMul: number;
+  dentilRow: number;
+  friezeBot: number;
+  friezeTop: number;
+  shaftTop: number;
+  stepH: number;
+  stepTop: number;
+  stylBot: number;
+  stylTop: number;
+  tickerRow: number;
 }
 
-interface DeskRowSpec {
-  deskY: number;
-  /** Central aisle half-width at this depth (converges toward the back). */
-  gapHalf: number;
-  insetX: number;
-  litSlots: ReadonlySet<number>;
-  /** Desk-mass height in rows, top edge included. */
-  massH: number;
-  /** Monitor outer height/width, 1-cell borders included. */
-  monH: number;
-  monW: number;
-  pitch: number;
-  scale: number;
-}
-
-/** Static architecture layer, rebuilt by init (and if buffer dims change). */
 let base = new Float32Array(0);
-let monitors: LitMonitor[] = [];
-let tickerY = 0;
-let tickerX0 = 0;
-let tickerX1 = 0;
+let baseCols = 0;
+let baseRows = 0;
+let hazeLattice = new Float32Array(0);
 
-function drawRect(width: number, height: number, x0: number, y0: number, x1: number, y1: number, v: number): void {
-  for (let y = Math.max(0, y0); y <= y1 && y < height; y++) {
-    const row = y * width;
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) {
+    return 0;
+  }
 
-    for (let x = Math.max(0, x0); x <= x1 && x < width; x++) {
-      base[row + x] = v;
+  return v <= 0 ? 0 : v >= 1 ? 1 : v;
+}
+
+/**
+ * Landmarks from proportions. The facade is full-bleed: pediment rake,
+ * entablature, stylobate and steps all span every column of the canvas,
+ * and the entablature stack is built downward row by row so no band ever
+ * gaps or overlaps on any grid size. All writes are bounds-checked, so
+ * tiny harness grids simply crop the lower architecture.
+ */
+function geometry(cols: number, rows: number): ExchangeGeometry {
+  const corniceTop = Math.max(1, Math.round(rows * 0.175));
+  const corniceBot = corniceTop + Math.max(0, Math.round(rows * 0.012));
+  const dentilRow = corniceBot + 1;
+  const friezeTop = dentilRow + 1;
+  const friezeBot = friezeTop + Math.max(0, Math.round(rows * 0.02));
+  const archTop = friezeBot + 1;
+  const archBot = archTop + Math.max(2, Math.round(rows * 0.04));
+  const tickerRow = archTop + Math.floor((archBot - archTop) / 2);
+  const capTop = archBot + 1;
+  const capBot = capTop + 1;
+  const shaftTop = capBot + 1;
+  const stylTop = Math.max(shaftTop + 2, Math.round(rows * 0.76));
+  const colW = Math.max(4, Math.round(cols * 0.07));
+  const edge = Math.round(cols * 0.075);
+  const centers: number[] = [];
+
+  for (let i = 0; i < 6; i++) {
+    centers.push(Math.round(edge + (i * (cols - 1 - 2 * edge)) / 5));
+  }
+
+  return {
+    apexRow: Math.max(0, Math.round(rows * 0.03)),
+    archBot,
+    archTop,
+    baseTop: stylTop - 3,
+    capBot,
+    capTop,
+    centers,
+    colW,
+    corniceBot,
+    corniceTop,
+    cx: (cols - 1) / 2,
+    dentilRow,
+    friezeBot,
+    friezeTop,
+    shaftTop,
+    stepH: Math.max(2, Math.round(rows * 0.038)),
+    stepTop: stylTop + 2,
+    stylBot: stylTop + 1,
+    stylTop,
+    tickerRow,
+  };
+}
+
+/** Bounds-checked assignment (buildBase writes never wrap on small grids). */
+function putSet(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    data[y * w + x] = clamp01(v);
+  }
+}
+
+/** Max-write with bounds check. */
+function putMax(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x < 0 || x >= w || y < 0 || y >= h) {
+    return;
+  }
+
+  const i = y * w + x;
+
+  if ((data[i] ?? 0) < v) {
+    data[i] = clamp01(v);
+  }
+}
+
+/**
+ * Static architecture: pediment (raking cornice, dark tympanum, faint
+ * relief), the entablature stack, six fluted columns with capitals and
+ * bases, the stylobate, and the full-width entry steps brightening
+ * toward the viewer. Everything but the ticker and the haze.
+ */
+function buildBase(cols: number, rows: number): void {
+  base = new Float32Array(cols * rows);
+  baseCols = cols;
+  baseRows = rows;
+
+  const geo = geometry(cols, rows);
+  const halfSpan = Math.max(1, (cols - 1) / 2);
+  const icx = Math.round(geo.cx);
+
+  // Pediment: raking cornice descending from the apex to the canvas
+  // edges at the cornice line; the tympanum inside stays a dark field.
+  const rakeSpan = Math.max(1, geo.corniceTop - geo.apexRow);
+
+  for (let x = 0; x < cols; x++) {
+    const rx = Math.abs(x - geo.cx) / halfSpan;
+    const rakeY = Math.round(geo.apexRow + rx * rakeSpan);
+
+    putSet(base, cols, rows, x, rakeY, RAKE_LUM);
+    putSet(base, cols, rows, x, rakeY + 1, RAKE_LUM);
+
+    for (let y = rakeY + 2; y < geo.corniceTop; y++) {
+      putSet(base, cols, rows, x, y, TYMPANUM_LUM);
     }
   }
-}
 
-/** Monitor rectangle: 1-cell border at `borderV`, interior at `screenV`. */
-function drawMonitor(
-  width: number,
-  height: number,
-  x0: number,
-  y0: number,
-  w: number,
-  h: number,
-  borderV: number,
-  screenV: number,
-): void {
-  drawRect(width, height, x0, y0, x0 + w - 1, y0 + h - 1, borderV);
-  drawRect(width, height, x0 + 1, y0 + 1, x0 + w - 2, y0 + h - 2, screenV);
-}
-
-function buildScene(width: number, height: number): void {
-  base = new Float32Array(width * height);
-  monitors = [];
-
-  // Back wall line near the ceiling; the ticker hangs two rows under it.
-  const wallY = Math.max(2, Math.round(height * 0.055));
-  tickerY = wallY + 2;
-  tickerX0 = Math.round(width * 0.025);
-  tickerX1 = width - 1 - tickerX0;
-
-  base.fill(LUM.air);
-  drawRect(width, height, 0, 0, width - 1, wallY - 1, LUM.ceiling);
-
-  for (let x = 0; x < width; x++) {
-    base[wallY * width + x] = LUM.wallLine;
-  }
-
-  // Three desk rows in perspective: each nearer row is lower, wider, thicker
-  // and carries bigger monitors. A central aisle converges toward the back.
-  const centerX = width / 2;
-  const rows: DeskRowSpec[] = [
-    {
-      deskY: Math.round(height * 0.4),
-      gapHalf: Math.round(width * 0.045),
-      insetX: Math.round(width * 0.15),
-      litSlots: new Set([1]),
-      massH: 3,
-      monH: 5,
-      monW: 12,
-      pitch: 16,
-      scale: 0.7,
-    },
-    {
-      deskY: Math.round(height * 0.6),
-      gapHalf: Math.round(width * 0.06),
-      insetX: Math.round(width * 0.09),
-      litSlots: new Set([0, 4]),
-      massH: 4,
-      monH: 5,
-      monW: 14,
-      pitch: 19,
-      scale: 0.85,
-    },
-    {
-      deskY: Math.round(height * 0.81),
-      gapHalf: Math.round(width * 0.085),
-      insetX: Math.round(width * 0.02),
-      litSlots: new Set([1, 3, 5]),
-      massH: 5,
-      monH: 6,
-      monW: 16,
-      pitch: 22,
-      scale: 1,
-    },
+  // Faint geometric relief hint in the tympanum: a dim stepped motif,
+  // abstract, never brighter than the '·' band.
+  const midY = Math.round((geo.apexRow + geo.corniceTop) / 2);
+  const reliefTiers: ReadonlyArray<{ half: number; y0: number; y1: number }> = [
+    { half: Math.round(cols * 0.02), y0: midY - 2, y1: midY - 1 },
+    { half: Math.round(cols * 0.045), y0: midY, y1: midY + 1 },
+    { half: Math.round(cols * 0.07), y0: midY + 2, y1: midY + 2 },
   ];
 
-  // Floor catches a hair more light than the air behind the far desks.
-  drawRect(width, height, 0, (rows[0]?.deskY ?? 0) + (rows[0]?.massH ?? 0), width - 1, height - 1, LUM.floor);
-
-  let litIndex = 0;
-
-  for (const row of rows) {
-    const segments: ReadonlyArray<readonly [number, number]> = [
-      [row.insetX, Math.floor(centerX - row.gapHalf)],
-      [Math.ceil(centerX + row.gapHalf), width - 1 - row.insetX],
-    ];
-
-    // Desk mass: bright top edge, solid dark face — a horizontal slab.
-    for (const [x0, x1] of segments) {
-      drawRect(width, height, x0, row.deskY, x1, row.deskY, LUM.deskTop);
-      drawRect(width, height, x0, row.deskY + 1, x1, row.deskY + Math.ceil(row.massH / 2), LUM.deskFace);
-      drawRect(width, height, x0, row.deskY + Math.ceil(row.massH / 2) + 1, x1, row.deskY + row.massH - 1, LUM.deskFaceLow);
-    }
-
-    // Monitors stand on the desk top, evenly slotted along each segment.
-    let slot = 0;
-
-    for (const [x0, x1] of segments) {
-      for (let mx = x0 + 2; mx + row.monW - 1 <= x1; mx += row.pitch) {
-        const my = row.deskY - row.monH;
-
-        if (row.litSlots.has(slot)) {
-          drawMonitor(width, height, mx, my, row.monW, row.monH, LUM.litBorder, LUM.screenBg);
-          monitors.push({
-            cx: mx + (row.monW - 1) / 2,
-            deskY: row.deskY,
-            ih: row.monH - 2,
-            iw: row.monW - 2,
-            ix0: mx + 1,
-            iy0: my + 1,
-            phase: hash(litIndex + 1, 3, 17) * 40,
-            scale: row.scale,
-            seed: 100 + litIndex * 37,
-            speedMul: 0.7 + 0.6 * hash(litIndex + 1, 5, 23),
-          });
-          litIndex++;
-        } else {
-          drawMonitor(width, height, mx, my, row.monW, row.monH, LUM.unlitBorder, LUM.unlitScreen);
+  for (const tier of reliefTiers) {
+    for (let y = tier.y0; y <= tier.y1; y++) {
+      for (let x = icx - tier.half; x <= icx + tier.half; x++) {
+        if (x >= 0 && x < cols && y >= 0 && y < rows && base[y * cols + x] === TYMPANUM_LUM) {
+          base[y * cols + x] = RELIEF_LUM;
         }
-
-        slot++;
       }
     }
   }
 
-  // One empty chair at a lit desk on the near row, pushed back and a little
-  // off-center — somebody just left. It reads as a silhouette in the pool.
-  const near = rows[2];
-  const nearLit = monitors.filter((m) => near && m.deskY === near.deskY);
-  const chairMonitor = nearLit[1] ?? nearLit[0];
+  // Entablature, full width: cornice, dentil course, frieze, architrave.
+  for (let x = 0; x < cols; x++) {
+    for (let y = geo.corniceTop; y <= geo.corniceBot; y++) {
+      putSet(base, cols, rows, x, y, CORNICE_LUM);
+    }
 
-  if (near && chairMonitor) {
-    const cx = Math.round(chairMonitor.cx) - 4;
-    const cy = near.deskY + near.massH + 1;
-    drawRect(width, height, cx - 2, cy, cx + 1, cy, LUM.chairTop);
-    drawRect(width, height, cx - 3, cy + 1, cx + 2, cy + 3, LUM.chair);
-    drawRect(width, height, cx - 2, cy + 4, cx + 1, cy + 4, LUM.chairBase);
+    putSet(base, cols, rows, x, geo.dentilRow, x % 3 === 2 ? DENTIL_GAP_LUM : DENTIL_LUM);
+
+    for (let y = geo.friezeTop; y <= geo.friezeBot; y++) {
+      putSet(base, cols, rows, x, y, FRIEZE_LUM);
+    }
+
+    for (let y = geo.archTop; y <= geo.archBot; y++) {
+      putSet(base, cols, rows, x, y, CHANNEL_LUM);
+    }
+  }
+
+  // Colonnade: six columns, jamb grammar — lit from below, arris edges
+  // hottest low, panel-groove flutes carved down each shaft.
+  const shaftBot = geo.baseTop - 1;
+  const span = Math.max(1, shaftBot - geo.shaftTop);
+
+  for (const c of geo.centers) {
+    const x0 = c - Math.floor(geo.colW / 2);
+
+    // Capital: abacus slab over an echinus, both overhanging the shaft.
+    for (let x = x0 - 2; x <= x0 + geo.colW + 1; x++) {
+      putSet(base, cols, rows, x, geo.capTop, CAP_ABACUS_LUM);
+      putSet(base, cols, rows, x, geo.capBot, CAP_ECHINUS_LUM);
+    }
+
+    // Shaft: '='/'|' fills fading upward, '-' flutes, bright arrises.
+    for (let y = geo.shaftTop; y <= shaftBot; y++) {
+      const t = (y - geo.shaftTop) / span;
+      const fill = t > 0.66 ? SHAFT_LOW_LUM : t > 0.33 ? SHAFT_MID_LUM : SHAFT_HIGH_LUM;
+      const flute = t > 0.66 ? FLUTE_LOW_LUM : FLUTE_HIGH_LUM;
+      const arris = t > 0.5 ? ARRIS_LOW_LUM : ARRIS_HIGH_LUM;
+
+      for (let dx = 0; dx < geo.colW; dx++) {
+        const edgeCol = dx === 0 || dx === geo.colW - 1;
+        const groove = geo.colW >= 12 && (dx === 5 || dx === geo.colW - 6);
+        putSet(base, cols, rows, x0 + dx, y, edgeCol ? arris : groove ? flute : fill);
+      }
+    }
+
+    // Base: fillet then torus, spreading wider, hottest stone in the scene.
+    for (let x = x0 - 1; x <= x0 + geo.colW; x++) {
+      putSet(base, cols, rows, x, geo.baseTop, BASE_TOP_LUM);
+    }
+
+    for (let y = geo.baseTop + 1; y < geo.stylTop; y++) {
+      for (let x = x0 - 2; x <= x0 + geo.colW + 1; x++) {
+        putSet(base, cols, rows, x, y, BASE_TORUS_LUM);
+      }
+    }
+  }
+
+  // Stylobate: the platform, full width.
+  for (let y = geo.stylTop; y <= geo.stylBot; y++) {
+    for (let x = 0; x < cols; x++) {
+      putSet(base, cols, rows, x, y, STYLOBATE_LUM);
+    }
+  }
+
+  // Entry steps: broad full-width courses down to the bottom edge, each
+  // tread a shade brighter than its riser, the whole flight brightening
+  // toward the viewer — rhyming with the stage's seat rows.
+  const stepCount = Math.max(1, Math.ceil((rows - geo.stepTop) / geo.stepH));
+
+  for (let y = geo.stepTop; y < rows; y++) {
+    const s = Math.floor((y - geo.stepTop) / geo.stepH);
+    const frac = stepCount > 1 ? s / (stepCount - 1) : 1;
+    const tread = STEP_MIN_LUM + (STEP_MAX_LUM - STEP_MIN_LUM) * frac;
+    const v = (y - geo.stepTop) % geo.stepH === 0 ? tread : tread - STEP_RISER_DROP;
+
+    for (let x = 0; x < cols; x++) {
+      putSet(base, cols, rows, x, y, v);
+    }
   }
 }
 
 export const tradingFloorScene: SceneModule = {
   dockGlyph: [
-    " 1739·317·9 ",
-    "            ",
-    " #9#·--·#7# ",
+    "   :-==-:   ",
     "============",
-    "·#79#··#31#·",
+    "·=+·#·==·+=·",
+    "| | |  | | |",
+    "| | |  | | |",
     "============",
   ],
   id: "trading-floor",
   init(context: SceneContext): void {
-    buildScene(context.buffer.width, context.buffer.height);
-    context.lights.length = 0;
+    const { width, height } = context.buffer;
 
-    for (const monitor of monitors) {
-      context.lights.push({
-        intensity: 0.075 * monitor.scale,
-        radius: (monitor.iw + 2) * 0.7,
-        x: monitor.cx,
-        y: monitor.deskY + 1,
-      });
-    }
+    buildBase(width, height);
+    context.lights.length = 0;
   },
   summaryChip: "OTseek, 2025 — zero to one with bond traders.",
   tuning: {
-    cellH: 8,
-    cellW: 8,
-    cols: 160,
+    cellH: 6,
+    cellW: 6,
+    cols: 224,
     minimalGlyph: "·",
     motion: {
-      ambientAmount: 0.04,
-      ambientScale: 0.09,
-      ambientSpeed: 0.05,
-      blinkRate: 0.7,
-      flickerAmount: 0.12,
-      flickerSpeed: 1.6,
-      glowIntensity: 0.075,
-      glowRadius: 0.7,
-      screenBrightness: 1,
-      scrollSpeed: 1.8,
-      tickerSpeed: 4,
+      hazeAmount: 0.08,
+      hazeFloor: 0.02,
+      hazeScale: 0.055,
+      hazeSpeed: 0.045,
+      tickerEcho: 0.25,
+      tickerHotChance: 0.15,
+      tickerHotLum: 0.84,
+      tickerLenVar: 6,
+      tickerLum: 0.6,
+      tickerLumVar: 0.16,
+      tickerMinLen: 2,
+      tickerPeriod: 9,
+      tickerSpeed: 6,
     },
-    ramp: " ·:-=1739#@",
-    rows: 72,
+    ramp: " ·:-|=+#@",
+    rows: 104,
   },
-  update(dt: number, context: SceneContext): void {
-    const { buffer, lights, time } = context;
+  update(_dt: number, context: SceneContext): void {
+    const { buffer, time } = context;
     const {
-      ambientAmount = 0.04,
-      ambientScale = 0.09,
-      ambientSpeed = 0.05,
-      blinkRate = 0.7,
-      flickerAmount = 0.12,
-      flickerSpeed = 1.6,
-      glowIntensity = 0.075,
-      glowRadius = 0.7,
-      screenBrightness = 1,
-      scrollSpeed = 1.8,
-      tickerSpeed = 4,
+      hazeAmount = 0.08,
+      hazeFloor = 0.02,
+      hazeScale = 0.055,
+      hazeSpeed = 0.045,
+      tickerEcho = 0.25,
+      tickerHotChance = 0.15,
+      tickerHotLum = 0.84,
+      tickerLenVar = 6,
+      tickerLum = 0.6,
+      tickerLumVar = 0.16,
+      tickerMinLen = 2,
+      tickerPeriod = 9,
+      tickerSpeed = 6,
     } = this.tuning.motion;
-    const width = buffer.width;
+    const w = buffer.width;
+    const h = buffer.height;
     const data = buffer.data;
 
-    if (base.length !== data.length) {
-      buildScene(width, buffer.height);
+    if (baseCols !== w || baseRows !== h) {
+      buildBase(w, h);
     }
 
-    // 1) Architecture + breathing dark air (only cells darker than 0.1
-    //    shimmer, so desks, monitors and the wall line stay still).
-    const drift = time * ambientSpeed;
+    const geo = geometry(w, h);
 
-    for (let y = 0; y < buffer.height; y++) {
-      const ny = y * ambientScale * 1.6;
-      const rowBase = y * width;
+    // 1) Air: haze breathes only in the porch shadow between the
+    // capitals and the stylobate (night air between the columns),
+    // sampled on a coarse lattice and bilinearly upsampled.
+    const stride = 4;
+    const gw = Math.floor(w / stride) + 2;
+    const gh = Math.floor(h / stride) + 2;
 
-      for (let x = 0; x < width; x++) {
-        const b = base[rowBase + x] ?? 0;
-
-        if (b < 0.1 && ambientAmount > 0) {
-          const n = fbm2(ambientNoise, x * ambientScale + drift, ny + drift * 0.35, 2);
-          const v = b + (n - 0.5) * 2 * ambientAmount;
-          data[rowBase + x] = v < 0 ? 0 : v > 1 ? 1 : v;
-        } else {
-          data[rowBase + x] = b;
-        }
-      }
+    if (hazeLattice.length !== gw * gh) {
+      hazeLattice = new Float32Array(gw * gh);
     }
 
-    // 2) The ticker: one row of digits drifting sideways under the wall
-    //    line, grouped like quotes with dark gaps between the groups.
-    const tickerShift = Math.floor(time * tickerSpeed);
-    const tickerRow = tickerY * width;
+    for (let gy = 0; gy < gh; gy++) {
+      const ny = gy * stride * hazeScale * 1.4 + time * hazeSpeed * 0.6;
 
-    for (let x = tickerX0; x <= tickerX1; x++) {
-      const tape = x + tickerShift;
-      const group = Math.floor(tape / 9);
-      const offset = tape - group * 9;
-      const groupLen = 4 + Math.floor(hash(7, group, 1) * 3);
-
-      if (offset < groupLen) {
-        data[tickerRow + x] = LUM.tickerMin + (LUM.tickerMax - LUM.tickerMin) * hash(7, tape, 2);
+      for (let gx = 0; gx < gw; gx++) {
+        hazeLattice[gy * gw + gx] = fbm2(hazeNoise, gx * stride * hazeScale + time * hazeSpeed, ny, 2);
       }
     }
 
-    // 3) Six screens: silent figures scrolling up one discrete row at a time,
-    //    per-monitor speed and phase, gap columns like a quote table. Digits
-    //    exist ONLY here and on the ticker row.
-    for (const [index, monitor] of monitors.entries()) {
-      const scrolled = Math.floor(time * scrollSpeed * monitor.speedMul + monitor.phase);
+    for (let y = 0; y < h; y++) {
+      const gy = y / stride;
+      const gy0 = Math.floor(gy);
+      const fy = gy - gy0;
+      const rowA = gy0 * gw;
+      const rowB = (gy0 + 1) * gw;
+      const inPorch = y >= geo.shaftTop && y < geo.stylTop;
 
-      for (let cy = 0; cy < monitor.ih; cy++) {
-        const line = scrolled + cy;
-        const dimRow = hash(monitor.seed, line, 997) < 0.22;
-        const rowBase = (monitor.iy0 + cy) * width;
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        const b = base[i] ?? 0;
 
-        for (let cx = 0; cx < monitor.iw; cx++) {
-          let v: number = LUM.screenBg;
-
-          if (cx % 5 !== 4 && hash(monitor.seed, line * 131 + cx, 61) > 0.25) {
-            v = dimRow
-              ? LUM.figureMin
-              : LUM.figureMin + (LUM.figureMax - LUM.figureMin) * hash(monitor.seed, line * 977 + cx * 7, 199);
-          }
-
-          v *= screenBrightness;
-          data[rowBase + monitor.ix0 + cx] = v < 0 ? 0 : v > 0.92 ? 0.92 : v;
+        if (!inPorch) {
+          data[i] = b;
+          continue;
         }
+
+        const gx = x / stride;
+        const gx0 = Math.floor(gx);
+        const fx = gx - gx0;
+        const top = (hazeLattice[rowA + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowA + gx0 + 1] ?? 0) * fx;
+        const bottom = (hazeLattice[rowB + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowB + gx0 + 1] ?? 0) * fx;
+        const air = clamp01(hazeFloor + hazeAmount * (top * (1 - fy) + bottom * fy));
+        data[i] = air > b ? air : b;
       }
+    }
 
-      // A quote updates: one cell blinks to full ink, briefly, rarely.
-      if (blinkRate > 0) {
-        const beat = time * blinkRate + index * 0.37;
-        const tick = Math.floor(beat);
+    // 2) The ticker: the one motion and the one lit strip — an abstract
+    // band of tick marks and short dashes drifting right-to-left along
+    // the architrave, between the frieze and the columns. Dash lengths,
+    // gaps and brightness are hashed on floor(tape position): pure
+    // f(time), no letters, no flicker. A dim echo softens the channel
+    // rows above and below without leaving the '·' band.
+    if (geo.tickerRow < h) {
+      const shift = time * tickerSpeed;
+      const period = Math.max(3, Math.round(tickerPeriod));
+      const rowBase = geo.tickerRow * w;
 
-        if (beat - tick < 0.35) {
-          const bx = Math.floor(hash(monitor.seed, tick, 5) * monitor.iw);
-          const by = Math.floor(hash(monitor.seed, tick, 11) * monitor.ih);
-          data[(monitor.iy0 + by) * width + monitor.ix0 + bx] = LUM.blink;
+      for (let x = 0; x < w; x++) {
+        const tape = Math.floor(x + shift);
+        const g = Math.floor(tape / period);
+        const o = tape - g * period;
+        const len = Math.max(1, Math.round(tickerMinLen) + Math.floor(hash(g, 3, 11) * tickerLenVar));
+
+        if (o < len) {
+          const hot = hash(g, 7, 13) < tickerHotChance;
+          const v = hot ? tickerHotLum : tickerLum + tickerLumVar * (0.6 * hash(g, 5, 17) + 0.4 * hash(g, o + 7, 29));
+
+          data[rowBase + x] = clamp01(v);
+          putMax(data, w, h, x, geo.tickerRow - 1, v * tickerEcho);
+          putMax(data, w, h, x, geo.tickerRow + 1, v * tickerEcho);
         }
-      }
-
-      // 4) Glow pooling on the desk, flickering slightly (runner stamps it).
-      const light = lights[index];
-
-      if (light) {
-        const flick = 1 + flickerAmount * (flickerNoise(time * flickerSpeed, 50 + index * 7.7) - 0.5);
-        light.intensity = Math.max(0, glowIntensity * monitor.scale * flick);
-        light.radius = Math.max(1, (monitor.iw + 2) * glowRadius);
-        light.x = monitor.cx;
-        light.y = monitor.deskY;
       }
     }
   },
