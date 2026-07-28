@@ -1,21 +1,17 @@
 /**
  * Scene 2 — "stage": the University Theatre at Yale, seen from the house.
  *
- * Silhouette before texture, and one light source: the ghost light. The
- * proscenium now fills the frame edge to edge — sitting close, the arch is
- * the whole field of view — jambs with fluted panels rising from bright
- * bases into the dark, a full entablature (cornice, dentil course, triglyph
- * frieze, architrave) across the top. Inside: a teaser curtain whose
- * scalloped hem breathes — the ONE quiet idiomatic motion — black velour
- * legs behind a dark seam, and the ghost light drawn as a real object: a
- * caged bulb (hot '@' core in a wire cage) on a socket collar and thin
- * pole over a splayed tripod, pooling on the deck around its feet. A lone
- * rim-lit figure — sloped shoulders, arms at the sides, split legs — stands
- * at the pool's edge, lit side toward the bulb, dimmer than it. Below the
- * apron an orchestra-pit gap, then four curved seat rows whose center
- * aisle widens toward the viewer. Haze breathes only inside the opening
- * (dust in the ghost light). Steady by default — no flicker (that motion
- * belongs to the corridor scene).
+ * Silhouette before texture. The proscenium fills the frame edge to edge —
+ * sitting close, the arch is the whole field of view — jambs with fluted
+ * panels rising from bright bases into the dark, a full entablature
+ * (cornice, dentil course, triglyph frieze, architrave) across the top.
+ * Inside: a teaser curtain whose scalloped hem breathes — the ONE quiet
+ * idiomatic motion — black velour legs behind a dark seam, and nothing
+ * else: the stage stands empty, a vast dark opening over a bare floor
+ * line. Below the apron an orchestra-pit gap, then four curved seat rows
+ * whose center aisle widens toward the viewer. Haze breathes only inside
+ * the opening (dust hanging in an empty house). Steady by default — no
+ * flicker (that motion belongs to the corridor scene).
  *
  * Nothing human-readable is rendered here; the chapter prose beside this
  * scene is DOM.
@@ -30,9 +26,8 @@ const CURTAIN_LUM = 0.28; // ':' — teaser body
 const CURTAIN_HEM_LUM = 0.38; // '-' — teaser scalloped hem
 const LEG_FOLD_LUM = 0.26; // ':' — velour leg fold (alternating with '·')
 const LEG_SHADOW_LUM = 0.12; // '·' — velour leg counter-fold
-const LEG_SPILL_LUM = 0.36; // '-' — ghost-light kiss on the low inner leg edge
+const LEG_EDGE_LUM = 0.36; // '-' — the onstage edge of each leg
 const SEAT_LUMS = [0.22, 0.28, 0.36, 0.42] as const; // back arc -> front arc
-const SEAT_SPILL_LUM = 0.48; // '|' — spill through the opening on the front row center
 const APRON_LUM = 0.5; // '|' — apron lip below the arch (survives bin 4)
 const FRAME_LOW_LUM = 0.62; // '=' — jamb bases nearest the bulb
 const FRAME_MID_LUM = 0.54; // '|' — jamb middles
@@ -44,23 +39,6 @@ const ENTAB_FILL_LUM = 0.52; // '|' — frieze reads as a triglyph band and surv
 const ARRIS_LOW_LUM = 0.7; // '+' — inner arris catching the light, lower half
 const ARRIS_HIGH_LUM = 0.52; // '|' — inner arris, upper half
 const DENTIL_LUM = 0.52; // '|' — dentil blocks under the cornice
-const STAND_LUM = 0.5; // '|' — ghost light pole, one thin cell
-const COLLAR_LUM = 0.55; // '=' — the socket collar under the bulb
-const TRIPOD_LUM = 0.56; // '=' — splayed tripod legs, one step above the pool
-const FOOT_LUM = 0.58; // '=' — tripod feet on the deck
-const CAGE_LUM = 0.28; // ':' — the wire cage around the bulb
-const BULB_TOP_LUM = 0.88; // '#/@' — upper bulb cell
-const BULB_RING_LUM = 0.55; // '=' pre-light; the SDK halo lifts it to '#', never '@'
-const BULB_LUM = 0.95; // '@' — the bulb core: the single brightest cell in the scene
-const POOL_DECK_LUM = 0.5; // peak of the elliptical pool on the deck
-const POOL_BOOST = 0.24; // floor line lifts '=' -> '+'/'#' around the stand
-const FIGURE_CROWN_LUM = 0.5; // '|' — head + upper shoulders, a compact knob
-const FIGURE_SLOPE_LUM = 0.44; // '-' — the shoulder slope
-const FIGURE_BODY_LUM = 0.26; // ':' — torso interior, near-shadow
-const FIGURE_EDGE_LUM = 0.3; // ':' — the faint far edge of the torso
-const FIGURE_ARM_LUM = 0.24; // ':' low — arms in shadow beside the lit edge
-const FIGURE_HAND_LUM = 0.36; // '-' — hands and feet
-const FIGURE_RIM_LUM = 0.56; // '=' — the silhouette edge facing the bulb
 
 /** Jamb panel-groove columns, as offsets from the inner arris (dx). */
 const FLUTE_DX = [5, 9] as const;
@@ -70,10 +48,8 @@ interface StageGeometry {
   apronL: number;
   apronR: number;
   apronRow: number;
-  bulbRow: number;
   cx: number;
   entabTop: number;
-  figureHeight: number;
   floorRow: number;
   jambW: number;
   legW: number;
@@ -111,10 +87,8 @@ function geometry(cols: number, rows: number): StageGeometry {
     apronL: 2,
     apronR: cols - 3,
     apronRow: Math.min(rows - 1, floorRow + 1),
-    bulbRow: Math.max(openTop + 2, floorRow - Math.max(4, Math.round(rows * 0.145))),
     cx: Math.round(cols * 0.5),
     entabTop: Math.max(1, Math.round(rows * 0.05)),
-    figureHeight: Math.max(8, Math.round(rows * 0.17)),
     floorRow,
     jambW,
     legW: Math.max(3, Math.round(cols * 0.03)),
@@ -240,12 +214,11 @@ function buildBase(cols: number, rows: number): void {
 
       const u = (x - geo.cx) / halfSpan;
       const y = row - Math.round(arc.sag * u * u);
-      const spill = front && Math.abs(x - geo.cx) <= Math.round(cols * 0.11) ? SEAT_SPILL_LUM : lum;
 
-      putSet(base, cols, rows, x, y, spill);
+      putSet(base, cols, rows, x, y, lum);
 
       if (front) {
-        putSet(base, cols, rows, x, y + 1, spill * 0.75);
+        putSet(base, cols, rows, x, y + 1, lum * 0.75);
       }
     }
   }
@@ -256,8 +229,8 @@ export const stageScene: SceneModule = {
     "============",
     "|:--------:|",
     "|:        :|",
-    "|:   @    :|",
-    "|:   |    :|",
+    "|:        :|",
+    "|:        :|",
     "============",
   ],
   id: "stage",
@@ -265,18 +238,6 @@ export const stageScene: SceneModule = {
     const { width, height } = context.buffer;
 
     buildBase(width, height);
-
-    if (context.lights.length === 0) {
-      const geo = geometry(width, height);
-      const motion = this.tuning.motion;
-
-      context.lights.push({
-        intensity: motion.lightIntensity ?? 0.24,
-        radius: motion.lightRadius ?? 6,
-        x: Math.round(clamp01(motion.lightX ?? 0.46) * (width - 1)),
-        y: geo.bulbRow,
-      });
-    }
   },
   summaryChip: "Yale, 2016–2019 — computer science and mainstage musicals.",
   tuning: {
@@ -285,18 +246,12 @@ export const stageScene: SceneModule = {
     cols: 224,
     minimalGlyph: "·",
     motion: {
-      figureX: 0.55,
       gustDepth: 0.35,
       gustRate: 0.02,
       hazeAmount: 0.09,
       hazeFloor: 0.03,
       hazeScale: 0.055,
       hazeSpeed: 0.045,
-      lightBreath: 0,
-      lightIntensity: 0.24,
-      lightRadius: 6,
-      lightX: 0.46,
-      poolHalfWidth: 20,
       swagCount: 5,
       swagDepth: 3,
       swayAmplitude: 0.9,
@@ -307,20 +262,14 @@ export const stageScene: SceneModule = {
     rows: 104,
   },
   update(_dt: number, context: SceneContext): void {
-    const { buffer, lights, time } = context;
+    const { buffer, time } = context;
     const {
-      figureX = 0.55,
       gustDepth = 0.35,
       gustRate = 0.02,
       hazeAmount = 0.09,
       hazeFloor = 0.03,
       hazeScale = 0.055,
       hazeSpeed = 0.045,
-      lightBreath = 0,
-      lightIntensity = 0.24,
-      lightRadius = 6,
-      lightX = 0.46,
-      poolHalfWidth = 20,
       swagCount = 5,
       swagDepth = 3,
       swayAmplitude = 0.9,
@@ -412,153 +361,18 @@ export const stageScene: SceneModule = {
     }
 
     // 3) Leg curtains: black velour behind a dark seam (one unlit column
-    // inside each arris), alternating fold/shadow columns, with a low spill
-    // kiss on the inner edge where the ghost light reaches the fabric.
+    // inside each arris), alternating fold/shadow columns, the onstage
+    // edge one step brighter so the fabric plane reads.
     for (let y = geo.openTop + 1; y < geo.floorRow; y++) {
-      const lowHalf = y > geo.openTop + (geo.floorRow - geo.openTop) * 0.6;
-
       for (let dx = 1; dx < geo.legW; dx++) {
         const fold = dx % 2 === 0 ? LEG_FOLD_LUM : LEG_SHADOW_LUM;
         putMax(data, w, h, geo.openL + 1 + dx, y, fold);
         putMax(data, w, h, geo.openR - 1 - dx, y, fold);
       }
 
-      const edge = lowHalf ? LEG_SPILL_LUM : LEG_FOLD_LUM;
-      putMax(data, w, h, geo.openL + geo.legW, y, edge);
-      putMax(data, w, h, geo.openR - geo.legW, y, edge);
+      putMax(data, w, h, geo.openL + geo.legW, y, LEG_EDGE_LUM);
+      putMax(data, w, h, geo.openR - geo.legW, y, LEG_EDGE_LUM);
     }
 
-    // 4) The ghost light, drawn as the real object: pool on the deck
-    // first, then the splayed tripod, the thin pole up to a socket collar,
-    // and the caged bulb — '@' core, '#' crown, '=' ring, ':' wire cage.
-    // The SDK light adds only a tight halo in the haze.
-    const standX = Math.round(clamp01(lightX) * (w - 1));
-    const poolHalf = Math.max(2, poolHalfWidth);
-    const deckY = geo.floorRow - 1;
-
-    for (let dy = -4; dy <= 0; dy++) {
-      const y = deckY + dy;
-
-      if (y <= geo.openTop) {
-        continue;
-      }
-
-      for (let dx = -poolHalf; dx <= poolHalf; dx++) {
-        const t = (dx / poolHalf) ** 2 + (dy / 3.2) ** 2;
-
-        if (t >= 1) {
-          continue;
-        }
-
-        putMax(data, w, h, standX + dx, y, POOL_DECK_LUM * (1 - t) ** 1.5);
-      }
-    }
-
-    for (let x = geo.openL; x <= geo.openR; x++) {
-      const d = (x - standX) / poolHalf;
-      const boost = POOL_BOOST * Math.exp(-d * d);
-      putMax(data, w, h, x, geo.floorRow, FRAME_LOW_LUM + boost);
-      putMax(data, w, h, x, geo.apronRow, APRON_LUM + boost * 0.4);
-    }
-
-    // Tripod: three splayed legs meeting the pole two rows above the deck.
-    for (let k = 1; k <= 3; k++) {
-      const y = geo.floorRow - 4 + k;
-      putMax(data, w, h, standX - k, y, TRIPOD_LUM);
-      putMax(data, w, h, standX + k, y, TRIPOD_LUM);
-    }
-
-    putMax(data, w, h, standX - 3, deckY, FOOT_LUM);
-    putMax(data, w, h, standX + 3, deckY, FOOT_LUM);
-    putMax(data, w, h, standX, deckY, FOOT_LUM);
-
-    // Pole from the tripod crown up to the socket collar.
-    for (let y = geo.bulbRow + 3; y <= geo.floorRow - 4; y++) {
-      putMax(data, w, h, standX, y, STAND_LUM);
-    }
-
-    for (let dx = -1; dx <= 1; dx++) {
-      putMax(data, w, h, standX + dx, geo.bulbRow + 2, COLLAR_LUM);
-    }
-
-    // The caged bulb: wire cage columns flanking a two-cell bulb.
-    for (let dy = -2; dy <= 1; dy++) {
-      putMax(data, w, h, standX - 2, geo.bulbRow + dy, CAGE_LUM);
-      putMax(data, w, h, standX + 2, geo.bulbRow + dy, CAGE_LUM);
-    }
-
-    putMax(data, w, h, standX, geo.bulbRow - 3, CAGE_LUM); // cage crown
-    putMax(data, w, h, standX - 1, geo.bulbRow, BULB_RING_LUM);
-    putMax(data, w, h, standX + 1, geo.bulbRow, BULB_RING_LUM);
-    putMax(data, w, h, standX - 1, geo.bulbRow - 1, BULB_RING_LUM);
-    putMax(data, w, h, standX + 1, geo.bulbRow - 1, BULB_RING_LUM);
-    putMax(data, w, h, standX, geo.bulbRow - 2, BULB_RING_LUM);
-    putMax(data, w, h, standX, geo.bulbRow - 1, BULB_TOP_LUM);
-    putMax(data, w, h, standX, geo.bulbRow, BULB_LUM);
-
-    // 5) The figure: still, at the pool's edge, rim-lit by the bulb and
-    // dimmer than it. The bright rim column carries the silhouette; the
-    // torso interior stays near-shadow (a uniform grid reads as windows,
-    // not a person): compact head, sloped shoulders, arms in shadow at
-    // the sides, split legs around a true dark gap, feet.
-    const figX = Math.round(clamp01(figureX) * (w - 1));
-    const figTop = Math.max(geo.openTop + 1, geo.floorRow - geo.figureHeight);
-    const rimLeft = figX > standX; // which side faces the bulb
-    const legTop = Math.max(figTop + 6, geo.floorRow - Math.max(3, Math.round(geo.figureHeight * 0.3)));
-    const armDrop = Math.max(figTop + 6, legTop - 1);
-    const mirror = (dx: number): number => (rimLeft ? figX + dx : figX + 1 - dx);
-
-    for (let y = figTop; y < figTop + 3; y++) {
-      putMax(data, w, h, figX, y, FIGURE_CROWN_LUM); // head, 2 cells wide
-      putMax(data, w, h, figX + 1, y, FIGURE_CROWN_LUM);
-    }
-
-    for (let dx = -1; dx <= 2; dx++) {
-      putMax(data, w, h, figX + dx, figTop + 3, FIGURE_CROWN_LUM); // upper shoulders
-    }
-
-    for (let dx = -2; dx <= 3; dx++) {
-      putMax(data, w, h, figX + dx, figTop + 4, FIGURE_SLOPE_LUM); // shoulder slope, 6 wide
-    }
-
-    for (let y = figTop + 5; y < legTop; y++) {
-      putMax(data, w, h, mirror(-1), y, FIGURE_RIM_LUM); // lit torso edge
-      putMax(data, w, h, mirror(0), y, FIGURE_BODY_LUM);
-      putMax(data, w, h, mirror(1), y, FIGURE_ARM_LUM);
-      putMax(data, w, h, mirror(2), y, FIGURE_EDGE_LUM); // faint far edge
-
-      if (y < armDrop) {
-        putMax(data, w, h, mirror(-2), y, FIGURE_ARM_LUM); // arms in shadow
-        putMax(data, w, h, mirror(3), y, FIGURE_ARM_LUM);
-      }
-    }
-
-    putMax(data, w, h, mirror(-2), armDrop, FIGURE_HAND_LUM); // hands
-    putMax(data, w, h, mirror(3), armDrop, FIGURE_HAND_LUM);
-
-    for (let y = legTop; y < geo.floorRow; y++) {
-      putMax(data, w, h, mirror(-1), y, FIGURE_RIM_LUM); // near leg, lit edge
-      putMax(data, w, h, mirror(0), y, FIGURE_BODY_LUM);
-      putMax(data, w, h, mirror(2), y, FIGURE_EDGE_LUM); // far leg past a dark gap
-    }
-
-    putMax(data, w, h, mirror(-2), geo.floorRow - 1, FIGURE_HAND_LUM); // feet
-    putMax(data, w, h, mirror(3), geo.floorRow - 1, FIGURE_HAND_LUM);
-
-    // Rim light on the head and shoulder rows toward the bulb.
-    for (let y = figTop; y < figTop + 4; y++) {
-      putMax(data, w, h, rimLeft ? figX : figX + 1, y, FIGURE_RIM_LUM);
-    }
-
-    putMax(data, w, h, mirror(-2), figTop + 4, FIGURE_RIM_LUM);
-
-    const light = lights[0];
-
-    if (light) {
-      light.x = standX;
-      light.y = geo.bulbRow;
-      light.radius = Math.max(0.5, lightRadius);
-      light.intensity = clamp01(lightIntensity * (1 + lightBreath * Math.sin(time * 1.7)));
-    }
   },
 };

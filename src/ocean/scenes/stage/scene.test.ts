@@ -29,10 +29,8 @@ function landmarks(cols = stageScene.tuning.cols, rows = stageScene.tuning.rows)
   const floorRow = Math.round(rows * 0.82);
 
   return {
-    bulbRow: Math.max(openTop + 2, floorRow - Math.max(4, Math.round(rows * 0.145))),
     cols,
     cx: Math.round(cols * 0.5),
-    figTop: Math.max(openTop + 1, floorRow - Math.max(8, Math.round(rows * 0.17))),
     floorRow,
     jambW,
     openL: 2 + jambW,
@@ -102,12 +100,7 @@ test("stage adapts to arbitrary small grids without wrapping or stray lights", (
 
     assertBufferShape(context.buffer, cols, rows);
     assertBufferInRange(context.buffer);
-
-    const light = context.lights[0]!;
-    expect(light.y).toBeGreaterThanOrEqual(0);
-    expect(light.y).toBeLessThan(rows);
-    expect(light.x).toBeGreaterThanOrEqual(0);
-    expect(light.x).toBeLessThan(cols);
+    expect(context.lights.length).toBe(0);
   }
 
   // Restore the module-level base cache for the tuned grid.
@@ -217,36 +210,22 @@ test("stage proscenium: solid jambs frame the opening down to the floor", () => 
   expect(band(1, Math.round(rows * 0.55))).toBeLessThanOrEqual(1);
 });
 
-test("stage ghost light: the bulb is the brightest cell and pools on the deck", () => {
+test("stage floor: the '='-weight floor line spans the opening", () => {
   const context = makeContext();
   stageScene.init(context);
 
   context.time = 1 / 60;
   stageScene.update(1 / 60, context);
 
-  const { bulbRow, cols, floorRow, openL, rampLen } = landmarks();
-  const standX = Math.round((stageScene.tuning.motion.lightX ?? 0.46) * (cols - 1));
+  const { cols, floorRow, openL, openR, rampLen } = landmarks();
   const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
 
-  // Pre-light, the bulb is already the scene maximum.
-  let max = 0;
-
-  for (const v of context.buffer.data) {
-    max = Math.max(max, v);
+  for (let x = openL; x <= openR; x++) {
+    expect(band(x, floorRow)).toBeGreaterThanOrEqual(5); // '='
   }
-
-  expect(context.buffer.data[bulbRow * cols + standX]).toBe(max);
-  expect(band(standX, bulbRow)).toBe(rampLen - 1); // '@'
-
-  // The floor line glows around the stand: at least one band brighter at
-  // the stand than at the opening's edge.
-  expect(band(standX, floorRow)).toBeGreaterThanOrEqual(band(openL + 2, floorRow) + 1);
-
-  // The deck pool exists above the floor line near the base.
-  expect(band(standX - 3, floorRow - 2)).toBeGreaterThanOrEqual(2);
 });
 
-test("stage figure: 2-cell head, sloped shoulders, one mass, dimmer than the bulb", () => {
+test("stage is empty: no objects on the deck and no registered lights", () => {
   const context = makeContext();
   stageScene.init(context);
 
@@ -254,59 +233,19 @@ test("stage figure: 2-cell head, sloped shoulders, one mass, dimmer than the bul
   stageScene.update(1 / 60, context);
   applyLights(context.buffer, context.lights); // the runner's post-update pass
 
-  const { bulbRow, cols, figTop, floorRow, rampLen } = landmarks();
-  const figX = Math.round((stageScene.tuning.motion.figureX ?? 0.55) * (cols - 1));
+  expect(context.lights.length).toBe(0);
+
+  // The stage interior between the legs stays bare: nothing but haze
+  // between the hem zone and the floor line.
+  const { cols, floorRow, openL, openR, openTop, rampLen } = landmarks();
+  const legW = Math.max(3, Math.round(cols * 0.03));
   const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
 
-  // Head: exactly 2 cells wide, flanked by darker air, connected below.
-  const headBand = Math.min(band(figX, figTop), band(figX + 1, figTop));
-  expect(headBand).toBeGreaterThanOrEqual(band(figX - 1, figTop) + 2);
-  expect(headBand).toBeGreaterThanOrEqual(band(figX + 2, figTop) + 2);
-  expect(headBand).toBeGreaterThanOrEqual(band(figX, figTop - 1) + 2);
-  expect(band(figX, figTop + 3)).toBeGreaterThanOrEqual(headBand); // one contiguous mass
-
-  // Shoulder slope: 6 cells wide at its widest, flanked by darker air.
-  const shoulderY = figTop + 4;
-  let shoulderBand = rampLen;
-
-  for (let dx = -2; dx <= 3; dx++) {
-    shoulderBand = Math.min(shoulderBand, band(figX + dx, shoulderY));
-  }
-
-  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX - 3, shoulderY) + 2);
-  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX + 4, shoulderY) + 2);
-
-  // The figure stays dimmer than the bulb: the light source wins.
-  const standX = Math.round((stageScene.tuning.motion.lightX ?? 0.46) * (cols - 1));
-
-  for (let y = figTop; y < floorRow; y++) {
-    for (let dx = -2; dx <= 3; dx++) {
-      expect(band(figX + dx, y)).toBeLessThan(band(standX, bulbRow));
+  for (let y = openTop + 18; y < floorRow - 1; y++) {
+    for (let x = openL + legW + 1; x <= openR - legW - 1; x++) {
+      expect(band(x, y)).toBeLessThanOrEqual(1); // ' ' or '·' haze only
     }
   }
-});
-
-test("stage registers exactly one light that tracks its motion tunables", () => {
-  const context = makeContext();
-  stageScene.init(context);
-
-  context.time = 1 / 60;
-  stageScene.update(1 / 60, context);
-
-  expect(context.lights.length).toBe(1);
-  const light = context.lights[0]!;
-  expect(light.intensity).toBeGreaterThan(0);
-  expect(light.intensity).toBeLessThanOrEqual(1);
-  expect(light.radius).toBeGreaterThan(0);
-
-  withMotion({ lightIntensity: 0.4, lightRadius: 7, lightX: 0.3 }, () => {
-    context.time += 1 / 60;
-    stageScene.update(1 / 60, context);
-
-    expect(light.x).toBe(Math.round(0.3 * (stageScene.tuning.cols - 1)));
-    expect(light.radius).toBe(7);
-    expect(light.intensity).toBeCloseTo(0.4, 5);
-  });
 });
 
 test("stage house: seat rows exist and the widening center aisle stays clear", () => {
