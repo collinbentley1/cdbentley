@@ -22,21 +22,22 @@ function makeContext(cols = stageScene.tuning.cols, rows = stageScene.tuning.row
   };
 }
 
-/** Landmarks mirrored from the scene's proportional geometry. */
+/** Landmarks mirrored from the scene's proportional geometry (full-bleed). */
 function landmarks(cols = stageScene.tuning.cols, rows = stageScene.tuning.rows) {
-  const cx = Math.round(cols * 0.5);
-  const halfOpen = Math.max(8, Math.round(cols * 0.21));
-  const floorRow = Math.round(rows * 0.8);
+  const jambW = Math.max(4, Math.round(cols * 0.065));
+  const openTop = Math.round(rows * 0.135);
+  const floorRow = Math.round(rows * 0.82);
 
   return {
+    bulbRow: Math.max(openTop + 2, floorRow - Math.max(4, Math.round(rows * 0.145))),
     cols,
-    cx,
-    figTop: Math.max(Math.round(rows * 0.15) + 1, floorRow - Math.max(6, Math.round(rows * 0.15))),
+    cx: Math.round(cols * 0.5),
+    figTop: Math.max(openTop + 1, floorRow - Math.max(8, Math.round(rows * 0.17))),
     floorRow,
-    jambW: Math.max(3, Math.round(cols * 0.04)),
-    openL: cx - halfOpen,
-    openR: cx + halfOpen,
-    openTop: Math.round(rows * 0.15),
+    jambW,
+    openL: 2 + jambW,
+    openR: cols - 3 - jambW,
+    openTop,
     rampLen: Array.from(stageScene.tuning.ramp).length,
     rows,
   };
@@ -164,7 +165,7 @@ test("stage breathes: the teaser hem moves even with the haze stilled", () => {
     const { cols, openL, openR, openTop } = landmarks();
     let hemChanged = 0;
 
-    for (let y = openTop; y < openTop + 14; y++) {
+    for (let y = openTop; y < openTop + 16; y++) {
       for (let x = openL; x <= openR; x++) {
         if (Math.abs((before[y * cols + x] ?? 0) - (context.buffer.data[y * cols + x] ?? 0)) > 1e-6) {
           hemChanged++;
@@ -183,12 +184,18 @@ test("stage proscenium: solid jambs frame the opening down to the floor", () => 
   context.time = 1 / 60;
   stageScene.update(1 / 60, context);
 
-  const { cols, floorRow, jambW, openL, openR, openTop, rampLen } = landmarks();
+  const { cols, floorRow, jambW, openL, openR, openTop, rampLen, rows } = landmarks();
   const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
+  const fluteDx = jambW >= 12 ? [5, 9] : [];
 
-  // Jamb fill fades upward but never below the '|' band: lit from below.
+  // Jamb fill fades upward but never below the '|' band (panel grooves
+  // excepted): lit from below.
   for (let y = openTop; y <= floorRow; y++) {
     for (let dx = 2; dx <= jambW; dx++) {
+      if (fluteDx.includes(dx)) {
+        continue;
+      }
+
       expect(band(openL - dx, y)).toBeGreaterThanOrEqual(4); // '|' or brighter
       expect(band(openR + dx, y)).toBeGreaterThanOrEqual(4);
     }
@@ -197,15 +204,17 @@ test("stage proscenium: solid jambs frame the opening down to the floor", () => 
   // The jamb base outshines the jamb top (one low light source).
   expect(band(openL - 3, floorRow - 2)).toBeGreaterThan(band(openL - 3, openTop + 2));
 
-  // Entablature: cornice and architrave lines span wider than the opening.
-  const entabTop = Math.max(1, Math.round(stageScene.tuning.rows * 0.075));
+  // Entablature: the cornice band spans the full canvas width.
+  const entabTop = Math.max(1, Math.round(rows * 0.05));
 
-  for (let x = openL - jambW; x <= openR + jambW; x++) {
+  for (let x = 0; x < cols; x++) {
     expect(band(x, entabTop)).toBeGreaterThanOrEqual(5); // '=' cornice
   }
 
-  // The wall outside the frame stays dark (silhouette before texture).
-  expect(band(2, Math.round(stageScene.tuning.rows * 0.55))).toBeLessThanOrEqual(1);
+  // Above the cornice and outside the jambs stays dark (full-bleed frame).
+  expect(band(2, Math.max(0, entabTop - 1))).toBeLessThanOrEqual(1);
+  expect(band(0, Math.round(rows * 0.55))).toBeLessThanOrEqual(1);
+  expect(band(1, Math.round(rows * 0.55))).toBeLessThanOrEqual(1);
 });
 
 test("stage ghost light: the bulb is the brightest cell and pools on the deck", () => {
@@ -215,9 +224,8 @@ test("stage ghost light: the bulb is the brightest cell and pools on the deck", 
   context.time = 1 / 60;
   stageScene.update(1 / 60, context);
 
-  const { cols, floorRow, openL, rampLen, rows } = landmarks();
+  const { bulbRow, cols, floorRow, openL, rampLen } = landmarks();
   const standX = Math.round((stageScene.tuning.motion.lightX ?? 0.46) * (cols - 1));
-  const bulbRow = Math.max(Math.round(rows * 0.15) + 1, floorRow - Math.max(3, Math.round(rows * 0.1)));
   const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
 
   // Pre-light, the bulb is already the scene maximum.
@@ -238,7 +246,7 @@ test("stage ghost light: the bulb is the brightest cell and pools on the deck", 
   expect(band(standX - 3, floorRow - 2)).toBeGreaterThanOrEqual(2);
 });
 
-test("stage figure: 2-cell head into 4-cell shoulders, one mass, dimmer than the bulb", () => {
+test("stage figure: 2-cell head, sloped shoulders, one mass, dimmer than the bulb", () => {
   const context = makeContext();
   stageScene.init(context);
 
@@ -246,7 +254,7 @@ test("stage figure: 2-cell head into 4-cell shoulders, one mass, dimmer than the
   stageScene.update(1 / 60, context);
   applyLights(context.buffer, context.lights); // the runner's post-update pass
 
-  const { cols, figTop, floorRow, rampLen, rows } = landmarks();
+  const { bulbRow, cols, figTop, floorRow, rampLen } = landmarks();
   const figX = Math.round((stageScene.tuning.motion.figureX ?? 0.55) * (cols - 1));
   const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
 
@@ -255,25 +263,24 @@ test("stage figure: 2-cell head into 4-cell shoulders, one mass, dimmer than the
   expect(headBand).toBeGreaterThanOrEqual(band(figX - 1, figTop) + 2);
   expect(headBand).toBeGreaterThanOrEqual(band(figX + 2, figTop) + 2);
   expect(headBand).toBeGreaterThanOrEqual(band(figX, figTop - 1) + 2);
-  expect(band(figX, figTop + 2)).toBeGreaterThanOrEqual(headBand); // one contiguous mass
+  expect(band(figX, figTop + 3)).toBeGreaterThanOrEqual(headBand); // one contiguous mass
 
-  // Shoulder line: 4 cells wide, flanked by darker air.
-  const shoulderY = figTop + 2;
+  // Shoulder slope: 6 cells wide at its widest, flanked by darker air.
+  const shoulderY = figTop + 4;
   let shoulderBand = rampLen;
 
-  for (let dx = -1; dx <= 2; dx++) {
+  for (let dx = -2; dx <= 3; dx++) {
     shoulderBand = Math.min(shoulderBand, band(figX + dx, shoulderY));
   }
 
-  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX - 2, shoulderY) + 2);
-  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX + 3, shoulderY) + 2);
+  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX - 3, shoulderY) + 2);
+  expect(shoulderBand).toBeGreaterThanOrEqual(band(figX + 4, shoulderY) + 2);
 
   // The figure stays dimmer than the bulb: the light source wins.
   const standX = Math.round((stageScene.tuning.motion.lightX ?? 0.46) * (cols - 1));
-  const bulbRow = Math.max(Math.round(rows * 0.15) + 1, floorRow - Math.max(3, Math.round(rows * 0.1)));
 
   for (let y = figTop; y < floorRow; y++) {
-    for (let dx = -1; dx <= 2; dx++) {
+    for (let dx = -2; dx <= 3; dx++) {
       expect(band(figX + dx, y)).toBeLessThan(band(standX, bulbRow));
     }
   }
@@ -317,13 +324,13 @@ test("stage house: seat rows exist and the widening center aisle stays clear", (
     expect(band(cx, y)).toBeLessThanOrEqual(1); // ' ' or '·'
   }
 
-  // Seat backs actually exist off-aisle at each seat row (the arcs bend, so
+  // Seat backs actually exist off-aisle at each seat arc (the arcs bend, so
   // scan a small window around the nominal row).
-  for (const offset of [0.06, 0.11, 0.175]) {
+  for (const offset of [0.048, 0.086, 0.125, 0.163]) {
     const row = floorRow + Math.round(rows * offset);
     let found = 0;
 
-    for (let y = row - 3; y <= Math.min(rows - 1, row + 1); y++) {
+    for (let y = row - 4; y <= Math.min(rows - 1, row + 1); y++) {
       for (let x = Math.round(cols * 0.2); x < Math.round(cols * 0.8); x++) {
         if (band(x, y) >= 2) {
           found++;
@@ -349,7 +356,7 @@ test("stage teaser hem: every opening column carries a connected hem", () => {
   for (let x = openL + 1; x <= openR - 1; x++) {
     const ys: number[] = [];
 
-    for (let y = openTop; y < openTop + 14; y++) {
+    for (let y = openTop; y < openTop + 16; y++) {
       if (quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen) === hemBand) {
         ys.push(y);
       }
