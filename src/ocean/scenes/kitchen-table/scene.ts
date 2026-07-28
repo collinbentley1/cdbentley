@@ -703,23 +703,34 @@ export const scene: SceneModule = {
     const pulse = bandPulse * Math.pow(crest0, arcSharp);
 
     if (pulse > 0.0005) {
-      for (let y = geo.bandY0; y <= geo.bandY1; y++) {
-        const hw = Math.round(eggHalfWidth(y, geo));
+      // Follow the plate's convex dip (same per-column offset as buildBase)
+      // so the crest brightens the curved nameplate itself, never a straight
+      // bar flashing across the grille above its edges.
+      const hwBand = Math.max(1, eggHalfWidth(geo.bandMid, geo));
+      const hwMax = Math.round(hwBand);
 
-        if (hw < 1 || y < 0 || y >= h) {
+      for (let dx = -hwMax; dx <= hwMax; dx++) {
+        const x = geo.cx + dx;
+
+        if (x < 0 || x >= w) {
           continue;
         }
 
-        const row = y * w;
+        const bandOff = Math.round(BAND_CURVE * Math.pow(Math.abs(dx) / hwBand, 2));
 
-        for (let dx = -hw; dx <= hw; dx++) {
-          const x = geo.cx + dx;
-
-          if (x < 0 || x >= w) {
+        for (let y = geo.bandY0 + bandOff; y <= geo.bandY1 + bandOff; y++) {
+          if (y < 0 || y >= h) {
             continue;
           }
 
-          data[row + x] = clamp01((data[row + x] ?? 0) + pulse * (1 - Math.abs(dx) / hw));
+          const hw = eggHalfWidth(y, geo);
+
+          if (hw < 1 || Math.abs(dx) > hw) {
+            continue;
+          }
+
+          const i = y * w + x;
+          data[i] = clamp01((data[i] ?? 0) + pulse * (1 - Math.abs(dx) / hwBand));
         }
       }
     }
