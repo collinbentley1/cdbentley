@@ -86,6 +86,17 @@ test("the tide erodes the name and the sand redraws it", () => {
   expect(recoveredAfterMin).toBeGreaterThan(minMean + 0.1);
 });
 
+test("restoration blooms from seeded anchors: per-cell delays are staggered, not a sweep", () => {
+  const context = makeContext();
+  scene.init(context);
+
+  // Run past the first swash's rush -> retreat turn so a bloom is seeded.
+  run(context, 6, 0.05);
+
+  const spread = beachDebug.bloomDelaySpread();
+  expect(spread).toBeGreaterThan(1.5); // letters + distance + jitter stagger
+});
+
 test("the quiet band keeps the name 2+ ramp steps above its sand", () => {
   const context = makeContext();
   scene.init(context);

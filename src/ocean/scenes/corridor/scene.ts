@@ -1,56 +1,38 @@
 /**
- * Scene 4 — "corridor": an empty hospital corridor.
+ * Scene 4 — "corridor": the Humana tower at night, with the city's heartbeat.
  *
- * One-point perspective. A row of fluorescent ceiling fixtures recedes
- * toward a vanishing point; their light lies on polished linoleum as a
- * dash-glyph sheen; recessed doors punctuate the walls; the far end is
- * nearly black except for one framed, illuminated sign.
+ * A monumental postmodern skyscraper in the spirit of Michael Graves'
+ * Humana Building in Louisville. A broad arcade base spans the full canvas
+ * width — a colonnade of tall post-and-lintel openings under a bright
+ * entablature — and out of it rises a centered shaft carrying a regular
+ * bay rhythm: corner piers, mullions every bay, a brighter pier-line every
+ * other bay, and three lit floor bands — storeys where the night shift is
+ * still working. The corner piers run unbroken from the arcade through an
+ * attic neck storey into the crown, so the wide loggia capital reads as
+ * load-bearing; above it a cap slab and a small beacon. City darkness all
+ * around; two low neighbor buildings sleep at the canvas edges, a couple
+ * of windows lit.
  *
- * The single idiomatic motion is fluorescent shimmer: every tube drifts a
- * few percent around full brightness on slow value noise, and ONE tube
- * (tunable) occasionally sags and recovers — a struggling ballast, not a
- * strobe. The floor sheen breathes with it: each fixture's reflection is a
- * stippled field of one glyph class whose density thins as its tube sags
- * and whose stipple crawls on slow noise — light on wax, not weave.
- * Restraint is deliberate (a11y): all modulation is smooth noise with
- * dominant periods measured in seconds (well under any flash-risk
- * frequency), amplitude is hand-tunable down to zero, and the reduced-motion
- * plain view exists site-wide (Phase C).
+ * THE LIGHT EVENT + ONE MOTION: the city's heartbeat — an EKG strip of
+ * light riding the horizon a third from the top, passing BEHIND the tower
+ * (the shaft occludes it). A '·'-level baseline carries a repeating
+ * P-QRS-T pulse train ('-'/'='/'+' strokes with a tall R spike tipped by
+ * the scene's one '@'-hot cell per beat), the whole strip translating
+ * slowly rightward: one beat every ~8 s.
+ * Health as the pulse of a corporate city — advising the C-suite on
+ * keeping it safe. The strip is a pure function of context.time (no
+ * frame-to-frame randomness); a slow breathing city-glow haze confined to
+ * the low sky is the allowed secondary motion.
  *
- * Design-brief refinements (polish pass):
- * - Floor reflection is a single glyph class (the ramp's dash band) at
- *   ~60% stipple density so it reads as sheen, not weave; nothing on the
- *   floor may leave that band.
- * - Door interiors sit 1-2 ramp steps below the wall, with a crisp 1-cell
- *   frame line stamped in screen space so doorways punch as openings.
- * - Wall luminance is down ~20% so the wall is a calm single-band dot
- *   field instead of two-band speckle (video static at zoom).
- * - The vanishing-point sign is an explicit bordered rectangle (1-cell
- *   frame, dim panel, one gapped text-suggestion row) so the glyph soup at
- *   the end of the corridor reads as A SIGN.
- *
- * Art pass (light temperature + rhythm):
- * - Tubes carry a quartic (flat-top, fast-cutoff) vertical profile with
- *   tight end caps: cold institutional bars, not warm glows.
- * - The floor sheen breaks at every door depth on its outer reach (the
- *   reflection of the recess), so the corridor floor reads wet-waxed with
- *   an interruption rhythm instead of uniform bands.
- * - The farthest right-hand doorway holds an absolute hint of glow plus a
- *   wide dim wash on the neighboring wall, giving the eye a step between
- *   the last fixture pool and the sign.
- * - The struggling ballast is the mid-corridor tube, gated to sag at long
- *   irregular intervals (median gap tens of seconds); the ambient all-tube
- *   drift is shallower so cold light reads steady between events.
- *
- * This scene renders no human-readable copy (glyphs only); the chapter
- * prose beside it is DOM.
+ * Nothing human-readable is rendered here; the chapter prose beside this
+ * scene is DOM.
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
 
-const noise = createValueNoise(41);
+const hazeNoise = createValueNoise(41);
 
-/** Deterministic per-cell white noise in [0, 1) for the sheen stipple. */
+/** Deterministic per-cell white noise in [0, 1) for lit-band window variety. */
 function cellHash(x: number, y: number): number {
   let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + 1442695041) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -58,446 +40,497 @@ function cellHash(x: number, y: number): number {
   return (h >>> 0) / 4294967295;
 }
 
-/**
- * Structural geometry — baked into the static layers at init; changing these
- * requires a reload (the live-tunable per-frame constants live in
- * tuning.motion instead, per the SDK convention).
- */
-const VANISH_Y = 0.44; // vanishing point, as a fraction of grid height
-const Z_END = 14; // corridor length in depth units; beyond it: the end wall
-const FIXTURE_Z = [1.75, 3.8, 6.0, 8.2, 10.4, 12.6] as const;
-const DOOR_Z = [2.7, 5.1, 7.5, 9.9, 12.3] as const;
+/** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
+const SHAFT_FACE_LUM = 0.13; // '·' — the dark tower face against darker sky
+const MULLION_LUM = 0.24; // ':' — vertical window-grid lines, every bay
+const MAJOR_MULLION_LUM = 0.35; // '-' — brighter pier-line every other bay
+const FLOOR_LINE_LUM = 0.19; // '·' — horizontal spandrel lines
+const PIER_LO_LUM = 0.52; // '|' — shaft corner piers, top
+const PIER_HI_LUM = 0.55; // '|' — piers at the arcade (same glyph: no seam;
+// the density break lands exactly on the entablature datum below)
+const LIT_BAND_LUM = 0.38; // '-' — a lit working floor
+const LIT_BAND_HOT_LUM = 0.46; // '|' — the occasional brighter office
+const BELT_LUM = 0.62; // '=' — belt course where the neck meets the shaft
+const NECK_FACE_LUM = 0.11; // ' ' — the dark attic storey below the crown
+const NECK_PIER_LUM = 0.55; // '|' — corner piers continuing through the neck
+const LOGGIA_CORNICE_LUM = 0.68; // '+' — crown cornice, the architecture's peak
+const LOGGIA_POST_LUM = 0.6; // '=' — loggia colonnade posts
+const LOGGIA_CORNER_LUM = 0.62; // '=' — heavy crown corners over the shaft piers
+const LOGGIA_VOID_LUM = 0.1; // ' ' — dark slots between the posts
+const LOGGIA_SILL_LUM = 0.56; // '=' — projecting bracket underside
+const CAP_LUM = 0.6; // '=' — cap slab above the loggia
+const BEACON_LUM = 0.72; // '+' — the two-cell summit beacon
+const LINTEL_LUM = 0.62; // '=' — arcade entablature, full canvas width
+const LINTEL_EDGE_LUM = 0.66; // '=' — its top course
+const ARCADE_PIER_LO_LUM = 0.5; // '|' — arcade piers under the lintel
+const ARCADE_PIER_HI_LUM = 0.58; // '=' — arcade piers at street level
+const ARCADE_VOID_LUM = 0.05; // ' ' — deep colonnade openings
+const ARCADE_GLOW_LUM = 0.24; // ':' — lobby light pooling at the floor line
+const CENTER_GLOW_LUM = 0.34; // '-' — the grand center entry glows warmer
+const GROUND_LUM = 0.42; // '-' — the street line, full width
+const BELOW_GROUND_LUM = 0.07; // ' ' — foreground darkness
+const ROOFLINE_LUM = 0.2; // '·' — faint neighbor parapets at the edges
+const NEIGHBOR_WINDOW_LUM = 0.34; // '-' — a lit window in a sleeping neighbor
+
+/** Lit floor bands, as fractions of the shaft's height (top to street). */
+const LIT_BAND_TS = [0.3, 0.52, 0.76] as const;
 
 /**
- * The farthest right-hand doorway holds a hint of glow — a lit room the
- * corridor never reaches — so the eye travels past the last fluorescent
- * pool to the end wall instead of stopping mid-corridor. Peak luminance
- * sits in the first ramp band (a soft dotted doorway, not a second sign).
+ * The P-QRS-T complex, indexed by u = distance in columns behind the beat
+ * front (u = 0 is the trailing-edge lead-out on the right; the highest u
+ * is the lead-in on the left, so the complex reads P-QRS-T left to right
+ * as the strip travels rightward). DY is the vertical offset in rows
+ * (negative = up); LUM is the stroke luminance.
  */
-const FAR_DOOR_Z = 12.3;
-const FAR_DOOR_GLOW = 0.17;
-const FAR_WALL_WASH = 0.08;
+const COMPLEX_DY = [0, 0, -1, -2, -3, -4, -4, -3, -2, -1, 0, 2, -14, 1, 0, 0, -1, -2, -3, -3, -2, -1, 0, 0, 0, 0, 0, 0] as const;
+const COMPLEX_LUM = [0.3, 0.32, 0.42, 0.48, 0.52, 0.55, 0.52, 0.46, 0.4, 0.36, 0.4, 0.52, 0.74, 0.55, 0.4, 0.36, 0.42, 0.46, 0.5, 0.5, 0.46, 0.4, 0.32, 0.3, 0.28, 0.28, 0.28, 0.28] as const;
+const COMPLEX_SPAN = COMPLEX_DY.length;
+const R_INDEX = 12; // the tall spike column, tipped with a single '#' cell
 
-/**
- * The dash band of the tuned ramp " ·:-|=+*#@" (10 glyphs, equal bins):
- * luminance in [0.3, 0.4) quantizes to "-". The floor sheen lives here and
- * nowhere brighter — single glyph class, per the brief.
- */
-const DASH_LO = 0.31;
-const DASH_SPAN = 0.07;
-const FLOOR_CAP = 0.29; // floor base never enters the dash band on its own
-
-/**
- * Emitters dim with distance (they are sources, not surfaces, so they fall off
- * gentler than the walls). The falloff is tuned so the nearest tube stays hot
- * while the last one or two before the vanishing point settle back — that keeps
- * the far end calm enough for the illuminated sign to read as the destination
- * instead of getting lost under a bright fixture convergence.
- */
-function emitterFade(z: number): number {
-  return 1 / (1 + (z - 1) * 0.11);
+interface TowerGeometry {
+  arcadeTop: number;
+  capHalf: number;
+  crownCapTop: number;
+  cx: number;
+  ekgRow: number;
+  groundRow: number;
+  lintelRows: number;
+  loggiaBot: number;
+  loggiaHalf: number;
+  loggiaTop: number;
+  pierW: number;
+  shaftL: number;
+  shaftR: number;
+  shaftTop: number;
 }
 
-interface StaticLayers {
-  /** Ambient architecture: ceiling, floor, walls, doors, frames, sign. */
-  readonly base: Float32Array;
-  /** Emission added at flicker = 1 (ceiling fixture bars only). */
-  readonly gain: Float32Array;
-  /** Which fixture modulates this cell (bar gain or floor sheen); -1 = none. */
-  readonly fixture: Int8Array;
-  /** Floor-sheen footprint weight in [0, 1]; 0 off the reflection. */
-  readonly sheenW: Float32Array;
-  /** Static stipple hash in [0, 1) for sheen cells. */
-  readonly sheenH: Float32Array;
-  /** Vignette factor for sheen cells (dashes dissolve at the frame edge). */
-  readonly sheenV: Float32Array;
+let base = new Float32Array(0);
+let baseCols = 0;
+let baseRows = 0;
+let hazeLattice = new Float32Array(0);
+
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) {
+    return 0;
+  }
+
+  return v <= 0 ? 0 : v >= 1 ? 1 : v;
 }
 
-let layers: StaticLayers | null = null;
+/**
+ * Landmarks from proportions. The arcade base is full-bleed (its
+ * entablature crosses every column); the shaft is centered with corner
+ * piers thick enough to survive bin-4 pooling; the crown is a projecting
+ * loggia met by the piers through an attic neck, a cap slab and a beacon.
+ */
+function geometry(cols: number, rows: number): TowerGeometry {
+  const cx = Math.round(cols * 0.5);
+  const shaftHalf = Math.max(3, Math.round(cols * 0.14));
+  // Snap the shaft to the 4-cell pooling lattice so its corner piers (4
+  // cells wide) each fill whole bin-4 columns: at deep scroll the tower
+  // survives as two dotted verticals rising to the crown.
+  const shaftL = 4 * Math.max(0, Math.round((cx - shaftHalf) / 4));
+  const shaftW = 4 * Math.max(2, Math.round((2 * shaftHalf + 1) / 4));
 
-function buildLayers(width: number, height: number): StaticLayers {
-  const base = new Float32Array(width * height);
-  const gain = new Float32Array(width * height);
-  const fixture = new Int8Array(width * height).fill(-1);
-  const sheenW = new Float32Array(width * height);
-  const sheenH = new Float32Array(width * height);
-  const sheenV = new Float32Array(width * height);
+  return {
+    arcadeTop: Math.round(rows * 0.8),
+    capHalf: Math.max(2, Math.round(shaftHalf * 0.4)),
+    crownCapTop: Math.max(0, Math.round(rows * 0.05)),
+    cx,
+    ekgRow: Math.round(rows * 0.33),
+    groundRow: Math.min(rows - 2, Math.round(rows * 0.955)),
+    lintelRows: Math.max(2, Math.round(rows * 0.035)),
+    loggiaBot: Math.round(rows * 0.155),
+    loggiaHalf: shaftHalf + Math.max(2, Math.round(cols * 0.02)),
+    loggiaTop: Math.round(rows * 0.08),
+    pierW: Math.max(2, Math.round(cols * 0.018)),
+    shaftL,
+    shaftR: shaftL + shaftW - 1,
+    shaftTop: Math.round(rows * 0.2),
+  };
+}
 
-  // Scratch masks for the screen-space door-frame pass.
-  const doorInterior = new Uint8Array(width * height);
-  const wallCell = new Uint8Array(width * height);
-  const wallFV = new Float32Array(width * height); // fade * vignette per wall cell
+/** Bounds-checked assignment (buildBase writes never wrap on small grids). */
+function putSet(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    data[y * w + x] = clamp01(v);
+  }
+}
 
-  const vx = width / 2;
-  const vy = height * VANISH_Y;
-  const rowStepUp = 1 / vy; // ceiling-space step per screen row
-  const rowStepDown = 1 / (height - vy); // floor-space step per screen row
+/** Max-write with bounds check. */
+function putMax(data: Float32Array, w: number, h: number, x: number, y: number, v: number): void {
+  if (x < 0 || x >= w || y < 0 || y >= h) {
+    return;
+  }
 
-  // Vanishing-point sign: an explicit rectangle on the end wall, sized to
-  // sit just inside the end-wall footprint (t < 1/Z_END).
-  const signHalfW = Math.max(4, Math.floor((width / 2) * (1 / Z_END)) - 1);
-  const signL = Math.round(vx) - signHalfW;
-  const signR = Math.round(vx) + signHalfW;
-  const signT = Math.ceil(vy * (1 - 1 / Z_END));
-  const signB = Math.floor(vy + (height - vy) * (1 / Z_END));
+  const i = y * w + x;
 
-  for (let y = 0; y < height; y++) {
-    const py = y + 0.5;
+  if ((data[i] ?? 0) < v) {
+    data[i] = clamp01(v);
+  }
+}
 
-    for (let x = 0; x < width; x++) {
-      const px = x + 0.5;
-      const i = y * width + x;
-      const sx = (px - vx) / (width / 2);
-      // Rectangular vignette: the diorama dissolves into true black at the
-      // frame edges instead of pressing midtones against them.
-      const ny = (py - height / 2) / (height / 2);
-      const r = Math.max(Math.abs(sx), Math.abs(ny));
-      const rs = Math.min(1, Math.max(0, (r - 0.7) / 0.3));
-      const vignette = 1 - 0.82 * rs * rs * (3 - 2 * rs);
-      const above = py < vy;
-      const vertical = above ? (vy - py) / vy : (py - vy) / (height - vy);
-      const t = Math.max(Math.abs(sx), vertical);
+/**
+ * Static architecture: the full-width arcade base and street line, the
+ * shaft with its bay rhythm, corner piers and three lit floor bands, the
+ * belt course, the attic neck the piers climb through, the projecting
+ * loggia crown with heavy corners over the piers, cap slab and beacon,
+ * and two sleeping neighbor buildings low at the canvas edges.
+ */
+function buildBase(cols: number, rows: number): void {
+  base = new Float32Array(cols * rows);
+  baseCols = cols;
+  baseRows = rows;
 
-      if (t < 1 / Z_END) {
-        // End wall: near-black, carrying the corridor's one destination —
-        // an illuminated sign with a 1-cell border so it reads as A SIGN.
-        let v = 0.05;
+  const geo = geometry(cols, rows);
 
-        if (x >= signL && x <= signR && y >= signT && y <= signB) {
-          const onSide = x === signL || x === signR;
-          const onCap = y === signT || y === signB;
+  // Neighbor buildings: a parapet per edge dropping a jamb at its inner
+  // end onto the arcade entablature, each with two lit windows so they
+  // read as low sleeping buildings, not unfinished boxes.
+  const roofReach = Math.max(3, Math.round(cols * 0.11));
+  const roofLY = Math.round(rows * 0.72);
+  const roofRY = Math.round(rows * 0.75);
 
-          if (onSide && !onCap) {
-            v = 0.45; // vertical border cells land in the "|" band
-          } else if (onCap) {
-            v = 0.35; // top/bottom border cells land in the "-" band
-          } else if (y === Math.round((signT + signB) / 2)) {
-            // One text-suggestion row: gapped runs of the ":" band.
-            v = cellHash(x, 7) < 0.78 ? 0.27 : 0.13;
-          } else {
-            v = 0.13; // dim lit panel
-          }
-        }
+  for (let x = 0; x <= roofReach; x++) {
+    putSet(base, cols, rows, x, roofLY, ROOFLINE_LUM);
+    putSet(base, cols, rows, cols - 1 - x, roofRY, ROOFLINE_LUM);
+  }
 
-        base[i] = v * vignette;
-        continue;
-      }
+  for (let y = roofLY; y < geo.arcadeTop; y++) {
+    putSet(base, cols, rows, roofReach, y, ROOFLINE_LUM * 0.8);
+  }
 
-      const z = 1 / t;
-      const fade = 1 / (1 + (z - 1) * 0.32);
+  for (let y = roofRY; y < geo.arcadeTop; y++) {
+    putSet(base, cols, rows, cols - 1 - roofReach, y, ROOFLINE_LUM * 0.8);
+  }
 
-      if (above && vertical >= Math.abs(sx)) {
-        // Ceiling, with thin fluorescent bars across it. Each bar keeps a
-        // minimum on-screen footprint (max with the row step) so distant
-        // fixtures stay a crisp bright dash instead of aliasing away.
-        const u = sx / vertical;
-        base[i] = 0.12 * fade * vignette;
+  const winXs = [Math.round(roofReach * 0.25), Math.round(roofReach * 0.6)];
 
-        let bestGain = 0;
-        let bestIndex = -1;
-
-        for (const [f, zf] of FIXTURE_Z.entries()) {
-          const fuy = 1 / zf;
-          const sigma = Math.max(0.12 * fuy * fuy, 0.6 * rowStepUp);
-          const d = (vertical - fuy) / sigma;
-          // Cold light is even light: a quartic falloff gives each tube a
-          // flat plateau with a fast vertical cutoff, so it reads as a
-          // uniform institutional bar with crisp caps instead of a warm glow
-          // that swells in the middle and bleeds upward.
-          const d4 = d * d * d * d;
-          const bar = Math.min(1, 1.35 * Math.exp(-d4));
-          const across = Math.min(1, Math.max(0, (0.4 - Math.abs(u)) / 0.06));
-          const g = bar * across * emitterFade(zf);
-
-          if (g > bestGain) {
-            bestGain = g;
-            bestIndex = f;
-          }
-        }
-
-        if (bestGain > 0.02) {
-          gain[i] = bestGain * vignette;
-          fixture[i] = bestIndex;
-        }
-      } else if (!above && vertical >= Math.abs(sx)) {
-        // Floor: linoleum kept below the dash band; the light is carried by
-        // a stippled dash sheen under each fixture (density + crawl live in
-        // update, so the sheen breathes with its tube). Reflections dim
-        // faster with distance than the tubes themselves, so the far floor
-        // stays calm under the sign.
-        const u = sx / vertical;
-
-        let bestG = 0;
-        let bestIndex = -1;
-
-        for (const [f, zf] of FIXTURE_Z.entries()) {
-          const ffy = 1 / zf;
-          const sigma = Math.max(0.45 * ffy * ffy, 0.8 * rowStepDown);
-          const d = (vertical - ffy) / sigma;
-          const ds = d / 1.8;
-          const pool = Math.exp(-d * d) * Math.exp(-(u * u) / (0.5 * 0.5));
-          const streak = 0.7 * Math.exp(-ds * ds) * Math.exp(-(u * u) / (0.14 * 0.14));
-          const g = (pool + streak) / (1 + (zf - 1) * 0.14);
-
-          if (g > bestG) {
-            bestG = g;
-            bestIndex = f;
-          }
-        }
-
-        // Wet-wax interruption rhythm: the sheen is a reflection of the lit
-        // wall plane, so where a doorway recess interrupts the wall the outer
-        // reach of each pool breaks — a dark gap sweeps across at every door
-        // depth — while the center streak (reflecting the tubes themselves)
-        // runs on unbroken. This is what keeps the floor from reading as a
-        // uniform band: polished linoleum, not carpet.
-        let gap = 0;
-
-        for (const zd of DOOR_Z) {
-          const dgz = (z - zd) / 0.55;
-          gap = Math.max(gap, Math.exp(-dgz * dgz));
-        }
-
-        const sideLin = Math.min(1, Math.max(0, (Math.abs(u) - 0.12) / 0.3));
-        const interrupt = 1 - 0.88 * gap * sideLin * sideLin;
-
-        bestG *= interrupt;
-
-        // Hard shoulder on the footprint: no stray dashes far from a pool,
-        // full density in the core.
-        const lin = Math.min(1, Math.max(0, (bestG - 0.12) / 0.38));
-        const w = lin * lin * (3 - 2 * lin);
-
-        // Polished linoleum: the specular patch replaces the diffuse ground,
-        // so the floor darkens where the sheen lives and the dashes pop. The
-        // diffuse ground also dims a touch inside each doorway's reflection
-        // gap (the recess it mirrors is near-black).
-        base[i] =
-          Math.min(FLOOR_CAP, 0.3 * fade * (1 - 0.15 * Math.abs(u))) *
-          (1 - 0.45 * w) *
-          (1 - 0.22 * gap * sideLin) *
-          vignette;
-
-        if (w > 0.01) {
-          sheenW[i] = w;
-          sheenH[i] = cellHash(x, y);
-          sheenV[i] = vignette;
-          fixture[i] = bestIndex;
-        }
-      } else {
-        // Walls: a calm single-band dot field (speckle contrast reduced ~20%
-        // per the brief), recessed near-black doors, and a bumper rail that
-        // breaks at each doorway. Door frames are stamped in a screen-space
-        // pass below so they stay exactly 1 cell wide at every distance.
-        const signedVertical = above ? -vertical : vertical;
-        const vwall = signedVertical / Math.abs(sx); // -1 ceiling edge .. 1 floor edge
-        let v = 0.21 * fade * (0.84 + 0.08 * (vwall + 1));
-        let door = false;
-
-        for (const zd of DOOR_Z) {
-          const dz = Math.abs(z - zd);
-
-          if (dz < 0.5 && vwall > -0.52) {
-            door = true;
-            doorInterior[i] = 1;
-            v = 0.05 * fade; // near-black recess, 1-2 ramp steps below the wall
-
-            if (dz < 0.1 && vwall > -0.34 && vwall < -0.1) {
-              v = 0.24 * fade; // small lit door window
-            }
-
-            if (zd === FAR_DOOR_Z && sx > 0) {
-              // The one lit room: an absolute (not distance-faded) glow with
-              // a soft vertical falloff, so the farthest doorway carries a
-              // faint dotted warmth at the end of the cold fixture run.
-              v = Math.max(v, FAR_DOOR_GLOW * (1 - 0.45 * Math.max(0, vwall)));
-            }
-
-            break;
-          }
-        }
-
-        if (!door) {
-          wallCell[i] = 1;
-          wallFV[i] = fade * vignette;
-
-          if (vwall > 0.14 && vwall < 0.26) {
-            v += 0.12 * fade; // bumper rail
-          }
-
-          if (sx > 0) {
-            // Spill from the lit far room onto the neighboring wall: a dim
-            // dotted wedge that lifts the near-black end of the right wall
-            // just enough to catch the eye on its way to the sign. Very wide
-            // in z on purpose — perspective compresses the last several
-            // z-units into a few columns, and the wash needs those columns
-            // to read as light instead of noise.
-            const dzGlow = (z - FAR_DOOR_Z) / 3.2;
-            v += FAR_WALL_WASH * Math.exp(-dzGlow * dzGlow);
-          }
-        }
-
-        base[i] = v * vignette;
+  for (const wx of winXs) {
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 3; dx++) {
+        putSet(base, cols, rows, wx + dx, roofLY + 2 + dy, NEIGHBOR_WINDOW_LUM);
+        putSet(base, cols, rows, cols - 1 - wx - dx, roofRY + 2 + dy, NEIGHBOR_WINDOW_LUM);
       }
     }
   }
 
-  // Screen-space door frames: every wall cell touching a door recess becomes
-  // a 1-cell frame line, bright enough to punch at near distance and to stay
-  // a faint dotted outline far away.
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = y * width + x;
+  // The shaft: dark face carrying a regular bay rhythm — a mullion every
+  // bay, a brighter pier-line every other bay — spandrel lines every
+  // floor, and corner piers holding one '|' glyph band the whole way (the
+  // density break lands exactly on the arcade entablature datum below).
+  const shaftSpan = Math.max(1, geo.arcadeTop - geo.shaftTop);
 
-      if (!wallCell[i]) {
+  for (let y = geo.shaftTop; y < geo.arcadeTop; y++) {
+    const t = (y - geo.shaftTop) / shaftSpan; // 0 at the belt, 1 at street
+    const pier = PIER_LO_LUM + (PIER_HI_LUM - PIER_LO_LUM) * t;
+    const floorLine = (y - geo.shaftTop) % 4 === 0;
+
+    for (let x = geo.shaftL; x <= geo.shaftR; x++) {
+      const dl = x - geo.shaftL;
+      const dr = geo.shaftR - x;
+
+      if (dl < geo.pierW || dr < geo.pierW) {
+        putSet(base, cols, rows, x, y, pier);
         continue;
       }
 
-      let touchesDoor = false;
-
-      for (let dy = -1; dy <= 1 && !touchesDoor; dy++) {
-        const yy = y + dy;
-
-        if (yy < 0 || yy >= height) {
-          continue;
-        }
-
-        for (let dx = -1; dx <= 1; dx++) {
-          const xx = x + dx;
-
-          if (xx < 0 || xx >= width) {
-            continue;
-          }
-
-          if (doorInterior[yy * width + xx]) {
-            touchesDoor = true;
-            break;
-          }
-        }
+      if (floorLine) {
+        putSet(base, cols, rows, x, y, FLOOR_LINE_LUM);
+        continue;
       }
 
-      if (touchesDoor) {
-        // Near frames punch as a crisp bright edge against the near-black
-        // recess; distant ones fade to a faint dotted outline (fv carries the
-        // distance falloff), so every doorway reads as a framed opening.
-        base[i] = Math.max(base[i] ?? 0, 0.72 * (wallFV[i] ?? 0));
+      const d = x - geo.shaftL - geo.pierW;
+      const lum = d % 8 === 0 ? MAJOR_MULLION_LUM : d % 4 === 0 ? MULLION_LUM : SHAFT_FACE_LUM;
+      putSet(base, cols, rows, x, y, lum);
+    }
+  }
+
+  // Three lit floor bands: whole storeys glowing '-' (with the occasional
+  // '|' office, hashed deterministically per bay) — the night shift. The
+  // mullions stay dark across them so the bays keep reading.
+  const winL = geo.shaftL + geo.pierW;
+  const winR = geo.shaftR - geo.pierW;
+
+  for (let b = 0; b < LIT_BAND_TS.length; b++) {
+    const tb = LIT_BAND_TS[b] ?? 0.5;
+    const y0 = geo.shaftTop + 4 * Math.round((shaftSpan * tb) / 4) + 1;
+
+    for (let dy = 0; dy < 3; dy++) {
+      const y = y0 + dy;
+
+      if (y <= geo.shaftTop || y >= geo.arcadeTop) {
+        continue;
+      }
+
+      for (let x = winL; x <= winR; x++) {
+        const d = x - winL;
+
+        if (d % 4 === 0) {
+          continue; // mullions stay dark across the band
+        }
+
+        const hot = cellHash(d >> 2, b) < 0.25;
+        putSet(base, cols, rows, x, y, hot ? LIT_BAND_HOT_LUM : LIT_BAND_LUM);
       }
     }
   }
 
-  return { base, fixture, gain, sheenH, sheenV, sheenW };
+  // Belt course: a bright '=' line across the full shaft width where the
+  // attic neck meets the shaft — the shoulder of the crown.
+  for (let x = geo.shaftL; x <= geo.shaftR; x++) {
+    putSet(base, cols, rows, x, geo.shaftTop, BELT_LUM);
+  }
+
+  // The attic neck between the belt and the loggia: full shaft width, a
+  // dark windowless storey — but the corner piers keep climbing straight
+  // through it to carry the crown.
+  for (let y = geo.loggiaBot; y < geo.shaftTop; y++) {
+    for (let x = geo.shaftL; x <= geo.shaftR; x++) {
+      const dl = x - geo.shaftL;
+      const dr = geo.shaftR - x;
+      const pier = dl < geo.pierW || dr < geo.pierW;
+      putSet(base, cols, rows, x, y, pier ? NECK_PIER_LUM : NECK_FACE_LUM);
+    }
+  }
+
+  // The loggia crown: a projecting bracket wider than the shaft — a deep
+  // bright cornice, a colonnade of posts over dark slots with heavy
+  // corners landing on the shaft piers, a projecting sill underneath. The
+  // brightest architecture in the scene.
+  for (let y = geo.loggiaTop; y < geo.loggiaBot; y++) {
+    const cornice = y <= geo.loggiaTop + 2;
+    const sill = y === geo.loggiaBot - 1;
+
+    for (let x = geo.cx - geo.loggiaHalf; x <= geo.cx + geo.loggiaHalf; x++) {
+      if (cornice) {
+        putSet(base, cols, rows, x, y, LOGGIA_CORNICE_LUM);
+        continue;
+      }
+
+      if (sill) {
+        putSet(base, cols, rows, x, y, LOGGIA_SILL_LUM);
+        continue;
+      }
+
+      // Heavy crown corners directly over the shaft piers, so the load
+      // path (and the bin-4 skeleton) runs unbroken from street to crown.
+      const overPier =
+        (x >= geo.shaftL && x < geo.shaftL + geo.pierW) || (x > geo.shaftR - geo.pierW && x <= geo.shaftR);
+
+      if (overPier) {
+        putSet(base, cols, rows, x, y, LOGGIA_CORNER_LUM);
+        continue;
+      }
+
+      const post = ((x - geo.cx + geo.loggiaHalf) % 4) < 2;
+      putSet(base, cols, rows, x, y, post ? LOGGIA_POST_LUM : LOGGIA_VOID_LUM);
+    }
+  }
+
+  // Cap slab and beacon above the loggia.
+  for (let y = geo.crownCapTop; y < geo.loggiaTop; y++) {
+    for (let x = geo.cx - geo.capHalf; x <= geo.cx + geo.capHalf; x++) {
+      putSet(base, cols, rows, x, y, CAP_LUM);
+    }
+  }
+
+  putSet(base, cols, rows, geo.cx, Math.max(0, geo.crownCapTop - 1), BEACON_LUM);
+  putSet(base, cols, rows, geo.cx - 1, Math.max(0, geo.crownCapTop - 1), BEACON_LUM);
+
+  // The arcade base, full-bleed: an entablature across every column, then
+  // a colonnade of piers and deep openings with lobby light pooling at the
+  // floor line, a grand glowing center entry, and the street line.
+  const lintelBot = geo.arcadeTop + geo.lintelRows - 1;
+
+  for (let y = geo.arcadeTop; y <= Math.min(rows - 1, lintelBot); y++) {
+    const lum = y === geo.arcadeTop ? LINTEL_EDGE_LUM : LINTEL_LUM;
+
+    for (let x = 0; x < cols; x++) {
+      putSet(base, cols, rows, x, y, lum);
+    }
+  }
+
+  const pitch = Math.max(6, Math.round(cols * 0.045));
+  const openW = pitch - Math.max(3, Math.round(pitch * 0.4));
+  const arcadeSpan = Math.max(1, geo.groundRow - lintelBot);
+
+  for (let y = lintelBot + 1; y < geo.groundRow; y++) {
+    const t = (y - lintelBot) / arcadeSpan;
+
+    for (let x = 0; x < cols; x++) {
+      const m = (((x - geo.cx + (openW >> 1)) % pitch) + pitch) % pitch;
+
+      if (m >= openW) {
+        putSet(base, cols, rows, x, y, ARCADE_PIER_LO_LUM + (ARCADE_PIER_HI_LUM - ARCADE_PIER_LO_LUM) * t);
+        continue;
+      }
+
+      // Openings: deep dark, with light pooling toward the floor line —
+      // strongest in the grand center entry under the shaft.
+      const center = Math.abs(x - geo.cx) <= openW;
+      const glow = (center ? CENTER_GLOW_LUM : ARCADE_GLOW_LUM) * t * t;
+      putSet(base, cols, rows, x, y, Math.max(ARCADE_VOID_LUM, glow));
+    }
+  }
+
+  for (let x = 0; x < cols; x++) {
+    putSet(base, cols, rows, x, geo.groundRow, GROUND_LUM);
+
+    for (let y = geo.groundRow + 1; y < rows; y++) {
+      putSet(base, cols, rows, x, y, BELOW_GROUND_LUM);
+    }
+  }
 }
 
 export const scene: SceneModule = {
   dockGlyph: [
-    "=#==#==#==#=",
-    "|·        ·|",
-    "| :  ##  : |",
-    "| :  ==  : |",
-    "|·  ····  ·|",
-    "-·--·--·--·-",
+    "    ·++·    ",
+    "    |::|    ",
+    "·:=#+|::|·:·",
+    "    |==|    ",
+    "    |::|    ",
+    "=|==|==|==|=",
   ],
   id: "corridor",
   init(context: SceneContext): void {
-    // Idempotent: the harness contract check and the runner both call init.
-    layers = buildLayers(context.buffer.width, context.buffer.height);
+    const { width, height } = context.buffer;
+
+    buildBase(width, height);
   },
   summaryChip: "Humana, 2020–2024 — safe rails for AI products.",
   tuning: {
-    cellH: 8,
-    cellW: 8,
-    cols: 160,
+    cellH: 6,
+    cellW: 6,
+    cols: 224,
     minimalGlyph: "·",
     motion: {
-      ambient: 1,
-      faultyDip: 0.55,
-      faultyFixture: 2,
-      faultyRate: 0.26,
-      flickerDepth: 0.14,
-      flickerRate: 0.45,
-      lightLevel: 1,
-      sheenDensity: 0.6,
-      sheenScale: 0.3,
-      sheenSpeed: 0.4,
+      baselineLum: 0.16,
+      beatSpacing: 76,
+      hazeAmount: 0.07,
+      hazeFloor: 0.02,
+      hazeScale: 0.05,
+      hazeSpeed: 0.04,
+      pulseGain: 1,
+      spikeTip: 0.92,
+      sweepPeriod: 24,
     },
-    ramp: " ·:-|=+*#@",
-    rows: 72,
+    ramp: " ·:-|=+#@",
+    rows: 104,
   },
   update(_dt: number, context: SceneContext): void {
     const { buffer, time } = context;
-
-    if (!layers || layers.base.length !== buffer.data.length) {
-      layers = buildLayers(buffer.width, buffer.height);
-    }
-
     const {
-      ambient = 1,
-      faultyDip = 0.55,
-      faultyFixture = 2,
-      faultyRate = 0.26,
-      flickerDepth = 0.14,
-      flickerRate = 0.45,
-      lightLevel = 1,
-      sheenDensity = 0.6,
-      sheenScale = 0.3,
-      sheenSpeed = 0.4,
+      baselineLum = 0.16,
+      beatSpacing = 76,
+      hazeAmount = 0.07,
+      hazeFloor = 0.02,
+      hazeScale = 0.05,
+      hazeSpeed = 0.04,
+      pulseGain = 1,
+      spikeTip = 0.92,
+      sweepPeriod = 24,
     } = this.tuning.motion;
+    const w = buffer.width;
+    const h = buffer.height;
+    const data = buffer.data;
 
-    // Per-fixture flicker: smooth noise drift near full brightness, plus one
-    // struggling tube that softly sags and recovers (smoothstep-gated noise —
-    // never a square wave). Driven by context.time only, so arbitrary
-    // sleep/wake gaps land on a consistent state.
-    const faulty = Math.round(faultyFixture);
-    const flicker: number[] = [];
-
-    for (let f = 0; f < FIXTURE_Z.length; f++) {
-      const drift = fbm2(noise, 3.1 + time * flickerRate, f * 5.7, 2);
-      let level = 1 - flickerDepth * drift;
-
-      if (f === faulty) {
-        // The struggling ballast mid-corridor: a raised gate on slow noise so
-        // the sag arrives at long, irregular intervals — most of the time the
-        // tube holds steady, then it dims over a second or two and recovers.
-        const surge = fbm2(noise, 40 + time * faultyRate, 9.3, 2);
-        const s = Math.min(1, Math.max(0, (surge - 0.72) / 0.14));
-        level *= 1 - faultyDip * s * s * (3 - 2 * s);
-      }
-
-      flicker.push(level <= 0 ? 0 : level >= 1 ? 1 : level);
+    if (baseCols !== w || baseRows !== h) {
+      buildBase(w, h);
     }
 
-    const { base, fixture, gain, sheenH, sheenV, sheenW } = layers;
-    const data = buffer.data;
-    const width = buffer.width;
+    const geo = geometry(w, h);
 
-    for (let i = 0; i < data.length; i++) {
-      let v = (base[i] ?? 0) * ambient;
-      const f = fixture[i] ?? -1;
+    data.set(base);
 
-      if (f >= 0) {
-        v += (gain[i] ?? 0) * (flicker[f] ?? 1) * lightLevel;
+    // 1) Air: a city-glow haze breathing in the low sky, between the EKG
+    // line and the arcade entablature — sodium light off a sleeping city —
+    // sampled on a coarse lattice and bilinearly upsampled.
+    const glowRow = Math.round(h * 0.74);
+    const glowSigma = Math.max(2, h * 0.07);
+    const hazeTop = Math.max(0, glowRow - Math.round(3 * glowSigma));
+    const hazeBot = Math.min(geo.arcadeTop - 1, glowRow + Math.round(3 * glowSigma));
+    const stride = 4;
+    const gw = Math.floor(w / stride) + 2;
+    const gh = Math.floor((hazeBot - hazeTop) / stride) + 3;
+
+    if (hazeLattice.length !== gw * gh) {
+      hazeLattice = new Float32Array(gw * gh);
+    }
+
+    for (let gy = 0; gy < gh; gy++) {
+      const ny = (hazeTop + gy * stride) * hazeScale * 1.4 + time * hazeSpeed * 0.6;
+
+      for (let gx = 0; gx < gw; gx++) {
+        hazeLattice[gy * gw + gx] = fbm2(hazeNoise, gx * stride * hazeScale + time * hazeSpeed, ny, 2);
       }
+    }
 
-      const w = sheenW[i] ?? 0;
+    for (let y = hazeTop; y <= hazeBot; y++) {
+      const dyGlow = (y - glowRow) / glowSigma;
+      const envelope = Math.exp(-dyGlow * dyGlow);
+      const gy = (y - hazeTop) / stride;
+      const gy0 = Math.floor(gy);
+      const fy = gy - gy0;
+      const rowA = gy0 * gw;
+      const rowB = (gy0 + 1) * gw;
 
-      if (w > 0) {
-        // Dash-band sheen: a stippled single-glyph reflection whose density
-        // follows its tube (a sagging ballast thins the sheen) and whose
-        // stipple crawls on slow noise — the scene's water-adjacent breath.
-        const raw = (flicker[f] ?? 1) * lightLevel;
-        const level = raw <= 0 ? 0 : raw >= 1 ? 1 : raw;
-        const x = i % width;
-        const y = (i - x) / width;
-        const drift = fbm2(noise, x * sheenScale - time * sheenSpeed, y * sheenScale * 1.6 + time * sheenSpeed * 0.35, 2);
-        const threshold = sheenDensity * w * (0.3 + 0.7 * level);
+      for (let x = 0; x < w; x++) {
+        const gx = x / stride;
+        const gx0 = Math.floor(gx);
+        const fx = gx - gx0;
+        const top = (hazeLattice[rowA + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowA + gx0 + 1] ?? 0) * fx;
+        const bottom = (hazeLattice[rowB + gx0] ?? 0) * (1 - fx) + (hazeLattice[rowB + gx0 + 1] ?? 0) * fx;
+        const air = clamp01((hazeFloor + hazeAmount * (top * (1 - fy) + bottom * fy)) * envelope);
+        const i = y * w + x;
 
-        if (0.62 * (sheenH[i] ?? 0) + 0.38 * drift < threshold) {
-          const dash = (DASH_LO + DASH_SPAN * level) * (sheenV[i] ?? 1);
-          v = Math.max(v, dash);
+        if (air > (data[i] ?? 0)) {
+          data[i] = air;
         }
       }
+    }
 
-      data[i] = v <= 0 ? 0 : v >= 1 ? 1 : v;
+    // 2) The heartbeat: a baseline carrying a repeating P-QRS-T pulse
+    // train — an EKG strip translating slowly rightward, one beat per
+    // spacing — all pure f(time), all occluded by the shaft.
+    const occludedL = geo.shaftL;
+    const occludedR = geo.shaftR;
+    const period = Math.max(4, sweepPeriod);
+    const spacing = Math.max(COMPLEX_SPAN + 8, Math.round(beatSpacing));
+    const speed = w / period; // columns per second
+    const offset = (((time * speed) % spacing) + spacing) % spacing;
+
+    for (let x = 0; x < w; x++) {
+      if (x >= occludedL && x <= occludedR) {
+        continue;
+      }
+
+      putMax(data, w, h, x, geo.ekgRow, baselineLum);
+    }
+
+    for (let front = Math.floor(offset) - spacing; front < w + COMPLEX_SPAN; front += spacing) {
+      let prevY = geo.ekgRow + (COMPLEX_DY[COMPLEX_SPAN - 1] ?? 0);
+
+      for (let u = COMPLEX_SPAN - 1; u >= 0; u--) {
+        const x = front - u;
+        const y = geo.ekgRow + (COMPLEX_DY[u] ?? 0);
+        const lum = clamp01((COMPLEX_LUM[u] ?? 0.3) * pulseGain);
+
+        if (x >= 0 && x < w && !(x >= occludedL && x <= occludedR)) {
+          // Connect each column to its neighbor (like the stage hem) so the
+          // trace never breaks into floating dashes; the R column becomes a
+          // single tall bright stroke.
+          for (let yy = Math.min(prevY, y); yy <= Math.max(prevY, y); yy++) {
+            putMax(data, w, h, x, yy, lum);
+          }
+
+          if (u === R_INDEX) {
+            putMax(data, w, h, x, y, clamp01(spikeTip * pulseGain));
+          }
+        }
+
+        prevY = y;
+      }
     }
   },
 };
