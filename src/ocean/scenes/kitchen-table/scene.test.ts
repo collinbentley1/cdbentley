@@ -22,32 +22,44 @@ function makeContext(cols = scene.tuning.cols, rows = scene.tuning.rows): SceneC
   };
 }
 
-/** Landmarks mirrored from the scene's proportional geometry. */
+/** Landmarks mirrored from the scene's proportional Super 55 geometry. */
 function landmarks(cols = scene.tuning.cols, rows = scene.tuning.rows) {
-  const headR = Math.max(3, Math.round(Math.min(rows * 0.25, cols * 0.12)));
-  const headTop = Math.max(1, Math.round(rows * 0.048));
-  const headCy = headTop + headR;
-  const headBot = Math.min(rows - 2, headCy + Math.max(1, Math.round(headR * 1.05)));
-  const bandMid = Math.min(headBot - 1, headCy + Math.max(1, Math.round(headR * 0.12)));
-  const yokeBot = Math.min(rows - 2, headBot + Math.max(1, Math.round(rows * 0.055)));
-  const stepH = Math.max(2, Math.round(rows * 0.045));
-  const floorRow = Math.max(yokeBot + 1, rows - 3);
-  const step3Top = floorRow - stepH;
-  const step2Top = step3Top - stepH;
-  const step1Top = step2Top - stepH;
+  const cx = Math.round(cols * 0.5);
+  const crownR = Math.max(4, Math.round(Math.min(rows * 0.26, cols * 0.115)));
+  const headTop = Math.max(1, Math.round(rows * 0.04));
+  const crownY = headTop + Math.max(3, Math.round(crownR * 0.55));
+  const headBot = Math.min(rows - 4, crownY + Math.max(4, Math.round(crownR * 1.3)));
+  const chinHalf = Math.max(2, Math.round(crownR * 0.35));
+  const bandMid = Math.min(headBot - 1, crownY + Math.max(1, Math.round((headBot - crownY) * 0.62)));
+  const pivotY = Math.min(bandMid - 1, crownY + Math.max(1, Math.round((headBot - crownY) * 0.5)));
+  const uBot = Math.min(rows - 3, headBot + Math.max(3, Math.round(rows * 0.058)));
+  const knuckleBot = Math.min(rows - 2, uBot + 3);
+  const floorRow = Math.max(knuckleBot + 1, rows - 3);
+
+  // The egg half-width at the pivot row (mirrors scene.ts eggHalfWidth),
+  // giving the yoke-arm column: round(hw) + YOKE_GAP(3) + 1.
+  const tPivot = (pivotY - crownY) / Math.max(1, headBot - crownY);
+  const cPivot = Math.cos((tPivot * Math.PI) / 2);
+  const armX = Math.round(chinHalf + (crownR - chinHalf) * cPivot * cPivot) + 4;
 
   return {
+    armX,
     bandMid,
-    colBot: Math.max(yokeBot, step1Top - 1),
+    baseHalf: Math.max(chinHalf + 4, Math.round(cols * 0.103)),
+    baseTop: Math.max(knuckleBot + 1, floorRow - Math.max(3, Math.round(rows * 0.05))),
+    chinHalf,
     cols,
-    cx: Math.round(cols * 0.5),
+    crownR,
+    crownY,
+    cx,
     floorRow,
-    headCy,
-    headR,
+    headBot,
     headTop,
+    knuckleBot,
+    pivotY,
     rampLen: Array.from(scene.tuning.ramp).length,
     rows,
-    stepTops: [step1Top, step2Top, step3Top],
+    uBot,
     waveRow: Math.round(rows * 0.78),
   };
 }
@@ -187,11 +199,11 @@ test("kitchen-table speaks: the voice arcs propagate even with haze and waveform
     context.time = 3;
     scene.update(1 / 60, context);
 
-    const { bandMid, cols, cx, headR } = landmarks();
+    const { bandMid, cols, crownR, cx } = landmarks();
     let changed = 0;
 
     for (let y = bandMid - 10; y <= bandMid + 10; y++) {
-      for (let x = cx + headR + 8; x <= Math.min(cols - 2, cx + 92); x++) {
+      for (let x = cx + crownR + 12; x <= Math.min(cols - 2, cx + 92); x++) {
         if (Math.abs((before[y * cols + x] ?? 0) - (context.buffer.data[y * cols + x] ?? 0)) > 1e-6) {
           changed++;
         }
@@ -202,7 +214,7 @@ test("kitchen-table speaks: the voice arcs propagate even with haze and waveform
   });
 });
 
-test("kitchen-table head: the crown outlines a dome and the band core is the hottest light", () => {
+test("kitchen-table head is an egg: wide crown, narrow chin, the band core hottest", () => {
   const context = makeContext();
   scene.init(context);
 
@@ -212,15 +224,23 @@ test("kitchen-table head: the crown outlines a dome and the band core is the hot
 
   expect(context.lights.length).toBe(0);
 
-  const { bandMid, cols, cx, headCy, headTop, headR, rampLen } = landmarks();
+  const { armX, bandMid, chinHalf, cols, crownR, crownY, cx, headBot, headTop, rampLen } = landmarks();
   const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
 
-  // Crown: '+'-weight outline at the apex and both shoulders.
+  // Crown: '+'-weight outline at the apex and at both widest shoulders.
   expect(band(cx, headTop)).toBeGreaterThanOrEqual(6);
-  expect(band(cx - headR, headCy)).toBeGreaterThanOrEqual(6);
-  expect(band(cx + headR, headCy)).toBeGreaterThanOrEqual(6);
+  expect(band(cx - crownR, crownY)).toBeGreaterThanOrEqual(6);
+  expect(band(cx + crownR, crownY)).toBeGreaterThanOrEqual(6);
 
-  // The band core is '@' and the global maximum lives on the band rows.
+  // The chin is narrow: the wedge between chin and yoke arms is dark on
+  // both sides — chin-adjacent AND arm-adjacent columns are empty air at
+  // chin height (no dome-on-shaft).
+  expect(band(cx - chinHalf - 5, headBot - 2)).toBeLessThanOrEqual(1);
+  expect(band(cx + chinHalf + 5, headBot - 2)).toBeLessThanOrEqual(1);
+  expect(band(cx - armX + 3, headBot - 2)).toBeLessThanOrEqual(1);
+  expect(band(cx + armX - 3, headBot - 2)).toBeLessThanOrEqual(1);
+
+  // The nameplate band core is '@' and the global maximum lives there.
   expect(band(cx, bandMid)).toBe(8);
 
   let maxV = -1;
@@ -238,23 +258,59 @@ test("kitchen-table head: the crown outlines a dome and the band core is the hot
   expect(Math.abs(maxY - bandMid)).toBeLessThanOrEqual(1);
 });
 
-test("kitchen-table pedestal: fluted column, stepped plinths, full-bleed floor line", () => {
+test("kitchen-table cradle: yoke arms, pivot bosses, and a strap under the chin", () => {
   const context = makeContext();
   scene.init(context);
 
   context.time = 1 / 60;
   scene.update(1 / 60, context);
 
-  const { colBot, cols, cx, floorRow, rampLen, stepTops } = landmarks();
+  const { armX, chinHalf, cols, cx, headBot, pivotY, rampLen, uBot } = landmarks();
   const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
 
-  // The column shaft is at least '|' down to the first plinth.
-  expect(band(cx, colBot - 1)).toBeGreaterThanOrEqual(4);
+  // Pivot-screw bosses cap both arms beside the head ('#' screw centers).
+  expect(band(cx - armX - 2, pivotY)).toBeGreaterThanOrEqual(7);
+  expect(band(cx + armX + 2, pivotY)).toBeGreaterThanOrEqual(7);
 
-  // Each plinth's top edge reads '+' and each plinth is wider than the last.
-  for (const top of stepTops) {
-    expect(band(cx, top)).toBeGreaterThanOrEqual(6);
-  }
+  // Straight vertical arms run down the sides at '|' weight or better.
+  expect(band(cx - armX - 1, pivotY + 6)).toBeGreaterThanOrEqual(4);
+  expect(band(cx + armX + 1, pivotY + 6)).toBeGreaterThanOrEqual(4);
+
+  // The dark wedge between the narrowing egg and the arms: the cradle
+  // HOLDS the head across visible empty air.
+  expect(band(cx - chinHalf - 5, headBot - 3)).toBeLessThanOrEqual(1);
+  expect(band(cx + chinHalf + 5, headBot - 3)).toBeLessThanOrEqual(1);
+
+  // The U-strap closes under the chin, with a dark throat above it.
+  expect(band(cx, uBot - 1)).toBeGreaterThanOrEqual(4);
+  expect(band(cx, headBot + 1)).toBeLessThanOrEqual(1);
+});
+
+test("kitchen-table stand: thin pole, low wide two-tier base, full-bleed floor line", () => {
+  const context = makeContext();
+  scene.init(context);
+
+  context.time = 1 / 60;
+  scene.update(1 / 60, context);
+
+  const { baseHalf, baseTop, cols, cx, floorRow, knuckleBot, rampLen } = landmarks();
+  const band = (x: number, y: number): number => quantizeIndex(context.buffer.data[y * cols + x] ?? 0, rampLen);
+
+  // The pole is present ('=' or better) top and bottom...
+  expect(band(cx, knuckleBot + 4)).toBeGreaterThanOrEqual(5);
+  expect(band(cx, baseTop - 5)).toBeGreaterThanOrEqual(5);
+
+  // ...and THIN: a few cells off-center the air is dark (the old thick
+  // fluted column would have lit these).
+  expect(band(cx - 6, baseTop - 6)).toBeLessThanOrEqual(1);
+  expect(band(cx + 8, baseTop - 6)).toBeLessThanOrEqual(1);
+
+  // The base: a '+' tier top on the axis, '|'-weight fill out wide, and
+  // nothing but dark air just above it beyond the pole.
+  expect(band(cx, baseTop)).toBeGreaterThanOrEqual(6);
+  expect(band(cx + 10, floorRow - 1)).toBeGreaterThanOrEqual(4);
+  expect(band(cx + 1 + baseHalf - 4, floorRow - 1)).toBeGreaterThanOrEqual(4);
+  expect(band(cx + 15, baseTop - 2)).toBeLessThanOrEqual(1);
 
   // The floor line crosses every column at '|' weight or better.
   for (let x = 0; x < cols; x++) {
@@ -269,14 +325,14 @@ test("kitchen-table air: voice arcs ring the head and fade before the canvas edg
   context.time = 2;
   scene.update(1 / 60, context);
 
-  const { bandMid, cols, cx, headR, rampLen } = landmarks();
+  const { bandMid, cols, crownR, cx, rampLen } = landmarks();
   const data = context.buffer.data;
 
   // Arcs exist in the side field beyond the haze halo.
   let lit = 0;
 
   for (let y = bandMid - 8; y <= bandMid + 8; y++) {
-    for (let x = cx + headR + 8; x <= Math.min(cols - 2, cx + 92); x++) {
+    for (let x = cx + crownR + 12; x <= Math.min(cols - 2, cx + 92); x++) {
       if ((data[y * cols + x] ?? 0) > 0.07) {
         lit++;
       }

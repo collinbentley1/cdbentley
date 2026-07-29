@@ -1,22 +1,39 @@
 /**
  * Scene — "kitchen-table": THE BROADCAST MICROPHONE. Healthyr pivoted from
  * an app in a pocket to SMS and a real-time voice LLM — care that speaks.
- * No mouths, no phones: retro voice. A monumental 1950s birdcage microphone
- * (Shure 55 spirit) stands centered, filling most of the canvas height — a
- * rounded-dome grille head drawn GRAND, vertical grille ribs alternating
- * '='/'|' with dark slots like the stage's triglyph frieze, a bright
- * horizontal band across the grille (the scene's hottest light, '@' held to
- * a five-cell core), a '+'-weight outline crown — atop a tapering yoke and
- * a massive deco stepped pedestal: three plinths spanning wider toward a
- * full-bleed floor line that crosses every column.
+ * No mouths, no phones: retro voice. A monumental Shure Super 55 — the
+ * "Elvis mic" — fills the frame, drawn faithfully to its anatomy:
+ *
+ * THE HEAD IS AN EGG, NOT A DOME — a large teardrop grille, widest at the
+ * crown and tapering smoothly to a narrow chin (crown ~3x the chin), the
+ * head alone claiming roughly the upper half of the canvas. The chrome
+ * grille ribs FAN: they sit on constant viewing angles, so they converge
+ * toward the chin and crowd toward the curved edges where the surface
+ * foreshortens — alternating wide '='/narrow '|' ribs over dark slots. A
+ * bright nameplate band curves across the head's lower third (no letters);
+ * its five-cell core is the scene's only '@'. Below the band the shell is
+ * smooth chrome — but the fan's wide ribs continue as sparser, quieter
+ * strokes through the chin taper, so grille and chin read as one surface
+ * instead of ending on a hard seam.
+ *
+ * THE U-YOKE CRADLE: the head sits IN a cradle — two yoke arms rise from
+ * below, wrap the head's lower sides across a dark gap, and end in
+ * '+'-weight pivot-screw bosses beside the head; a thin U-shaped strap —
+ * a curved band, never a filled bowl — closes under the chin. The egg is
+ * HELD, not impaled. Below the strap a small RECTANGULAR stand-adapter
+ * block (no taper, no funnel), then a THIN three-cell pole drops to a
+ * LOW, WIDE two-tier round base hugging the full-bleed floor line.
  *
  * THE LIGHT EVENT + ONE MOTION: concentric voice arcs ripple outward from
  * the grille to both sides — nested portions of rings centered on the
- * band, brightness falling with radius (':' near, '-'/'·' far), slowly
- * propagating outward (phase = radius - speed*time) and fading to black
- * before the canvas edges, so the air itself carries the voice. The band's
- * core pulses in sync with each departing ring. Secondaries, both quiet: a
- * breathing haze confined to a halo around the head, and a faint
+ * nameplate band, brightness falling with radius (':' near, '-'/'·' far),
+ * slowly propagating outward (phase = radius - speed*time) and fading to
+ * black before the canvas edges, so the air itself carries the voice. The
+ * arcs also stop well above the waveform's horizon — their bottoms never
+ * curl under the head, so they stay open parentheses of air instead of
+ * closing into a badge circle. The
+ * band's core pulses in sync with each departing ring. Secondaries, both
+ * quiet: a breathing haze confined to a halo around the head, and a faint
  * oscilloscope waveform line low across the full width, its amplitude
  * breathing on a slow cycle.
  *
@@ -25,19 +42,27 @@
  * arbitrary sleep gaps land the voice exactly where it should be — two
  * updates at identical time produce byte-identical buffers.
  *
- * Compaction legibility: the head interior half-fills its area at rib
- * weights that pool past the bin-4 threshold near the band, the pedestal
- * plinths are solid '|'-band slabs, and the column is a thick fluted
- * stroke — at deep scroll the scene survives as its skeleton: a dotted
- * dome over a dotted column over a widening dotted base.
+ * Compaction legibility: at deep scroll (bin-4: 4x4 mean pooled against
+ * a 0.5 gate) the scene survives as its skeleton — a dotted egg over a
+ * thin stem over a wide shallow base. The thin crown outline alone can
+ * split across bin boundaries and vanish (a headless martini-glass), so
+ * a dedicated pass walks every pooled bin the egg outline crosses and,
+ * where the bin's mass falls short, promotes rim-adjacent cells to '#'
+ * studs — a sparse bright ring, roughly one stud cluster per four cells,
+ * that keeps the head alive at depth. The pole's three cells are
+ * bin-aligned at the tuned grid (cx = 112) and the stand-adapter block
+ * bridges strap to pole inside the same bin column. The voice arcs,
+ * haze, and waveform are air, not architecture: they fade out of the
+ * skeleton by design.
  *
  * Nothing human-readable is rendered here; the chapter prose beside this
  * scene is DOM.
  *
  * Ramp intent (hand-tunable, Collin's brush), dark -> bright:
  * " ·:-|=+#@" — the dark holds the corners; far arcs whisper on '·', near
- * arcs speak on ':' '-'; grille ribs live on '|' '='; crown, collar and
- * plinth edges on '+'; the band on '#'; its five-cell core alone on '@'.
+ * arcs speak on ':' '-'; chin ribs murmur on '-'; grille ribs live on
+ * '|' '='; crown, bosses and base tops on '+'; the band and the skeleton
+ * studs on '#'; the band's five-cell core alone on '@'.
  */
 
 import { createValueNoise, fbm2, type SceneContext, type SceneModule } from "../../sdk/index.ts";
@@ -47,26 +72,42 @@ const hazeNoise = createValueNoise(31);
 const TAU = Math.PI * 2;
 
 /** Luminance targets, tuned against the 9-glyph ramp (band width 1/9). */
-const CROWN_LUM = 0.72; // '+' — the head's outline crown
-const CROWN_T = 2.6; // crown thickness in cells (measured radially)
-const RIM_LUM = 0.66; // '=' — the rim where head meets yoke
-const SLOT_LUM = 0.13; // '·' — dark slots between grille ribs
-const RIB_BASE_LUM = 0.44; // '|' — rib brightness at the dome apex
-const RIB_GAIN = 0.14; // ribs brighten toward the band ('=' beside it)
-const RIB_ALT_DROP = 0.1; // the narrow alternate rib sits one band lower
-const BAND_EDGE_LUM = 0.7; // '+' — the band's outer rows at the crown
-const BAND_GAIN = 0.12; // outer-row lift toward center ('#'-adjacent)
-const BAND_MID_LUM = 0.8; // '#' — the band's middle row, full width
-const BAND_MID_GAIN = 0.08; // middle-row lift toward center
+const CROWN_LUM = 0.74; // '+' — the head's outline crown
+const CROWN_T = 3.5; // crown thickness in cells; pools past the bin-4 gate
+const SHELL_T = 2; // shell edge thickness below the band, slimmer
+const SLOT_LUM = 0.16; // '·' — dark slots between grille ribs
+const SLOT_SHEEN = 0.3; // slot lift toward the curved edges (chrome sheen)
+const RIB_EVEN_LUM = 0.58; // '=' — the wide ribs of the fan
+const RIB_ODD_LUM = 0.48; // '|' — the narrow ribs between them
+const RIB_GAIN = 0.08; // ribs brighten toward the nameplate band
+/** Rib anchors as fractions of the band-row half-width; the per-row sqrt
+ * scale makes the near-vertical fan open at the crown and converge gently
+ * toward the chin, outer ribs terminating against the crown edge. */
+const RIB_FRACTIONS = [0, 0.22, 0.42, 0.6, 0.76, 0.9, 1.05, 1.2] as const;
+const BAND_EDGE_LUM = 0.7; // '+' — the nameplate's outer rows
+const BAND_GAIN = 0.04; // lift toward the band's center
+const BAND_MID_LUM = 0.8; // '#' — the nameplate's middle row
+const BAND_CURVE = 1.5; // rows the nameplate dips toward the edges
 const BAND_CORE_LUM = 0.9; // '@' — five-cell core, the hottest light
-const YOKE_EDGE_LUM = 0.6; // '=' — yoke silhouette edges
-const YOKE_FILL_LUM = 0.44; // '|' — yoke fill
-const COL_EDGE_LUM = 0.66; // '=' — column arris, both sides
-const COL_FLUTE_A_LUM = 0.56; // '=' — column flute, lit (pools past bin 4)
-const COL_FLUTE_B_LUM = 0.46; // '|' — column flute, shadowed
-const STEP_TOP_LUM = 0.68; // '+' — each plinth's top edge
-const STEP_SIDE_LUM = 0.58; // '=' — plinth ends
-const STEP_FILL_LUM = 0.5; // '|' — plinth body (pools past bin-4 threshold)
+const SHELL_FILL_LUM = 0.3; // ':' — smooth chrome shell below the band
+const SHELL_EDGE_LUM = 0.56; // '=' — shell silhouette edges
+const CHIN_RIB_LUM = 0.45; // '-' — sparse rib strokes through the chin taper
+const CHIN_RIM_LUM = 0.6; // '=' — the narrow chin's bottom rim
+const YOKE_EDGE_LUM = 0.64; // '=' — yoke arm and U-strap edges
+const YOKE_FILL_LUM = 0.52; // '|' — yoke arm fill
+const YOKE_GAP = 3; // dark cells between the shell and each yoke arm
+const YOKE_ARM_T = 4; // yoke arm thickness in cells
+const BOSS_LUM = 0.72; // '+' — pivot-screw bosses beside the head
+const BOSS_CORE_LUM = 0.78; // '#' — each boss's screw center
+const STRAP_T = 2.6; // U-strap band thickness in cells (a band, not a bowl)
+const ADAPTER_LUM = 0.56; // '=' — the rectangular stand-adapter block
+const STUD_LUM = 0.87; // '#' — bin-4 skeleton studs along the egg rim
+const POOL = 4; // the deep-scroll bin size the skeleton pass defends
+const POOL_GATE = POOL * POOL * 0.5 + 0.4; // pooled sum a bin must clear
+const POLE_LUMS = [0.72, 0.68, 0.64] as const; // three cells; pools past bin 4
+const BASE_TOP_LUM = 0.7; // '+' — each base tier's top edge
+const BASE_FILL_LUM = 0.54; // '|' — base tier body
+const BASE_END_LUM = 0.44; // '-' — rounded tier ends
 const FLOOR_LUM = 0.56; // '=' — the full-bleed floor line
 const FLOOR_UNDER_LUM = 0.42; // '-' — the floor line's soffit row
 const FLOOR_SHADOW_LUM = 0.12; // '·' — the dark ground under the floor line
@@ -75,17 +116,19 @@ interface MicGeometry {
   bandMid: number;
   bandY0: number;
   bandY1: number;
-  colBot: number;
-  colHalf: number;
+  baseHalf: number;
+  baseTop: number;
+  chinHalf: number;
+  crownR: number;
+  crownY: number;
   cx: number;
   floorRow: number;
   headBot: number;
-  headCy: number;
-  headR: number;
   headTop: number;
-  steps: ReadonlyArray<{ halfW: number; y0: number; y1: number }>;
+  knuckleBot: number;
+  pivotY: number;
+  uBot: number;
   waveRow: number;
-  yokeBot: number;
 }
 
 let base = new Float32Array(0);
@@ -103,67 +146,65 @@ function clamp01(v: number): number {
 
 /**
  * Landmarks from proportions. The microphone is centered and monumental:
- * the head fills the upper half, the pedestal reaches the bottom edge, and
- * the floor line is full-bleed across every column. All offsets scale with
- * cols/rows so small harness grids stay in-bounds.
+ * the egg head claims the upper half, the slim stand drops to a low wide
+ * base at the bottom edge, and the floor line is full-bleed across every
+ * column. All offsets scale with cols/rows so small harness grids stay
+ * in-bounds (writes are bounds-checked besides).
  */
 function geometry(cols: number, rows: number): MicGeometry {
   const cx = Math.round(cols * 0.5);
-  const headR = Math.max(3, Math.round(Math.min(rows * 0.25, cols * 0.12)));
-  const headTop = Math.max(1, Math.round(rows * 0.048));
-  const headCy = headTop + headR;
-  const headBot = Math.min(rows - 2, headCy + Math.max(1, Math.round(headR * 1.05)));
-  const bandMid = Math.min(headBot - 1, headCy + Math.max(1, Math.round(headR * 0.12)));
-  const yokeBot = Math.min(rows - 2, headBot + Math.max(1, Math.round(rows * 0.055)));
-  const colHalf = Math.max(2, Math.round(cols * 0.027));
-  const stepH = Math.max(2, Math.round(rows * 0.045));
-  const floorRow = Math.max(yokeBot + 1, rows - 3);
-  const step3Top = floorRow - stepH;
-  const step2Top = step3Top - stepH;
-  const step1Top = step2Top - stepH;
+  const crownR = Math.max(4, Math.round(Math.min(rows * 0.26, cols * 0.115)));
+  const headTop = Math.max(1, Math.round(rows * 0.04));
+  const crownY = headTop + Math.max(3, Math.round(crownR * 0.55));
+  const headBot = Math.min(rows - 4, crownY + Math.max(4, Math.round(crownR * 1.3)));
+  const chinHalf = Math.max(2, Math.round(crownR * 0.35));
+  const bandMid = Math.min(headBot - 1, crownY + Math.max(1, Math.round((headBot - crownY) * 0.62)));
+  const uBot = Math.min(rows - 3, headBot + Math.max(3, Math.round(rows * 0.058)));
+  const knuckleBot = Math.min(rows - 2, uBot + 3);
+  const floorRow = Math.max(knuckleBot + 1, rows - 3);
 
   return {
     bandMid,
     bandY0: bandMid - 1,
     bandY1: bandMid + 1,
-    colBot: Math.max(yokeBot, step1Top - 1),
-    colHalf,
+    baseHalf: Math.max(chinHalf + 4, Math.round(cols * 0.103)),
+    baseTop: Math.max(knuckleBot + 1, floorRow - Math.max(3, Math.round(rows * 0.05))),
+    chinHalf,
+    crownR,
+    crownY,
     cx,
     floorRow,
     headBot,
-    headCy,
-    headR,
     headTop,
-    steps: [
-      { halfW: Math.max(colHalf + 2, Math.round(cols * 0.066)), y0: step1Top, y1: step2Top - 1 },
-      { halfW: Math.max(colHalf + 4, Math.round(cols * 0.105)), y0: step2Top, y1: step3Top - 1 },
-      { halfW: Math.max(colHalf + 6, Math.round(cols * 0.165)), y0: step3Top, y1: floorRow - 1 },
-    ],
+    knuckleBot,
+    pivotY: Math.min(bandMid - 1, crownY + Math.max(1, Math.round((headBot - crownY) * 0.5))),
+    uBot,
     waveRow: Math.round(rows * 0.78),
-    yokeBot,
   };
 }
 
 /**
- * The head silhouette: a circle-capped dome above headCy, sides tapering
- * gently inward below it (the birdcage profile). Returns the half-width at
- * row y, or -1 outside the head.
+ * The egg silhouette: an elliptical cap above crownY (widest at the crown)
+ * tapering on a convex cosine curve to the narrow chin at headBot — the
+ * Super 55 teardrop. Returns the half-width at row y, or -1 outside.
  */
-function domeHalfWidth(y: number, geo: MicGeometry): number {
+function eggHalfWidth(y: number, geo: MicGeometry): number {
   if (y < geo.headTop || y > geo.headBot) {
     return -1;
   }
 
-  if (y <= geo.headCy) {
-    const dy = geo.headCy - y;
-    const s = geo.headR * geo.headR - dy * dy;
+  if (y <= geo.crownY) {
+    const capH = Math.max(1, geo.crownY - geo.headTop);
+    const dy = (geo.crownY - y) / capH;
+    const s = 1 - dy * dy;
 
-    return s <= 0 ? 0 : Math.sqrt(s);
+    return s <= 0 ? 0 : geo.crownR * Math.sqrt(s);
   }
 
-  const t = (y - geo.headCy) / Math.max(1, geo.headBot - geo.headCy);
+  const t = (y - geo.crownY) / Math.max(1, geo.headBot - geo.crownY);
+  const c = Math.cos((t * Math.PI) / 2);
 
-  return geo.headR * (1 - 0.3 * t);
+  return geo.chinHalf + (geo.crownR - geo.chinHalf) * c * c;
 }
 
 /** Bounds-checked assignment. */
@@ -187,10 +228,105 @@ function putMax(data: Float32Array, w: number, h: number, x: number, y: number, 
 }
 
 /**
- * Static architecture: the birdcage head — crown outline, vertical grille
- * ribs alternating with dark slots, the bright band, a rim where the head
- * meets the yoke — then the tapering yoke, the fluted column, three deco
- * plinths widening toward the floor, and the full-bleed floor line.
+ * Bin-4 skeleton ring: deep scroll pools 4x4 cells against a 0.5 mean
+ * gate, and the egg's thin outline can split across bin boundaries and
+ * vanish — leaving a headless martini-glass skeleton. Walk every pooled
+ * bin the egg outline crosses; where a bin's mass falls short, promote
+ * the rim-most cells INSIDE the egg to '#' studs until the bin clears the
+ * gate — a sparse bright ring, roughly one stud cluster per four cells,
+ * that keeps the dotted egg alive at depth. Bins with too little egg to
+ * ever clear the gate are left untouched (no stray bright crumbs), and
+ * nothing is written outside the silhouette.
+ */
+function reinforceEggSkeleton(cols: number, rows: number, geo: MicGeometry): void {
+  const binKeys: number[] = [];
+  const seen = new Set<number>();
+  const mark = (x: number, y: number): void => {
+    if (x < 0 || x >= cols || y < 0 || y >= rows) {
+      return;
+    }
+
+    const key = Math.floor(y / POOL) * 8192 + Math.floor(x / POOL);
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      binKeys.push(key);
+    }
+  };
+
+  for (let y = geo.headTop; y <= geo.headBot; y++) {
+    const hw = eggHalfWidth(y, geo);
+
+    if (hw < 0) {
+      continue;
+    }
+
+    const hwI = Math.max(1, Math.round(hw));
+
+    // The crown cap rows are outline across their full width; every other
+    // row contributes its two silhouette-edge cells to the ring.
+    if (y <= geo.headTop + 1) {
+      for (let dx = -hwI; dx <= hwI; dx++) {
+        mark(geo.cx + dx, y);
+      }
+    } else {
+      mark(geo.cx - hwI, y);
+      mark(geo.cx + hwI, y);
+    }
+  }
+
+  for (const key of binKeys) {
+    const bx = (key % 8192) * POOL;
+    const by = Math.floor(key / 8192) * POOL;
+    const cells: Array<{ depth: number; i: number }> = [];
+    let sum = 0;
+    let reachable = 0;
+
+    for (let y = by; y < by + POOL && y < rows; y++) {
+      const hw = y >= geo.headTop && y <= geo.headBot ? eggHalfWidth(y, geo) : -1;
+
+      for (let x = bx; x < bx + POOL && x < cols; x++) {
+        const v = base[y * cols + x] ?? 0;
+        sum += v;
+
+        // Candidate studs live on or inside the egg rim (0.6 covers the
+        // rounded silhouette edge), nearest-the-rim first.
+        const depth = hw < 0 ? -1 : hw - Math.abs(x - geo.cx);
+
+        if (depth >= -0.6) {
+          cells.push({ depth, i: y * cols + x });
+          reachable += Math.max(0, STUD_LUM - v);
+        }
+      }
+    }
+
+    if (sum >= POOL_GATE || sum + reachable < POOL_GATE) {
+      continue;
+    }
+
+    cells.sort((a, b) => a.depth - b.depth || a.i - b.i);
+
+    for (const cell of cells) {
+      if (sum >= POOL_GATE) {
+        break;
+      }
+
+      const cur = base[cell.i] ?? 0;
+
+      if (cur < STUD_LUM) {
+        base[cell.i] = STUD_LUM;
+        sum += STUD_LUM - cur;
+      }
+    }
+  }
+}
+
+/**
+ * Static architecture: the egg head — crown outline, fanned grille ribs
+ * converging toward the chin, the curved nameplate band, the smooth chrome
+ * shell below it — then the U-yoke cradle (arms, pivot bosses, U-strap),
+ * the swivel knuckle, the thin pole, the low two-tier base, and the
+ * full-bleed floor line.
  */
 function buildBase(cols: number, rows: number): void {
   base = new Float32Array(cols * rows);
@@ -198,10 +334,13 @@ function buildBase(cols: number, rows: number): void {
   baseRows = rows;
 
   const geo = geometry(cols, rows);
+  const hwBand = Math.max(1, eggHalfWidth(geo.bandMid, geo));
+  const hwInBand = Math.max(2, hwBand - CROWN_T);
 
-  // The head: crown outline around a ribbed grille with the bright band.
+  // The head: crown outline around a fanned grille, the curved nameplate
+  // band, and the smooth shell below it down to the chin rim.
   for (let y = geo.headTop; y <= geo.headBot; y++) {
-    const hw = domeHalfWidth(y, geo);
+    const hw = eggHalfWidth(y, geo);
 
     if (hw < 0) {
       continue;
@@ -211,81 +350,172 @@ function buildBase(cols: number, rows: number): void {
 
     for (let dx = -hwI; dx <= hwI; dx++) {
       const x = geo.cx + dx;
-      let edge: boolean;
 
-      if (y <= geo.headCy) {
-        const rr = Math.sqrt(dx * dx + (y - geo.headCy) * (y - geo.headCy));
-        edge = rr >= geo.headR - CROWN_T;
-      } else {
-        edge = Math.abs(dx) >= hw - CROWN_T;
-      }
-
-      if (y >= geo.headBot - 1) {
-        putMax(base, cols, rows, x, y, RIM_LUM);
-        continue;
-      }
-
-      if (edge) {
+      // The crown cap: the top two rows are solid outline.
+      if (y <= geo.headTop + 1) {
         putMax(base, cols, rows, x, y, CROWN_LUM);
         continue;
       }
 
-      if (y >= geo.bandY0 && y <= geo.bandY1) {
+      // The chin rim: the bottom two rows close the egg.
+      if (y >= geo.headBot - 1) {
+        putMax(base, cols, rows, x, y, CHIN_RIM_LUM);
+        continue;
+      }
+
+      // The nameplate band curves down toward the edges (convex surface).
+      const bandOff = Math.round(BAND_CURVE * Math.pow(Math.abs(dx) / hwBand, 2));
+      const yb = y - bandOff;
+
+      if (yb >= geo.bandY0 && yb <= geo.bandY1) {
         const u = Math.min(1, Math.abs(dx) / hwI);
         const v =
-          y === geo.bandMid
+          yb === geo.bandMid
             ? Math.abs(dx) <= 2
               ? BAND_CORE_LUM
-              : BAND_MID_LUM + BAND_MID_GAIN * (1 - u)
+              : BAND_MID_LUM + BAND_GAIN * (1 - u)
             : BAND_EDGE_LUM + BAND_GAIN * (1 - u);
         putMax(base, cols, rows, x, y, v);
         continue;
       }
 
-      // Grille ribs, period 4: two '=' columns, one '|' column, one slot.
-      const m = ((dx % 4) + 4) % 4;
+      const belowBand = yb > geo.bandY1;
 
-      if (m === 3) {
+      if (Math.abs(dx) >= hw - (belowBand ? SHELL_T : CROWN_T)) {
+        putMax(base, cols, rows, x, y, belowBand ? SHELL_EDGE_LUM : CROWN_LUM);
+        continue;
+      }
+
+      // Below the band: smooth chrome shell — but the fan's wide ribs
+      // continue as sparser, quieter strokes through the chin taper, so
+      // the grille doesn't end on a hard seam (no Shell-logo scallop).
+      if (belowBand) {
+        const hwIn2 = hw - SHELL_T;
+        let lum = SHELL_FILL_LUM;
+
+        if (hwIn2 >= 2 && y < geo.headBot - 2) {
+          const s2 = Math.sqrt(hwIn2 / hwInBand);
+
+          for (let k = 0; k < RIB_FRACTIONS.length; k += 2) {
+            if (Math.abs(Math.abs(dx) - (RIB_FRACTIONS[k] ?? 0) * hwInBand * s2) <= 0.6) {
+              lum = CHIN_RIB_LUM;
+              break;
+            }
+          }
+        }
+
+        putMax(base, cols, rows, x, y, lum);
+        continue;
+      }
+
+      // The grille fan: rib anchors are fractions of the band-row width,
+      // scaled per row by sqrt(width ratio) — near-vertical ribs that open
+      // at the wide crown and converge gently toward the narrow chin.
+      const hwIn = hw - CROWN_T;
+
+      if (hwIn < 2) {
         putMax(base, cols, rows, x, y, SLOT_LUM);
         continue;
       }
 
-      const g = 1 - Math.min(1, Math.abs(y - geo.bandMid) / (geo.headR * 1.15));
-      const rib = RIB_BASE_LUM + RIB_GAIN * g;
-      putMax(base, cols, rows, x, y, m === 2 ? rib - RIB_ALT_DROP : rib);
+      const s = Math.sqrt(hwIn / hwInBand);
+      const uEdge = Math.min(1, Math.abs(dx) / hwIn);
+      let ribLum = SLOT_LUM + SLOT_SHEEN * uEdge * uEdge * uEdge;
+
+      for (let k = 0; k < RIB_FRACTIONS.length; k++) {
+        const d = Math.abs(Math.abs(dx) - (RIB_FRACTIONS[k] ?? 0) * hwInBand * s);
+        const wide = (k & 1) === 0;
+
+        if (d <= (wide ? 0.9 : 0.45)) {
+          const g = 1 - Math.min(1, Math.abs(y - geo.bandMid) / Math.max(1, geo.headBot - geo.headTop));
+          ribLum = (wide ? RIB_EVEN_LUM : RIB_ODD_LUM) + RIB_GAIN * g;
+          break;
+        }
+      }
+
+      putMax(base, cols, rows, x, y, ribLum);
     }
   }
 
-  // The yoke: a trapezoid tapering from the head rim down to the column.
-  const yokeSpan = Math.max(1, geo.yokeBot - geo.headBot);
-  const yokeTopHalf = geo.headR * 0.42;
+  // The yoke: straight VERTICAL arms flanking the egg — the dark wedge
+  // that opens between the narrowing head and the arms is what makes the
+  // egg read as HELD in a cradle — closed by an elliptical strap whose
+  // dark throat separates the chin from the stand.
+  const armX = Math.round(Math.max(0, eggHalfWidth(geo.pivotY, geo))) + YOKE_GAP + 1;
+  const uTop = Math.min(geo.uBot - 1, geo.headBot + 1);
+  const uRyOut = Math.max(2, geo.uBot - uTop) + 0.5;
+  const uRxOut = armX + YOKE_ARM_T - 0.5;
 
-  for (let y = geo.headBot + 1; y <= geo.yokeBot; y++) {
-    const t = (y - geo.headBot) / yokeSpan;
-    const hw = Math.max(geo.colHalf, Math.round(yokeTopHalf + (geo.colHalf + 1 - yokeTopHalf) * t));
+  for (let y = geo.pivotY; y < uTop; y++) {
+    for (let j = 0; j < YOKE_ARM_T; j++) {
+      const lum = j === 0 || j === YOKE_ARM_T - 1 ? YOKE_EDGE_LUM : YOKE_FILL_LUM;
+      putMax(base, cols, rows, geo.cx - armX - j, y, lum);
+      putMax(base, cols, rows, geo.cx + armX + j, y, lum);
+    }
+  }
+
+  // The U-strap: a thin curved band riding the outer ellipse arc from arm
+  // tip to arm tip — constant STRAP_T thickness, never a filled bowl, so
+  // nothing below the chin tapers like a funnel; the throat above the
+  // strap stays dark and the chin floats HELD.
+  for (let dx = -Math.ceil(uRxOut); dx <= Math.ceil(uRxOut); dx++) {
+    const q = 1 - (dx / uRxOut) * (dx / uRxOut);
+
+    if (q <= 0) {
+      continue;
+    }
+
+    const yOut = uRyOut * Math.sqrt(q);
+    const vy0 = Math.max(0, Math.ceil(yOut - STRAP_T));
+
+    for (let vy = vy0; vy <= Math.floor(yOut); vy++) {
+      const edge = yOut - vy < 0.9 || vy === vy0;
+      putMax(base, cols, rows, geo.cx + dx, uTop + vy, edge ? YOKE_EDGE_LUM : YOKE_FILL_LUM);
+    }
+  }
+
+  // The pivot-screw bosses: a '+'-weight block with a '#' screw center
+  // capping each arm, beside the head — the cradle visibly HOLDS.
+  for (let dy = -2; dy <= 2; dy++) {
+    const o0 = Math.abs(dy) === 2 ? armX : armX - 1;
+    const o1 = Math.abs(dy) === 2 ? armX + 3 : armX + 4;
+
+    for (let o = o0; o <= o1; o++) {
+      const v = dy === 0 && o === armX + 2 ? BOSS_CORE_LUM : BOSS_LUM;
+      putMax(base, cols, rows, geo.cx + o, geo.pivotY + dy, v);
+      putMax(base, cols, rows, geo.cx - o, geo.pivotY + dy, v);
+    }
+  }
+
+  // The stand adapter: a small RECTANGULAR block — four cells wide, no
+  // taper — coupling the strap to the pole. It shares the pole's bin
+  // column (cx..cx+3 at the tuned grid) so the stem stays continuous at
+  // deep scroll, and it kills the wine-glass funnel outright.
+  for (let y = geo.uBot; y <= geo.knuckleBot; y++) {
+    for (let dx = 0; dx < 4; dx++) {
+      putMax(base, cols, rows, geo.cx + dx, y, y === geo.uBot ? YOKE_EDGE_LUM : ADAPTER_LUM);
+    }
+  }
+
+  // The pole: three thin cells starting at cx — at the tuned 224-col grid
+  // cx = 112 is bin-aligned (112 % 4 == 0), so the stem's pooled luminance
+  // crosses the bin-4 threshold and survives deep scroll as a column.
+  for (let y = geo.knuckleBot + 1; y < geo.baseTop; y++) {
+    for (let j = 0; j < POLE_LUMS.length; j++) {
+      putMax(base, cols, rows, geo.cx + j, y, POLE_LUMS[j] ?? 0);
+    }
+  }
+
+  // The base: two low wide tiers with rounded ends, hugging the floor.
+  const split = geo.baseTop + Math.max(1, Math.floor((geo.floorRow - geo.baseTop) * 0.4));
+
+  for (let y = geo.baseTop; y < geo.floorRow; y++) {
+    const hw = y < split ? Math.round(geo.baseHalf * 0.62) : geo.baseHalf;
+    const top = y === geo.baseTop || y === split;
 
     for (let dx = -hw; dx <= hw; dx++) {
-      putMax(base, cols, rows, geo.cx + dx, y, Math.abs(dx) >= hw - 1 ? YOKE_EDGE_LUM : YOKE_FILL_LUM);
-    }
-  }
-
-  // The column: bright arrises, alternating flutes down the shaft.
-  for (let y = geo.yokeBot + 1; y <= geo.colBot; y++) {
-    for (let dx = -geo.colHalf; dx <= geo.colHalf; dx++) {
-      const v = Math.abs(dx) >= geo.colHalf ? COL_EDGE_LUM : (dx & 1) === 0 ? COL_FLUTE_A_LUM : COL_FLUTE_B_LUM;
-      putMax(base, cols, rows, geo.cx + dx, y, v);
-    }
-  }
-
-  // Three deco plinths, each wider than the last, stepping to the floor.
-  for (const step of geo.steps) {
-    for (let y = step.y0; y <= step.y1; y++) {
-      const top = y === step.y0;
-
-      for (let dx = -step.halfW; dx <= step.halfW; dx++) {
-        const v = top ? STEP_TOP_LUM : Math.abs(dx) >= step.halfW - 1 ? STEP_SIDE_LUM : STEP_FILL_LUM;
-        putMax(base, cols, rows, geo.cx + dx, y, v);
-      }
+      const end = Math.abs(dx) > hw - 2;
+      putMax(base, cols, rows, geo.cx + 1 + dx, y, end ? BASE_END_LUM : top ? BASE_TOP_LUM : BASE_FILL_LUM);
     }
   }
 
@@ -298,15 +528,18 @@ function buildBase(cols: number, rows: number): void {
       putMax(base, cols, rows, x, y, FLOOR_SHADOW_LUM);
     }
   }
+
+  // Last: the bin-4 skeleton ring, measured against the finished statics.
+  reinforceEggSkeleton(cols, rows, geo);
 }
 
 export const scene: SceneModule = {
   dockGlyph: [
-    "    ·++·    ",
-    " ·  |==|  · ",
-    "·:  |##|  :·",
-    " ·  ·||·  · ",
-    "     ||     ",
+    "  ·+====+·  ",
+    " ·|=|==|=|· ",
+    " +·|#@#|·+  ",
+    "  =·|--|·=  ",
+    "    ·||·    ",
     "  ·======·  ",
   ],
   id: "kitchen-table",
@@ -327,7 +560,7 @@ export const scene: SceneModule = {
       arcAngHi: 0.88,
       arcAngLo: 0.52,
       arcFadePow: 1.6,
-      arcInner: 4,
+      arcInner: 9,
       arcSharp: 2.5,
       arcSpanFrac: 0.47,
       arcSpeed: 4,
@@ -354,7 +587,7 @@ export const scene: SceneModule = {
       arcAngHi = 0.88,
       arcAngLo = 0.52,
       arcFadePow = 1.6,
-      arcInner = 4,
+      arcInner = 9,
       arcSharp = 2.5,
       arcSpanFrac = 0.47,
       arcSpeed = 4,
@@ -403,12 +636,17 @@ export const scene: SceneModule = {
     }
 
     // 3) THE light event: concentric voice arcs rippling outward from the
-    // band to both sides — pure f(time): phase = radius - speed * time.
+    // nameplate band to both sides — pure f(time): phase = r - speed*time.
     // Brightness falls with radius and the arcs fade before the edges.
-    const arcR0 = geo.headR + arcInner;
+    // arcR0 clears the egg's crown corners (their radius from the band
+    // center is ~1.3x crownR), so no ring ever paints the grille.
+    const arcR0 = geo.crownR + arcInner;
     const arcR1 = Math.max(arcR0 + 8, w * arcSpanFrac);
+    // The arcs' floor: trimmed above the waveform's horizon so their
+    // bottoms never curl under the head and close into a badge circle.
+    const arcCut = geo.waveRow - 8;
     const arcSpan = Math.max(1, arcR1 - arcR0);
-    const hazeR = geo.headR * hazeRadius;
+    const hazeR = geo.crownR * hazeRadius;
     const angSpan = Math.max(0.05, arcAngHi - arcAngLo);
 
     for (let y = 0; y < h; y++) {
@@ -438,7 +676,7 @@ export const scene: SceneModule = {
           }
         }
 
-        if (r < arcR0 || r >= arcR1) {
+        if (r < arcR0 || r >= arcR1 || y >= arcCut) {
           continue;
         }
 
@@ -465,23 +703,34 @@ export const scene: SceneModule = {
     const pulse = bandPulse * Math.pow(crest0, arcSharp);
 
     if (pulse > 0.0005) {
-      for (let y = geo.bandY0; y <= geo.bandY1; y++) {
-        const hw = Math.round(domeHalfWidth(y, geo));
+      // Follow the plate's convex dip (same per-column offset as buildBase)
+      // so the crest brightens the curved nameplate itself, never a straight
+      // bar flashing across the grille above its edges.
+      const hwBand = Math.max(1, eggHalfWidth(geo.bandMid, geo));
+      const hwMax = Math.round(hwBand);
 
-        if (hw < 1 || y < 0 || y >= h) {
+      for (let dx = -hwMax; dx <= hwMax; dx++) {
+        const x = geo.cx + dx;
+
+        if (x < 0 || x >= w) {
           continue;
         }
 
-        const row = y * w;
+        const bandOff = Math.round(BAND_CURVE * Math.pow(Math.abs(dx) / hwBand, 2));
 
-        for (let dx = -hw; dx <= hw; dx++) {
-          const x = geo.cx + dx;
-
-          if (x < 0 || x >= w) {
+        for (let y = geo.bandY0 + bandOff; y <= geo.bandY1 + bandOff; y++) {
+          if (y < 0 || y >= h) {
             continue;
           }
 
-          data[row + x] = clamp01((data[row + x] ?? 0) + pulse * (1 - Math.abs(dx) / hw));
+          const hw = eggHalfWidth(y, geo);
+
+          if (hw < 1 || Math.abs(dx) > hw) {
+            continue;
+          }
+
+          const i = y * w + x;
+          data[i] = clamp01((data[i] ?? 0) + pulse * (1 - Math.abs(dx) / hwBand));
         }
       }
     }
