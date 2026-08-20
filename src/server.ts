@@ -23,7 +23,7 @@ const NO_CACHE_PATHS: ReadonlySet<string> = new Set(["index.html", join("ocean",
 export async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
 
-  if (url.pathname === "/healthz") {
+  if (url.pathname === "/livez") {
     return json({ ok: true });
   }
 

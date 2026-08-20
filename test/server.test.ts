@@ -5,7 +5,7 @@ import { handleRequest } from "../src/server.ts";
 
 describe("server", () => {
   test("serves a health response", async () => {
-    const response = await handleRequest(new Request("http://localhost/healthz"));
+    const response = await handleRequest(new Request("http://localhost/livez"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
