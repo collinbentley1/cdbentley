@@ -3,6 +3,5 @@
   "projectId": "cdbentley",
   "region": "us-east4",
   "serviceName": "cdbentley",
-  "artifactRegistryRepository": "site",
-  "platformVersion": "v0.3.1"
+  "artifactRegistryRepository": "site"
 }
