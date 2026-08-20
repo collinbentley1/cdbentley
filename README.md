@@ -50,12 +50,12 @@ prefix: cdbentley/prod
 
 ## Application
 
-The site is a pure Bun frontend/backend. Local verification uses the latest Bun canary:
+The site is a pure Bun frontend/backend. Local verification uses stable Bun 1.4:
 
 ```sh
-bun upgrade --canary
+bun upgrade --stable
 bun run hooks:install
 bun run verify
 ```
 
-Socket's native Bun scanner is configured in `bunfig.toml`, and CI runs Bun canary for install, formatting, linting, tests, and build. The production container uses Docker Hardened Images for Bun and upgrades Bun to the latest canary during the Docker build.
+Socket's native Bun scanner is configured in `bunfig.toml`, and CI runs Bun 1.4.0 for install, formatting, linting, tests, and build. The production container uses Docker Hardened Images for Bun and pins the Docker build to exactly `bun-v1.4.0`.

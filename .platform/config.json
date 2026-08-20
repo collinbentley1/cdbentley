@@ -4,5 +4,5 @@
   "region": "us-east4",
   "serviceName": "cdbentley",
   "artifactRegistryRepository": "site",
-  "platformVersion": "v0.1.2"
+  "platformVersion": "v0.2.0"
 }
