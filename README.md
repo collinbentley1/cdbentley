@@ -24,7 +24,7 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 
 The consumer roots under `infra/terraform` are validation/documentation mirrors. Routine repository CI validates them and performs read-only convergence checks. Any authenticated infrastructure operation checks out the exact reviewed platform commit and selects the platform-owned configuration by immutable numeric GitHub repository ID; it never executes this repository's HCL.
 
-Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Until that protected pipeline and its state migration are complete, consumer Actions stay disabled. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/95ad7531492cba2891ec6d02fa2d821955cd36bc/docs/security-rollout.md).
+Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Until that protected pipeline and its state migration are complete, consumer Actions stay disabled. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/234fe5058348b7873476a8f6ce5a4ca966ea71d4/docs/security-rollout.md).
 
 Do not define `GCP_*` repository variables or repository-level deploy secrets.
 Rotated `DHI_USERNAME`, `DHI_ACCESS_TOKEN`, and `GRYPE_DB_MANIFEST_JSON` belong

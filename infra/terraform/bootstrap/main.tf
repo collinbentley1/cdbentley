@@ -1,5 +1,5 @@
 module "bootstrap" {
-  source = "github.com/collinbentley1/platform//terraform/modules/bootstrap?ref=95ad7531492cba2891ec6d02fa2d821955cd36bc"
+  source = "github.com/collinbentley1/platform//terraform/modules/bootstrap?ref=234fe5058348b7873476a8f6ce5a4ca966ea71d4"
 
   app                         = "cdbentley"
   project_id                  = var.project_id
@@ -12,7 +12,7 @@ module "bootstrap" {
   github_owner_id             = var.github_owner_id
   github_repository_id        = var.github_repository_id
   trusted_platform_workflow_shas = [
-    "95ad7531492cba2891ec6d02fa2d821955cd36bc",
+    "234fe5058348b7873476a8f6ce5a4ca966ea71d4",
   ]
   legacy_compatibility_mode                              = false
   manage_automatic_default_service_account_grants_policy = var.manage_automatic_default_service_account_grants_policy
