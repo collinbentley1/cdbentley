@@ -8,7 +8,11 @@ const failures: string[] = [];
 const allowedRootOrigins = new Set(["https://cdbentley.com", "https://github.com", "https://www.linkedin.com"]);
 
 await requireContains("Dockerfile", "dhi.io/bun", "Dockerfile must use Docker Hardened Bun images.");
-await requireContains("Dockerfile", "bun-v1.4.0", "Dockerfile must pin Bun 1.4.0.");
+await requireContains(
+  "Dockerfile",
+  "FROM oven/bun:1.4.0@sha256:",
+  "Dockerfile must pin Bun 1.4.0 by digest.",
+);
 await requireContains("public/index.html", 'rel="icon"', "The document must link a favicon.");
 await requireContains("public/index.html", 'src="/assets/ocean/theme-init.js"', "Inline scripts must stay external so the CSP can forbid them.");
 await requireContains("public/index.html", 'href="/assets/ocean/site.css"', "Inline styles must stay external so the CSP can forbid them.");

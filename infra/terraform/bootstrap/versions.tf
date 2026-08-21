@@ -2,7 +2,7 @@ terraform {
   required_version = "~> 1.14.0"
 
   backend "gcs" {
-    bucket = "cdbentley-tfstate-882468538648"
+    bucket = "cdbentley-tfstate-882468538648-bootstrap"
     prefix = "cdbentley/bootstrap"
   }
 
