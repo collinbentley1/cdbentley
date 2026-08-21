@@ -81,10 +81,17 @@ async function routeRequest(request: Request): Promise<Response> {
   }
 
   if (url.pathname === "/livez") {
-    return json({ ok: true });
+    return json(livenessPayload(Bun.env.PLATFORM_DEPLOY_NONCE));
   }
 
   return await serveStatic(url.pathname);
+}
+
+export function livenessPayload(deployment: string | undefined): {
+  ok: true;
+  deployment?: string;
+} {
+  return deployment ? { ok: true, deployment } : { ok: true };
 }
 
 async function serveStatic(pathname: string): Promise<Response> {

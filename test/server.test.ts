@@ -1,7 +1,7 @@
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { describe, expect, spyOn, test } from "bun:test";
-import { handleRequest } from "../src/server.ts";
+import { handleRequest, livenessPayload } from "../src/server.ts";
 
 describe("server", () => {
   test("serves a health response", async () => {
@@ -12,6 +12,13 @@ describe("server", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(body.ok).toBe(true);
     expectSecurityHeaders(response);
+  });
+
+  test("binds preview health to the platform deployment nonce", () => {
+    const nonce = "a".repeat(64);
+
+    expect(livenessPayload(nonce)).toEqual({ ok: true, deployment: nonce });
+    expect(livenessPayload(undefined)).toEqual({ ok: true });
   });
 
   test("serves the ocean at the root", async () => {
