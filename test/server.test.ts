@@ -29,7 +29,8 @@ describe("server", () => {
     expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
     expect(response.headers.get("Cache-Control")).toBe("no-cache");
     expect(body).toContain("<title>Collin Bentley</title>");
-    expect(body).toContain('src="/assets/ocean/theme-init.js"');
+    expect(body).toContain('src="/assets/ocean/theme-init.js?v=72780826fd382ab3be9b653fe73545f75f24c6dccc2381a2c6b175dcb349f1a4"');
+    expect(body).toContain('href="/assets/ocean/site.css?v=f42f1007252253453a977761b174d18a8f3606b2ce4411fea19643adda573864"');
     expect(body).toContain("/assets/ocean/descent.js");
     expectSecurityHeaders(response);
   });

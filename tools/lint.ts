@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -14,8 +15,8 @@ await requireContains(
   "Dockerfile must pin Bun 1.4.0 by digest.",
 );
 await requireContains("public/index.html", 'rel="icon"', "The document must link a favicon.");
-await requireContains("public/index.html", 'src="/assets/ocean/theme-init.js"', "Inline scripts must stay external so the CSP can forbid them.");
-await requireContains("public/index.html", 'href="/assets/ocean/site.css"', "Inline styles must stay external so the CSP can forbid them.");
+await requireContentVersionedReference("public/index.html", "public/assets/ocean/theme-init.js", "src");
+await requireContentVersionedReference("public/index.html", "public/assets/ocean/site.css", "href");
 await rejectContains("public/index.html", "<script>", "Inline scripts are forbidden by the production CSP.");
 await rejectContains("public/index.html", "<style", "Inline styles are forbidden by the production CSP.");
 await rejectInlineDocumentContent(join(root, "public"));
@@ -32,6 +33,18 @@ async function requireContains(path: string, needle: string, message: string): P
   const text = await readFile(join(root, path), "utf8");
   if (!text.includes(needle)) {
     failures.push(`${path}: ${message}`);
+  }
+}
+
+async function requireContentVersionedReference(documentPath: string, assetPath: string, attribute: "href" | "src"): Promise<void> {
+  const asset = await readFile(join(root, assetPath));
+  const digest = createHash("sha256").update(asset).digest("hex");
+  const publicPath = `/${assetPath.slice("public/".length)}`;
+  const expected = `${attribute}="${publicPath}?v=${digest}"`;
+  const document = await readFile(join(root, documentPath), "utf8");
+
+  if (!document.includes(expected)) {
+    failures.push(`${documentPath}: ${assetPath} must use its full SHA-256 query version (${expected}).`);
   }
 }
 
