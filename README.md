@@ -9,9 +9,8 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 - Consumer Terraform mirrors for local validation and review. They are not an apply surface.
 - Minimal GitHub Actions callers pinned to one reviewed full platform commit SHA.
 - Bun verification, Checkov IaC scanning, Socket dependency policy, final-image SBOM/Grype checks, pull request previews, preview reconciliation, and production deployment supplied by the shared platform.
-- Every checked-in action is pinned to a full commit SHA. Repository-level
-  SHA-only enforcement is a required activation gate and remains off only while
-  Actions are disabled for the IAM/WIF migration.
+- Every checked-in action is pinned to a full commit SHA, and repository-level
+  SHA-only enforcement is mandatory whenever Actions are enabled.
 
 ## Deployment model
 
@@ -24,16 +23,15 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 
 The consumer roots under `infra/terraform` are validation/documentation mirrors. Routine repository CI validates them and performs read-only convergence checks. Any authenticated infrastructure operation checks out the exact reviewed platform commit and selects the platform-owned configuration by immutable numeric GitHub repository ID; it never executes this repository's HCL.
 
-Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Until that protected pipeline and its state migration are complete, consumer Actions stay disabled. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/234fe5058348b7873476a8f6ce5a4ca966ea71d4/docs/security-rollout.md).
+Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/6e619a0f4123fc594c8cb4d7d857ecbd1a8d5643/docs/security-rollout.md).
 
 Do not define `GCP_*` repository variables or repository-level deploy secrets.
-Rotated `DHI_USERNAME`, `DHI_ACCESS_TOKEN`, and `GRYPE_DB_MANIFEST_JSON` belong
-only to the owner-approved `preview-build` and `production-build` environments.
-The least-scope `SOCKET_API_TOKEN` is installed separately in `dependency-scan`
-and in both build environments because each performs an authenticated dependency
-install. Publish, cloud-deploy, preview-operations, and supply-chain environments
-are otherwise secretless for this app. Runtime configuration is selected in
-reviewed platform code, not by repository variables.
+Rotated `DHI_USERNAME`, `DHI_ACCESS_TOKEN`, `GRYPE_DB_MANIFEST_JSON`, and the
+least-scope `SOCKET_API_TOKEN` belong only to the owner-approved `preview-build`
+and `production-build` environments. The platform repository alone owns the
+trusted-main `dependency-scan` token. Publish, cloud-deploy, preview-operations,
+and supply-chain environments are otherwise secretless for this app. Runtime
+configuration is selected in reviewed platform code, not by repository variables.
 
 ## Application
 
@@ -45,4 +43,4 @@ bun run hooks:install
 bun run verify
 ```
 
-Socket's native Bun scanner is configured in `bunfig.toml`, and CI runs Bun 1.4.0 for install, formatting, linting, tests, and build. The production container uses Docker Hardened Images for Bun and pins the Docker build to exactly `bun-v1.4.0`.
+The byte-canonical local Socket adapter is configured in `bunfig.toml`, and CI runs Bun 1.4.0 for install, formatting, linting, tests, and build. The production container uses Docker Hardened Images for Bun and pins the Docker build to exactly `bun-v1.4.0`.

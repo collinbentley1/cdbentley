@@ -22,7 +22,6 @@
     "verify:ci": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build"
   },
   "devDependencies": {
-    "@socketsecurity/bun-security-scanner": "1.1.2",
     "@types/bun": "1.4.0",
     "playwright-core": "1.61.1",
     "typescript": "7.0.2"
