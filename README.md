@@ -23,15 +23,21 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 
 The consumer roots under `infra/terraform` are validation/documentation mirrors. Routine repository CI validates them and performs read-only convergence checks. Any authenticated infrastructure operation checks out the exact reviewed platform commit and selects the platform-owned configuration by immutable numeric GitHub repository ID; it never executes this repository's HCL.
 
-Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/161ac5c7541073efe974499b67aaa607b8b77ee1/docs/security-rollout.md).
+Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/ddaa918319be123c780876d510efb4715c1f879d/docs/security-rollout.md).
 
 Do not define `GCP_*` repository variables or repository-level deploy secrets.
-Rotated `DHI_USERNAME`, `DHI_ACCESS_TOKEN`, `GRYPE_DB_MANIFEST_JSON`, and the
-least-scope `SOCKET_API_TOKEN` belong only to the owner-approved `preview-build`
-and `production-build` environments. The platform repository alone owns the
-trusted-main `dependency-scan` token. Publish, cloud-deploy, preview-operations,
-and supply-chain environments are otherwise secretless for this app. Runtime
-configuration is selected in reviewed platform code, not by repository variables.
+The sole credential-bearing build environment is
+`dhi-base-prefetch-20260822-098dca9280b3`, shared by preview and production.
+It contains exactly the public-read-only
+`DHI_PUBLIC_READ_TOKEN_20260822_098DCA9280B3` secret and the non-confidential
+`DHI_USERNAME` variable. No Socket token or mutable Grype database manifest is
+stored in GitHub; Socket uses public policy and Grype data is byte-pinned in the
+reviewed platform commit. After inventory proof and old provider-token
+revocation, the retired `preview-build`, `production-build`, and
+`dependency-scan` environments must be empty and deleted. Publish,
+cloud-deploy, preview-operations, and supply-chain environments remain
+secretless for this app. Runtime configuration is selected in reviewed platform
+code, not by repository variables.
 
 ## Application
 
