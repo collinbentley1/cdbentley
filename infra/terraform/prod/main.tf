@@ -1,5 +1,5 @@
 module "site" {
-  source = "github.com/collinbentley1/platform//terraform/modules/cloud-run-service?ref=09d037c012ae09c5a460d1ee52579eca9b101569"
+  source = "github.com/collinbentley1/platform//terraform/modules/cloud-run-service?ref=161ac5c7541073efe974499b67aaa607b8b77ee1"
 
   providers = {
     google                = google
@@ -16,6 +16,7 @@ module "site" {
   bootstrap_runtime_service_account_email = var.bootstrap_runtime_service_account_email
   runtime_service_account_email           = var.runtime_service_account_email
   preview_runtime_service_account_email   = var.preview_runtime_service_account_email
+  preview_ingress                         = var.preview_ingress
   prod_deploy_service_account_email       = var.prod_deploy_service_account_email
   prod_publisher_service_account_email    = var.prod_publisher_service_account_email
   preview_deploy_service_account_email    = var.preview_deploy_service_account_email
@@ -23,4 +24,5 @@ module "site" {
   preview_publisher_service_account_email = var.preview_publisher_service_account_email
   runtime_secret_ids                      = var.runtime_secret_ids
   runtime_secret_accessor_ids             = var.runtime_secret_accessor_ids
+  runtime_secret_version_adder_ids        = var.runtime_secret_version_adder_ids
 }
