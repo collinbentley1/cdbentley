@@ -35,12 +35,24 @@ configuration is selected in reviewed platform code, not by repository variables
 
 ## Application
 
-The site is a pure Bun frontend/backend. Local verification uses stable Bun 1.4:
+The site is a pure Bun frontend/backend. Local development must use Bun `1.4.0`
+at the exact reviewed revision
+`34cbb9a40b4bd1bd767d134a7065e66c2432a676`, matching CI and the production
+container. Before installing dependencies or running a repository script, fail
+closed on the full embedded revision:
 
 ```sh
-bun upgrade --stable
+bun -e 'if (Bun.version !== "1.4.0" || Bun.revision !== "34cbb9a40b4bd1bd767d134a7065e66c2432a676") throw new Error("Bun must be 1.4.0+34cbb9a40")'
 bun run hooks:install
 bun run verify
 ```
 
-The byte-canonical local Socket adapter is configured in `bunfig.toml`, and CI runs Bun 1.4.0 for install, formatting, linting, tests, and build. The production container uses Docker Hardened Images for Bun and pins the Docker build to exactly `bun-v1.4.0`.
+Never install or upgrade Bun from a moving `stable`, `latest`, or `canary`
+channel for this repository. `bun --revision` is a convenient display check,
+but it abbreviates the commit; the assertion above is the canonical local
+check.
+
+The byte-canonical local Socket adapter is configured in `bunfig.toml`, and CI
+runs the reviewed Bun revision for install, formatting, linting, tests, and
+build. The production container uses Docker Hardened Images for Bun and pins
+the Docker build to exactly `bun-v1.4.0`.
