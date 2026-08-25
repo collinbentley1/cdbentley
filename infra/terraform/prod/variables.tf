@@ -72,10 +72,22 @@ variable "prod_publisher_service_account_email" {
   default     = "gha-prod-publish@cdbentley.iam.gserviceaccount.com"
 }
 
+variable "deployment_parity_reader_service_account_email" {
+  description = "Read-only deployment parity service account email."
+  type        = string
+  default     = "gha-deploy-parity@cdbentley.iam.gserviceaccount.com"
+}
+
 variable "preview_deploy_service_account_email" {
   description = "Preview deploy service account email with exact-repository read access."
   type        = string
   default     = "gha-preview-deploy@cdbentley.iam.gserviceaccount.com"
+}
+
+variable "preview_commit_service_account_email" {
+  description = "Preview traffic/exposure transaction service account email."
+  type        = string
+  default     = "gha-preview-commit@cdbentley.iam.gserviceaccount.com"
 }
 
 variable "preview_operator_service_account_email" {
