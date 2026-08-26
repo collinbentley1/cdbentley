@@ -1,0 +1,404 @@
+:root {
+  --ink: #e8e3d3;
+  --accent: #ffb454;
+  --bg: #000000;
+  --top-rail-h: 48px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+a {
+  color: var(--ink);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding: 0.5em 1em;
+  border: 1px solid var(--ink);
+}
+
+.skip-link:focus {
+  left: 0.5em;
+  top: 0.5em;
+}
+
+header.site {
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: 4rem 1.25rem 2rem;
+  position: relative;
+  z-index: 2;
+}
+
+header.site h1 {
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
+  margin: 0 0 0.75rem;
+  font-weight: 700;
+}
+
+.social-links {
+  position: fixed;
+  top: max(2px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  /* Opaque so the horizontally-scrolling shelf chips are cleanly masked
+     where they pass under this fixed rail (no glyph bleed at 390px). */
+  background: #000000;
+}
+
+.social-link {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+
+.social-link:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.social-link:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -4px;
+}
+
+.social-link svg {
+  display: block;
+  width: auto;
+}
+
+.social-link--github svg {
+  height: 22px;
+}
+
+.social-link--linkedin svg {
+  height: 21px;
+}
+
+main {
+  position: relative;
+  z-index: 1;
+}
+
+.prose {
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 2.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.prose h2 {
+  font-size: 0.95rem;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  opacity: 0.85;
+  margin: 0 0 1rem;
+}
+
+/* Dim the ink via color alpha, not element opacity: in ocean mode the
+   summary's black scrim comes from the `.prose > *` backing, and element
+   opacity would fade that scrim too — letting bright glyphs bleed
+   through the subtitle. Alpha on the text alone keeps the scrim solid. */
+.scene-summary {
+  color: rgba(232, 227, 211, 0.62);
+  font-size: 0.9em;
+}
+
+.scene-sign {
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+
+/* Shelf: static nav list by default (no-JS), fixed strip when enhanced. */
+#shelf ul,
+#shelf ol {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75em;
+  margin: 0;
+  padding: 0.5rem 1.25rem;
+  max-width: 68ch;
+  margin-inline: auto;
+}
+
+#shelf a {
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.shelf-slot {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid rgba(232, 227, 211, 0.18);
+  font-family: inherit;
+  padding: 2px;
+  cursor: pointer;
+  position: relative;
+  display: block;
+}
+
+.shelf-item {
+  max-width: 52px;
+  opacity: 1;
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    max-width 320ms cubic-bezier(0.22, 0.75, 0.18, 1),
+    opacity 220ms ease-out,
+    transform 320ms cubic-bezier(0.22, 0.75, 0.18, 1);
+}
+
+.shelf-slot:focus-visible {
+  outline: 1px solid var(--ink);
+}
+
+.shelf-glyph {
+  margin: 0;
+  font-size: 6px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  opacity: 0.25;
+  white-space: pre;
+}
+
+.shelf-glyph.is-docked {
+  opacity: 0.95;
+}
+
+.shelf-chip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 11;
+  background: var(--bg);
+  border: 1px solid rgba(232, 227, 211, 0.45);
+  padding: 0.3em 0.7em;
+  font-size: 11px;
+  white-space: nowrap;
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelf-slot:hover .shelf-chip,
+.shelf-slot:focus-visible .shelf-chip {
+  display: block;
+}
+
+body.ocean #shelf {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: stretch;
+  gap: 0.5em;
+  padding: 4px 8px;
+  min-height: var(--top-rail-h);
+  background: rgba(0, 0, 0, 0.88);
+  border-bottom: 1px solid rgba(232, 227, 211, 0.2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+body.ocean #shelf::-webkit-scrollbar {
+  display: none;
+}
+
+body.ocean #shelf ol {
+  padding: 0 calc(98px + env(safe-area-inset-right)) 0 0;
+  margin: 0;
+  gap: 0.4em;
+  flex-wrap: nowrap;
+}
+
+body.ocean #shelf > ul {
+  display: none;
+}
+
+body.ocean #shelf:not(.shelf-expanded) .shelf-item:not([data-slot="0"]) {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-6px);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.ocean #shelf.shelf-expanded .shelf-item {
+  transition-delay: calc(var(--reveal-index) * 65ms);
+}
+
+body:not(.ocean) #shelf .shelf-slots,
+body:not(.ocean) .dock-traveler {
+  display: none !important;
+}
+
+body.ocean header.site {
+  height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Ocean mode: the field behind everything, sticky scene stages. */
+#ocean-field {
+  display: none;
+}
+
+body.ocean #ocean-field {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+.scene-stage {
+  display: none;
+}
+
+body.ocean section[data-scene] {
+  min-height: var(--section-h, auto);
+}
+
+body.ocean .scene-stage {
+  display: flex;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+body.ocean .prose {
+  margin-top: -62vh;
+  padding-bottom: 24vh;
+}
+
+/* The gate chapter starts below the curtain wall's sill band, so the
+   airliner and the glass grid stay clear while it reads. */
+body.ocean section[data-scene="airport-gate"] .prose {
+  margin-top: -26vh;
+}
+
+/* The stage chapter starts below the stage-floor line of the
+   proscenium (~72vh when the canvas is centered) — the heading rises
+   over the seat rows, never over the ghost light or the figure. */
+body.ocean section[data-scene="stage"] .prose {
+  margin-top: -26vh;
+}
+
+/* The tower chapter starts below the arcade's street line so the
+   Humana shaft, crown, and the sweeping EKG pulse stay clear. */
+body.ocean section[data-scene="corridor"] .prose {
+  margin-top: -43vh;
+}
+
+/* The learning hall's floor is the open zone: the prose enters below
+   the shelf wall's floor line, where only the Sphero's trail glides. */
+body.ocean section[data-scene="classroom"] .prose {
+  margin-top: -38vh;
+}
+
+/* The microphone chapter starts below the pedestal's mid-steps; the
+   dome, voice arcs, and yoke stay clear while it reads. */
+body.ocean section[data-scene="kitchen-table"] .prose {
+  margin-top: -42vh;
+}
+
+/* The exchange facade houses text well in its dark colonnade voids:
+   the deepest pull keeps the pediment and ticker band clear. */
+body.ocean section[data-scene="trading-floor"] .prose {
+  margin-top: -62vh;
+}
+
+/* The arrival chapter starts below the beam wash on the platform
+   floor, keeping the car face and headlight cones clear. */
+body.ocean section[data-scene="subway-platform"] .prose {
+  margin-top: -35vh;
+}
+
+body.ocean .prose > * {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.canvas-box {
+  position: relative;
+}
+
+.scene-canvas {
+  display: block;
+}
+
+.dock-traveler {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  margin: 0;
+  font-size: 8px;
+  line-height: 1.05;
+  white-space: pre;
+  color: var(--ink);
+  transform-origin: top left;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-item {
+    transition: none !important;
+  }
+
+  .dock-traveler {
+    display: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    font-size: 14px;
+  }
+}
