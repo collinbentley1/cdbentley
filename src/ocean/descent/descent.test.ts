@@ -14,6 +14,7 @@ import { depthForSectionTop, MEMORY_LINE_VH, SECTIONS, SHELF_SECTIONS } from "./
 import { createCollectionState } from "./shelf.ts";
 
 const pageHtml = await Bun.file(join(import.meta.dir, "..", "..", "..", "public", "index.html")).text();
+const pageCss = await Bun.file(join(import.meta.dir, "..", "..", "..", "public", "assets", "ocean", "site.css")).text();
 
 /** First sentence of each chapter, per the final copy (POLISH-SPEC §2.3). */
 const CHAPTER_OPENERS: Record<string, string> = {
@@ -306,10 +307,10 @@ describe("single-layout / a11y invariants in the static page", () => {
     expect(shelfSource).not.toContain("sessionStorage");
     expect(shelfSource).not.toContain("localStorage");
     expect(shelfSource).not.toContain("document.cookie");
-    expect(pageHtml).toContain("right: 0;");
-    expect(pageHtml).toContain("padding: 0 calc(98px + env(safe-area-inset-right)) 0 0;");
-    expect(pageHtml).toContain('#shelf:not(.shelf-expanded) .shelf-item:not([data-slot="0"])');
-    expect(pageHtml).toContain("transition-delay: calc(var(--reveal-index) * 65ms)");
+    expect(pageCss).toContain("right: 0;");
+    expect(pageCss).toContain("padding: 0 calc(98px + env(safe-area-inset-right)) 0 0;");
+    expect(pageCss).toContain('#shelf:not(.shelf-expanded) .shelf-item:not([data-slot="0"])');
+    expect(pageCss).toContain("transition-delay: calc(var(--reveal-index) * 65ms)");
   });
 
   test("collected frames are monotonic for one page-load state and reset with a new state", () => {
@@ -344,15 +345,15 @@ describe("single-layout / a11y invariants in the static page", () => {
     expect(pageHtml).toContain('<svg viewBox="0 0 98 96" aria-hidden="true" focusable="false">');
     expect(pageHtml).toContain('<svg viewBox="0 0 28 28" aria-hidden="true" focusable="false">');
     expect(pageHtml).toContain('fill="#fff"');
-    expect(pageHtml).toContain(".social-link--github svg");
-    expect(pageHtml).toContain("height: 22px");
-    expect(pageHtml).toContain(".social-link--linkedin svg");
-    expect(pageHtml).toContain("height: 21px");
+    expect(pageCss).toContain(".social-link--github svg");
+    expect(pageCss).toContain("height: 22px");
+    expect(pageCss).toContain(".social-link--linkedin svg");
+    expect(pageCss).toContain("height: 21px");
   });
 
   test("no CRT effects and no per-character DOM anywhere in the page styles", () => {
-    expect(pageHtml).not.toContain("scanline");
-    expect(pageHtml).not.toContain("chromatic");
-    expect(pageHtml).not.toContain("text-shadow");
+    expect(pageCss).not.toContain("scanline");
+    expect(pageCss).not.toContain("chromatic");
+    expect(pageCss).not.toContain("text-shadow");
   });
 });

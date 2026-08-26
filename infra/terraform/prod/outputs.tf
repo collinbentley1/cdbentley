@@ -12,8 +12,3 @@ output "cloud_run_service_uri" {
   description = "Production Cloud Run service URL."
   value       = module.site.cloud_run_service_uri
 }
-
-output "cloud_run_domain_mappings" {
-  description = "Production Cloud Run custom domain DNS records."
-  value       = module.site.cloud_run_domain_mappings
-}
