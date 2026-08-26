@@ -6,56 +6,59 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 
 ## What is here
 
-- Terraform bootstrap for Google Cloud APIs, state storage, Workload Identity Federation, and CI service accounts.
-- Terraform production infrastructure for Artifact Registry and Cloud Run.
-- GitHub Actions for Terraform validation/apply, Checkov IaC scanning, Socket Firewall dependency install checks, PR previews, preview cleanup, and production deployment.
-- GitHub Actions are pinned to full commit SHAs and the repository is configured to require SHA-pinned actions.
+- Consumer Terraform mirrors for local validation and review. They are not an apply surface.
+- Minimal GitHub Actions callers pinned to one reviewed full platform commit SHA.
+- Bun verification, Checkov IaC scanning, Socket dependency policy, final-image SBOM/Grype checks, pull request previews, preview reconciliation, and production deployment supplied by the shared platform.
+- Every checked-in action is pinned to a full commit SHA, and repository-level
+  SHA-only enforcement is mandatory whenever Actions are enabled.
 
 ## Deployment model
 
-- Pull request updates deploy ephemeral Cloud Run preview services named `cdbentley-pr-<number>`.
-- Closing a pull request deletes its preview Cloud Run service.
+- Pull requests use tagged traffic on the single no-data Cloud Run service `cdbentley-preview`; they do not create a service per pull request.
+- Closing, superseding, or reconciling a pull request removes only that pull request's tagged traffic after an exact-revision check.
 - Merges to `main` deploy the production Cloud Run service named `cdbentley`.
-- Terraform does not manage preview environments. It manages only long-lived shared infrastructure.
+- Build, Artifact Registry publication, Cloud Run deployment, preview operations, and supply-chain attestation use separate protected environments and least-scope identities.
 
-## Bootstrap
+## Infrastructure and secrets
 
-The bootstrap root is applied manually because it creates the GitHub Actions identities that later run production Terraform.
+The consumer roots under `infra/terraform` are validation/documentation mirrors. Routine repository CI validates them and performs read-only convergence checks. Any authenticated infrastructure operation checks out the exact reviewed platform commit and selects the platform-owned configuration by immutable numeric GitHub repository ID; it never executes this repository's HCL.
 
-```sh
-gcloud services enable \
-  serviceusage.googleapis.com \
-  cloudresourcemanager.googleapis.com \
-  iam.googleapis.com \
-  iamcredentials.googleapis.com \
-  sts.googleapis.com \
-  run.googleapis.com \
-  artifactregistry.googleapis.com \
-  --project=cdbentley
+Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/3ce4e9ea52d5e420b5487591f4514cc28d5ab21a/docs/security-rollout.md).
 
-export GOOGLE_OAUTH_ACCESS_TOKEN="$(gcloud auth print-access-token)"
-terraform -chdir=infra/terraform/bootstrap init
-terraform -chdir=infra/terraform/bootstrap apply
-terraform -chdir=infra/terraform/prod init
-terraform -chdir=infra/terraform/prod apply
-```
-
-Both Terraform roots use a GCS backend:
-
-```text
-bucket: cdbentley-tfstate-882468538648
-prefix: cdbentley/bootstrap
-prefix: cdbentley/prod
-```
+Do not define `GCP_*` repository variables or repository-level deploy secrets.
+The sole credential-bearing build environment is
+`dhi-base-prefetch-20260822-098dca9280b3`, shared by preview and production.
+It contains exactly the public-read-only
+`DHI_PUBLIC_READ_TOKEN_20260822_098DCA9280B3` secret and the non-confidential
+`DHI_USERNAME` variable. No Socket token or mutable Grype database manifest is
+stored in GitHub; Socket uses public policy and Grype data is byte-pinned in the
+reviewed platform commit. After inventory proof and old provider-token
+revocation, the retired `preview-build`, `production-build`, and
+`dependency-scan` environments must be empty and deleted. Publish,
+cloud-deploy, preview-operations, and supply-chain environments remain
+secretless for this app. Runtime configuration is selected in reviewed platform
+code, not by repository variables.
 
 ## Application
 
-The site is a pure Bun frontend/backend. Local verification uses stable Bun 1.4:
+The site is a pure Bun frontend/backend. Local development must use Bun `1.4.0`
+at the exact reviewed revision
+`34cbb9a40b4bd1bd767d134a7065e66c2432a676`, matching CI and the production
+container. Before installing dependencies or running a repository script, fail
+closed on the full embedded revision:
 
 ```sh
-bun upgrade --stable
+bun -e 'if (Bun.version !== "1.4.0" || Bun.revision !== "34cbb9a40b4bd1bd767d134a7065e66c2432a676") throw new Error("Bun must be 1.4.0+34cbb9a40")'
 bun run hooks:install
 bun run verify
 ```
 
-Socket's native Bun scanner is configured in `bunfig.toml`, and CI runs Bun 1.4.0 for install, formatting, linting, tests, and build. The production container uses Docker Hardened Images for Bun and pins the Docker build to exactly `bun-v1.4.0`.
+Never install or upgrade Bun from a moving `stable`, `latest`, or `canary`
+channel for this repository. `bun --revision` is a convenient display check,
+but it abbreviates the commit; the assertion above is the canonical local
+check.
+
+The byte-canonical local Socket adapter is configured in `bunfig.toml`, and CI
+runs the reviewed Bun revision for install, formatting, linting, tests, and
+build. The production container uses Docker Hardened Images for Bun and pins
+the Docker build to exactly `bun-v1.4.0`.

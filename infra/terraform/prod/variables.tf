@@ -23,9 +23,15 @@ variable "artifact_registry_repository_id" {
 }
 
 variable "bootstrap_image" {
-  description = "Initial public image used before the application container exists."
+  description = "Digest-pinned initial public image used before the application container exists."
   type        = string
-  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+  default     = "us-docker.pkg.dev/cloudrun/container/hello@sha256:9a0e9a5c7a19281e7617991d2fc61809de4973e6e75a10b2f07df3719ffda33c"
+}
+
+variable "bootstrap_runtime_service_account_email" {
+  description = "No-role service account used only by the initial bootstrap image."
+  type        = string
+  default     = "cloud-run-bootstrap@cdbentley.iam.gserviceaccount.com"
 }
 
 variable "runtime_service_account_email" {
@@ -34,15 +40,92 @@ variable "runtime_service_account_email" {
   default     = "cloud-run-runtime@cdbentley.iam.gserviceaccount.com"
 }
 
+variable "preview_runtime_service_account_email" {
+  description = "No-data Cloud Run preview runtime service account email."
+  type        = string
+  default     = "cloud-run-preview@cdbentley.iam.gserviceaccount.com"
+}
+
+variable "preview_ingress" {
+  description = "Ingress policy for the shared preview Cloud Run service."
+  type        = string
+  default     = "INGRESS_TRAFFIC_ALL"
+
+  validation {
+    condition = contains([
+      "INGRESS_TRAFFIC_ALL",
+      "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
+    ], var.preview_ingress)
+    error_message = "preview_ingress must allow all traffic or only internal and Cloud Load Balancing traffic."
+  }
+}
+
 variable "prod_deploy_service_account_email" {
-  description = "Production deploy service account email."
+  description = "Production deploy service account email with exact-repository read access and only declared exact-secret version-add grants."
   type        = string
   default     = "gha-prod-deploy@cdbentley.iam.gserviceaccount.com"
 }
 
+variable "prod_publisher_service_account_email" {
+  description = "Artifact Registry-only production publisher service account email."
+  type        = string
+  default     = "gha-prod-publish@cdbentley.iam.gserviceaccount.com"
+}
+
+variable "deployment_parity_reader_service_account_email" {
+  description = "Read-only deployment parity service account email."
+  type        = string
+  default     = "gha-deploy-parity@cdbentley.iam.gserviceaccount.com"
+}
+
 variable "preview_deploy_service_account_email" {
-  description = "Preview deploy service account email."
+  description = "Preview deploy service account email with exact-repository read access."
   type        = string
   default     = "gha-preview-deploy@cdbentley.iam.gserviceaccount.com"
 }
 
+variable "preview_commit_service_account_email" {
+  description = "Preview traffic/exposure transaction service account email."
+  type        = string
+  default     = "gha-preview-commit@cdbentley.iam.gserviceaccount.com"
+}
+
+variable "preview_operator_service_account_email" {
+  description = "Deprecated transition-only preview operator email retained for input compatibility; receives no IAM grant."
+  type        = string
+  default     = "gha-preview-operator@cdbentley.iam.gserviceaccount.com"
+}
+
+variable "preview_publisher_service_account_email" {
+  description = "Artifact Registry-only preview publisher service account email."
+  type        = string
+  default     = "gha-preview-publish@cdbentley.iam.gserviceaccount.com"
+}
+
+variable "runtime_secret_ids" {
+  description = "Secret Manager secret containers retained by the platform; does not grant runtime access."
+  type        = set(string)
+  default     = []
+}
+
+variable "runtime_secret_accessor_ids" {
+  description = "Declared runtime secret IDs whose payloads the production runtime may read."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition     = length(setsubtract(var.runtime_secret_accessor_ids, var.runtime_secret_ids)) == 0
+    error_message = "runtime_secret_accessor_ids must be a subset of runtime_secret_ids."
+  }
+}
+
+variable "runtime_secret_version_adder_ids" {
+  description = "Declared runtime secret IDs to which the production deploy identity may add immutable versions."
+  type        = set(string)
+  default     = []
+
+  validation {
+    condition     = length(setsubtract(var.runtime_secret_version_adder_ids, var.runtime_secret_ids)) == 0
+    error_message = "runtime_secret_version_adder_ids must be a subset of runtime_secret_ids."
+  }
+}

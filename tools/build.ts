@@ -18,7 +18,6 @@ const spikeBuild = await Bun.build({
   minify: true,
   naming: "assets/ocean/spike/[name].js",
   outdir: distPublicDir,
-  sourcemap: "external",
   target: "browser",
 });
 
@@ -42,7 +41,6 @@ for (const { id, path } of harnessEntries) {
     minify: true,
     naming: `assets/ocean/harness/${id}.js`,
     outdir: distPublicDir,
-    sourcemap: "external",
     target: "browser",
   });
 
@@ -55,7 +53,6 @@ const descentBuild = await Bun.build({
   minify: true,
   naming: "assets/ocean/descent.js",
   outdir: distPublicDir,
-  sourcemap: "external",
   target: "browser",
 });
 
@@ -66,7 +63,6 @@ const serverBuild = await Bun.build({
   external: ["*.html", "*.css"],
   minify: false,
   outdir: distDir,
-  sourcemap: "external",
   target: "bun",
 });
 
