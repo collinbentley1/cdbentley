@@ -1,18 +1,6 @@
 # Google GitHub Actions generated credentials
 gha-creds-*.json
 
-# Terraform
-**/.terraform/
-*.tfstate
-*.tfstate.*
-crash.log
-crash.*.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-.terraform.lock.hcl.tmp
-
 # Secrets and local config
 .env
 .env.*
@@ -36,3 +24,28 @@ coverage/
 .idea/
 .vscode/
 
+# BEGIN platform-managed Terraform safety rules
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.*
+*.plan
+*.plan.*
+*.tflock
+*.tflock.*
+*.tfvars
+*.tfvars.*
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl.tmp
+# END platform-managed Terraform safety rules

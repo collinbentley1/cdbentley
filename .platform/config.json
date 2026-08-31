@@ -1,6 +1,7 @@
 {
   "name": "cdbentley",
   "projectId": "cdbentley",
+  "githubRepositoryId": "1255553151",
   "region": "us-east4",
   "serviceName": "cdbentley",
   "artifactRegistryRepository": "site"
