@@ -23,7 +23,7 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 
 The consumer roots under `infra/terraform` are validation/documentation mirrors. Routine repository CI validates them and performs read-only convergence checks. Any authenticated infrastructure operation checks out the exact reviewed platform commit and selects the platform-owned configuration by immutable numeric GitHub repository ID; it never executes this repository's HCL.
 
-Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/9c7ac155ac06ea1a503505e14c5a93287d0e144d/docs/security-rollout.md).
+Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/6b745b98da093b83683109cdc9f0bb6f5ad24eaf/docs/security-rollout.md).
 
 Do not define `GCP_*` repository variables or repository-level deploy secrets.
 The sole credential-bearing build environment is

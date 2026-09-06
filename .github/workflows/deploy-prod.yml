@@ -12,14 +12,18 @@ jobs:
     permissions:
       contents: read
       id-token: write # Prove exact-SHA WIF and read cloud metadata for convergence only.
-    uses: collinbentley1/platform/.github/workflows/infrastructure.yml@9c7ac155ac06ea1a503505e14c5a93287d0e144d
+    uses: collinbentley1/platform/.github/workflows/infrastructure.yml@6b745b98da093b83683109cdc9f0bb6f5ad24eaf
 
   deploy:
     needs: infrastructure
+    # Runs whatever infrastructure concluded: the reusable workflow delivers each job's credential to the
+    # protected-recovery broker first and then requires the convergence job of this run to have succeeded
+    # before any exchange, so a quarantine -- under which convergence fails -- still gets every delivery.
+    if: always()
     permissions:
       actions: read # Download the SBOM artifact produced by this workflow run.
       attestations: write # Publish provenance and SBOM attestations for the copied digest.
       contents: read
       id-token: write # Exchange only through exact production publish and deploy paths.
       pull-requests: read # The reusable deploy proves every live preview tag maps to an active PR head.
-    uses: collinbentley1/platform/.github/workflows/deploy-prod.yml@9c7ac155ac06ea1a503505e14c5a93287d0e144d
+    uses: collinbentley1/platform/.github/workflows/deploy-prod.yml@6b745b98da093b83683109cdc9f0bb6f5ad24eaf
