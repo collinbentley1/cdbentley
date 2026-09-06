@@ -16,4 +16,4 @@ jobs:
       actions: read # Download only the exact prefetch artifact id the reusable workflow produces.
       id-token: write # Exchange only for the exact-SHA preview traffic operator.
       pull-requests: read # Let the reusable cleanup re-read current lifecycle state.
-    uses: collinbentley1/platform/.github/workflows/cleanup-preview.yml@6b745b98da093b83683109cdc9f0bb6f5ad24eaf
+    uses: collinbentley1/platform/.github/workflows/cleanup-preview.yml@52cb2dea765ead93f204ee4a5bd884b9fbb0f13a

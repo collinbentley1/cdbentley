@@ -18,4 +18,4 @@ jobs:
     name: Bun verify
     permissions:
       contents: read
-    uses: collinbentley1/platform/.github/workflows/application.yml@6b745b98da093b83683109cdc9f0bb6f5ad24eaf
+    uses: collinbentley1/platform/.github/workflows/application.yml@52cb2dea765ead93f204ee4a5bd884b9fbb0f13a
