@@ -15,4 +15,4 @@ jobs:
     permissions:
       contents: read
       id-token: write # Permission ceiling for the main-only convergence job in the trusted reusable workflow.
-    uses: collinbentley1/platform/.github/workflows/infrastructure.yml@a831d374f18e91e44fa357fb7e1a8368103835a4
+    uses: collinbentley1/platform/.github/workflows/infrastructure.yml@72fc2e8c48a07a106cfd040908f5dded2e958e43

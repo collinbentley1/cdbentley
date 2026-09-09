@@ -1,6 +1,7 @@
 name: Reconcile previews
 run-name: ${{ inputs.delivery_nonce && format('recovery-dispatch-{0}', inputs.delivery_nonce) || github.workflow }}
 
+# checkov:skip=CKV_GHA_7:delivery_nonce labels only the run name for lost-response recovery and cannot reach jobs.
 on:
   push:
     branches:
@@ -24,4 +25,4 @@ jobs:
       actions: read # Download only the exact prefetch artifact id the reusable workflow produces.
       id-token: write # Exchange only for the exact-SHA preview traffic operator.
       pull-requests: read # Compare live tags with authoritative pull-request heads.
-    uses: collinbentley1/platform/.github/workflows/reconcile-previews.yml@a831d374f18e91e44fa357fb7e1a8368103835a4
+    uses: collinbentley1/platform/.github/workflows/reconcile-previews.yml@72fc2e8c48a07a106cfd040908f5dded2e958e43
