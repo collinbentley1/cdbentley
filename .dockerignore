@@ -1,6 +1,7 @@
 .git
 .github
-.platform
+.platform/*
+!.platform/config.json
 .terraform
 infra
 outputs

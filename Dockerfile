@@ -4,9 +4,10 @@ FROM platform.invalid/dhi-bun-dev AS deps
 WORKDIR /app
 
 COPY --from=bun-release /usr/local/bin/bun /usr/local/bin/bun
-RUN bun -e 'if (Bun.version !== "1.4.0" || Bun.revision !== "34cbb9a40b4bd1bd767d134a7065e66c2432a676") throw new Error("Bun image requires 1.4.0+34cbb9a40, got " + Bun.version + "+" + Bun.revision.slice(0, 9))'
+RUN bun -e 'if (Bun.version !== "1.4.2" || Bun.revision !== "744846f844374847c902b5e7fd59b4342a51ef99") throw new Error("Bun image requires 1.4.2+744846f84, got " + Bun.version + "+" + Bun.revision.slice(0, 9))'
 
 COPY package.json bun.lock bunfig.toml tsconfig.json ./
+COPY .platform/config.json ./.platform/config.json
 COPY tools/socket-security-scanner.ts ./tools/socket-security-scanner.ts
 RUN unset SOCKET_API_TOKEN SOCKET_API_KEY; \
   unset BUN_CONFIG_SKIP_LOAD_LOCKFILE BUN_FEATURE_FLAG_DISABLE_IGNORE_SCRIPTS BUN_CONFIG_REGISTRY NPM_CONFIG_REGISTRY; \
@@ -29,13 +30,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV PUBLIC_DIR=/app/dist/public
-ENV BUN_VERSION=1.4.0
+ENV BUN_VERSION=1.4.2
 LABEL org.opencontainers.image.base.name="dhi.io/bun:1-alpine" \
   org.opencontainers.image.base.digest="sha256:0f9e5f506d653e0f87e44bb5c24fece19f9fb7253016f6e49d7a4783026f876d"
 
 COPY --from=deps /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=build /app/dist ./dist
-RUN ["bun", "-e", "if (Bun.version !== \"1.4.0\" || Bun.revision !== \"34cbb9a40b4bd1bd767d134a7065e66c2432a676\") throw new Error(\"Bun image requires 1.4.0+34cbb9a40, got \" + Bun.version + \"+\" + Bun.revision.slice(0, 9))"]
+RUN ["bun", "-e", "if (Bun.version !== \"1.4.2\" || Bun.revision !== \"744846f844374847c902b5e7fd59b4342a51ef99\") throw new Error(\"Bun image requires 1.4.2+744846f84, got \" + Bun.version + \"+\" + Bun.revision.slice(0, 9))"]
 
 EXPOSE 8080
 USER 65532:65532

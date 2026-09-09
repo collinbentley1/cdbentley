@@ -23,7 +23,7 @@ This repository is MIT-licensed, but it is not accepting external contributions.
 
 The consumer roots under `infra/terraform` are validation/documentation mirrors. Routine repository CI validates them and performs read-only convergence checks. Any authenticated infrastructure operation checks out the exact reviewed platform commit and selects the platform-owned configuration by immutable numeric GitHub repository ID; it never executes this repository's HCL.
 
-Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/52cb2dea765ead93f204ee4a5bd884b9fbb0f13a/docs/security-rollout.md).
+Bootstrap, production, and public-exposure changes must run through the owner-controlled, review-gated pipeline against `platform/terraform/deployments`; there is no supported manual apply path in this repository. Actions may be enabled only after that protected pipeline, its state migration, exact-SHA WIF, and SHA-only enforcement are verified. See the [pinned security rollout](https://github.com/collinbentley1/platform/blob/a831d374f18e91e44fa357fb7e1a8368103835a4/docs/security-rollout.md).
 
 Do not define `GCP_*` repository variables or repository-level deploy secrets.
 The sole credential-bearing build environment is
@@ -41,14 +41,14 @@ code, not by repository variables.
 
 ## Application
 
-The site is a pure Bun frontend/backend. Local development must use Bun `1.4.0`
+The site is a pure Bun frontend/backend. Local development must use Bun `1.4.2`
 at the exact reviewed revision
-`34cbb9a40b4bd1bd767d134a7065e66c2432a676`, matching CI and the production
+`744846f844374847c902b5e7fd59b4342a51ef99`, matching CI and the production
 container. Before installing dependencies or running a repository script, fail
 closed on the full embedded revision:
 
 ```sh
-bun -e 'if (Bun.version !== "1.4.0" || Bun.revision !== "34cbb9a40b4bd1bd767d134a7065e66c2432a676") throw new Error("Bun must be 1.4.0+34cbb9a40")'
+bun -e 'if (Bun.version !== "1.4.2" || Bun.revision !== "744846f844374847c902b5e7fd59b4342a51ef99") throw new Error("Bun must be 1.4.2+744846f84")'
 bun run hooks:install
 bun run verify
 ```
@@ -61,4 +61,4 @@ check.
 The byte-canonical local Socket adapter is configured in `bunfig.toml`, and CI
 runs the reviewed Bun revision for install, formatting, linting, tests, and
 build. The production container uses Docker Hardened Images for Bun and pins
-the Docker build to exactly `bun-v1.4.0`.
+the Docker build to exactly `bun-v1.4.2`.
