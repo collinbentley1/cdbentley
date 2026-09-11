@@ -1,5 +1,5 @@
 module "bootstrap" {
-  source = "github.com/collinbentley1/platform//terraform/modules/bootstrap?ref=dbf956f3f9c2bbad252e2899e198ecf25c1cb64f"
+  source = "github.com/collinbentley1/platform//terraform/modules/bootstrap?ref=f857a58e3ecac63b2b3882809efbfb7136bfa6c3"
 
   app                         = "cdbentley"
   project_id                  = var.project_id
@@ -10,7 +10,7 @@ module "bootstrap" {
   github_owner                = var.github_owner
   github_repo                 = var.github_repo
   github_repository_id        = var.github_repository_id
-  active_workflow_sha         = "dbf956f3f9c2bbad252e2899e198ecf25c1cb64f"
+  active_workflow_sha         = "f857a58e3ecac63b2b3882809efbfb7136bfa6c3"
 
   manage_automatic_default_service_account_grants_policy = var.manage_automatic_default_service_account_grants_policy
   runtime_description                                    = "Runtime identity for the cdbentley Cloud Run services."

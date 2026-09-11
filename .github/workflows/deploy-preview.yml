@@ -23,7 +23,9 @@ jobs:
       actions: read # The reusable cleanup's prefetch job downloads the exact artifact id.
       id-token: write # Exchange only for the exact-SHA preview traffic operator.
       pull-requests: read # Let the reusable cleanup re-read current lifecycle state.
-    uses: collinbentley1/platform/.github/workflows/cleanup-preview.yml@dbf956f3f9c2bbad252e2899e198ecf25c1cb64f
+    secrets:
+      DHI_PUBLIC_READ_TOKEN_20260822_098DCA9280B3: ${{ secrets.DHI_PUBLIC_READ_TOKEN_20260822_098DCA9280B3 }}
+    uses: collinbentley1/platform/.github/workflows/cleanup-preview.yml@f857a58e3ecac63b2b3882809efbfb7136bfa6c3
 
   deploy:
     needs: invalidate
@@ -38,4 +40,6 @@ jobs:
       contents: read
       id-token: write # Exchange only through the exact reusable-workflow environment paths.
       pull-requests: write # Post the exact-head preview URL after deployment.
-    uses: collinbentley1/platform/.github/workflows/deploy-preview.yml@dbf956f3f9c2bbad252e2899e198ecf25c1cb64f
+    secrets:
+      DHI_PUBLIC_READ_TOKEN_20260822_098DCA9280B3: ${{ secrets.DHI_PUBLIC_READ_TOKEN_20260822_098DCA9280B3 }}
+    uses: collinbentley1/platform/.github/workflows/deploy-preview.yml@f857a58e3ecac63b2b3882809efbfb7136bfa6c3
