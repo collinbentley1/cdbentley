@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.4.0",
+  "packageManager": "bun@1.4.2",
   "engines": {
     "bun": ">=1.4.0"
   },
@@ -25,5 +25,8 @@
     "@types/bun": "1.4.0",
     "playwright-core": "1.61.1",
     "typescript": "7.0.2"
+  },
+  "dependencies": {
+    "jose": "6.1.3"
   }
 }

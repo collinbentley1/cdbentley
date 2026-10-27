@@ -15,7 +15,7 @@ export function memoryStore(): RecordStore {
   const records = new Map<string, RecordValue>();
   const key = (owner: string, id: string) => JSON.stringify([owner, id]);
   return {
-    async list(owner) { ownerId(owner); return [...records.entries()].filter(([id]) => JSON.parse(id)[0] === owner).map(([, record]) => ({ ...record })).slice(-100).reverse(); },
+    async list(owner) { ownerId(owner); return [...records.entries()].filter(([id]) => JSON.parse(id)[0] === owner).map(([, record]) => ({ ...record })).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||a.id.localeCompare(b.id)).slice(0,100); },
     async put(owner, record) {
       ownerId(owner); recordId(record.id); const id = key(owner, record.id); const previous = records.get(id);
       if (previous && previous.title !== record.title) throw new HttpError(409, "Operation ID already used.");
