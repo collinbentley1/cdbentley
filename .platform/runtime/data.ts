@@ -11,13 +11,17 @@ export interface RecordStore {
   ready(): Promise<void>;
   close(): void;
 }
+function recordValue(record: RecordValue): void {
+  recordId(record.id);
+  if(typeof record.title!=="string" || typeof record.createdAt!=="string" || record.createdAt.length>64 || new TextEncoder().encode(JSON.stringify(record)).byteLength>2048) throw new HttpError(400,"Record is too large or invalid.");
+}
 export function memoryStore(): RecordStore {
   const records = new Map<string, RecordValue>();
   const key = (owner: string, id: string) => JSON.stringify([owner, id]);
   return {
-    async list(owner) { ownerId(owner); return [...records.entries()].filter(([id]) => JSON.parse(id)[0] === owner).map(([, record]) => ({ ...record })).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||a.id.localeCompare(b.id)).slice(0,100); },
+    async list(owner) { ownerId(owner); return [...records.entries()].filter(([id]) => JSON.parse(id)[0] === owner).map(([, record]) => ({ ...record })).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||b.id.localeCompare(a.id)).slice(0,100); },
     async put(owner, record) {
-      ownerId(owner); recordId(record.id); const id = key(owner, record.id); const previous = records.get(id);
+      ownerId(owner); recordValue(record); const id = key(owner, record.id); const previous = records.get(id);
       if (previous && previous.title !== record.title) throw new HttpError(409, "Operation ID already used.");
       if (!previous && records.size >= 1000) throw new HttpError(429, "Preview capacity reached.");
       records.set(id, previous ?? { ...record }); return { ...(previous ?? record) };
@@ -35,9 +39,9 @@ export async function sqliteStore(path: string): Promise<RecordStore> {
   await chmod(path, 0o600);
   db.exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS records (owner TEXT NOT NULL, id TEXT NOT NULL, title TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(owner,id))");
   return {
-    async list(owner) { ownerId(owner); return db.query("SELECT id,title,created_at AS createdAt FROM records WHERE owner=? ORDER BY created_at DESC,id LIMIT 100").all(owner) as RecordValue[]; },
+    async list(owner) { ownerId(owner); return db.query("SELECT id,title,created_at AS createdAt FROM records WHERE owner=? ORDER BY created_at DESC,id DESC LIMIT 100").all(owner) as RecordValue[]; },
     async put(owner, record) {
-      ownerId(owner); recordId(record.id);
+      ownerId(owner); recordValue(record);
       // A client-generated operation ID makes a lost create response safe to retry.
       db.query("INSERT OR IGNORE INTO records VALUES (?,?,?,?)").run(owner, record.id, record.title, record.createdAt);
       const saved = db.query("SELECT id,title,created_at AS createdAt FROM records WHERE owner=? AND id=?").get(owner, record.id) as RecordValue;
@@ -81,11 +85,11 @@ export function firestoreStore(project: string, collection = "platform_records",
       return (data.documents ?? []).map(decode);
     },
     async put(owner, record) {
-      recordId(record.id); const url = `${base}/${ownerPath(owner)}/${record.id}`;
+      recordValue(record); const url = `${base}/${ownerPath(owner)}/${record.id}`;
       const response = await call(`${url}?currentDocument.exists=false`, { method: "PATCH", body: JSON.stringify({ fields: { title: { stringValue: record.title }, createdAt: { stringValue: record.createdAt } } }) });
       if (response.status === 409 || response.status === 412) {
         const existing = await call(url); if (!existing.ok) throw new Error("Data unavailable.");
-        const saved = decode(JSON.parse(await readText(existing, 4096)) as Parameters<typeof decode>[0]);
+        const saved = decode(JSON.parse(await readText(existing, 262_144)) as Parameters<typeof decode>[0]);
         if (saved.title !== record.title) throw new HttpError(409, "Operation ID already used.");
         return saved;
       }
