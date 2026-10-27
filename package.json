@@ -29,6 +29,6 @@
     "rate-limiter-flexible": "11.2.3"
   },
   "dependencies": {
-    "jose": "6.2.12"
+    "jose": "6.2.13"
   }
 }
