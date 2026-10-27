@@ -11,6 +11,24 @@ export interface RecordStore {
   ready(): Promise<void>;
   close(): void;
 }
+
+// Bound public health polling to one database request per five seconds per
+// instance. Failed probes are cached too, and concurrent callers share a probe.
+export function cachedReadiness(probe: () => Promise<void>): () => Promise<void> {
+  let cached: { ok: boolean; until: number } | undefined;
+  let pending: Promise<void> | undefined;
+  return async () => {
+    if (cached && performance.now() < cached.until) {
+      if (!cached.ok) throw new Error("Datastore unavailable.");
+      return;
+    }
+    pending ??= Promise.resolve().then(probe).then(
+      () => { cached = { ok: true, until: performance.now() + 5000 }; },
+      () => { cached = { ok: false, until: performance.now() + 5000 }; throw new Error("Datastore unavailable."); },
+    ).finally(() => { pending = undefined; });
+    await pending;
+  };
+}
 function recordValue(record: RecordValue): void {
   recordId(record.id);
   if(typeof record.title!=="string" || typeof record.createdAt!=="string" || record.createdAt.length>64 || new TextEncoder().encode(JSON.stringify(record)).byteLength>2048) throw new HttpError(400,"Record is too large or invalid.");
@@ -96,6 +114,6 @@ export function firestoreStore(project: string, collection = "platform_records",
       if (!response.ok) throw new Error("Data unavailable."); return decode(JSON.parse(await readText(response, 262_144)) as Parameters<typeof decode>[0]);
     },
     async remove(owner, id) { recordId(id); const result = await call(`${base}/${ownerPath(owner)}/${id}`, { method: "DELETE" }); if (!result.ok && result.status !== 404) throw new Error("Data unavailable."); },
-    async ready() { const response = await call(`${base}/${collection}?pageSize=1&mask.fieldPaths=createdAt`); if (!response.ok) throw new Error("Data unavailable."); await response.body?.cancel(); }, close() {},
+    ready: cachedReadiness(async () => { const response = await call(`${base}/${collection}?pageSize=1&mask.fieldPaths=createdAt`); if (!response.ok) throw new Error("Data unavailable."); await response.body?.cancel(); }), close() {},
   };
 }
