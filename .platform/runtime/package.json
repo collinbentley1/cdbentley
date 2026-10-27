@@ -1,0 +1,13 @@
+{
+  "name": "@collinbentley/platform-runtime",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./http": "./http.ts",
+    "./auth": "./auth.ts",
+    "./data": "./data.ts"
+  },
+  "dependencies": {
+    "jose": "6.1.3"
+  }
+}

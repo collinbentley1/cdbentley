@@ -1,3 +1,4 @@
+import { secureHandler } from "../.platform/runtime/http.ts";
 import { realpath, stat } from "node:fs/promises";
 import { extname, isAbsolute, join, normalize, sep } from "node:path";
 
@@ -37,7 +38,7 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
 /** Documents that must revalidate on every request (route entry points). */
 const NO_CACHE_PATHS: ReadonlySet<string> = new Set(["index.html", join("ocean", "index.html")]);
 
-export async function handleRequest(request: Request): Promise<Response> {
+async function applicationRequest(request: Request): Promise<Response> {
   let omitBody = false;
 
   try {
@@ -54,6 +55,8 @@ export async function handleRequest(request: Request): Promise<Response> {
     return secureResponse(text("internal server error", 500), omitBody);
   }
 }
+
+export const handleRequest = secureHandler(applicationRequest);
 
 if (import.meta.main) {
   const server = Bun.serve({
